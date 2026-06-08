@@ -55,7 +55,7 @@ PY
     write_yaml "$SHOGUN_QUEUE_DIR/shogun_to_karo.yaml" $'queue:\n- id: cmd_done\n  status: done\n- id: cmd_pending\n  status: pending\n'
     write_yaml "$SHOGUN_QUEUE_DIR/tasks/ashigaru1.yaml" $'worker_id: ashigaru1\nstatus: done\n'
     write_yaml "$SHOGUN_QUEUE_DIR/reports/ashigaru1_cmd_done.yaml" $'parent_cmd: cmd_done\nstatus: done\n'
-    touch -d "2 days ago" "$SHOGUN_QUEUE_DIR/reports/ashigaru1_cmd_done.yaml"
+    python3 -c "import os, time; p = '$SHOGUN_QUEUE_DIR/reports/ashigaru1_cmd_done.yaml'; t = time.time() - 172800; os.utime(p, (t, t))"
     write_yaml "$SHOGUN_QUEUE_DIR/inbox/karo.yaml" $'messages:\n- id: m1\n  read: true\n- id: m2\n  read: false\n'
     mkdir -p "$SHOGUN_QUEUE_DIR/reports/archive"
     write_yaml "$SHOGUN_QUEUE_DIR/reports/archive/old.yaml" "status: done"

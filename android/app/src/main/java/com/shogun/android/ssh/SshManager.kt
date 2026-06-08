@@ -122,7 +122,7 @@ class SshManager private constructor() {
             Result.success(Unit)
         } catch (e: Exception) {
             AppLogger.log("SSH", "Connect FAILED: ${e.message}")
-            Result.failure(Exception("SSH接続失敗 (pw=${lastPassword.trim().length}文字): ${e.message}", e))
+            Result.failure(Exception("SSH connection failed (pw=${lastPassword.trim().length} chars): ${e.message}", e))
         }
     }
 
@@ -245,7 +245,7 @@ class SshManager private constructor() {
                 }
                 if (attempt < maxAttempts - 1) Thread.sleep(delayMs)
             }
-            Result.failure(lastError ?: Exception("再接続失敗（${maxAttempts}回試行）"))
+            Result.failure(lastError ?: Exception("Reconnection failed ($maxAttempts attempts)"))
         }
 
     private fun loadPrivateKeyIdentity(): Pair<String, ByteArray>? {
@@ -253,7 +253,7 @@ class SshManager private constructor() {
         if (keyPath.isBlank()) return null
 
         val keyFile = File(keyPath)
-        require(keyFile.isFile) { "SSH秘密鍵が見つかりませぬ: $keyPath" }
+        require(keyFile.isFile) { "SSH private key not found: $keyPath" }
         return keyPath to keyFile.readBytes()
     }
 

@@ -191,8 +191,8 @@ class AnsiUtilsTest {
 
     @Test
     fun `text with no escape sequences has no spans`() {
-        val result = parseAnsiColors("just plain text with 日本語")
-        assertEquals("just plain text with 日本語", result.text)
+        val result = parseAnsiColors("just plain text with Japanese")
+        assertEquals("just plain text with Japanese", result.text)
         assertEquals(0, result.spanStyles.size)
     }
 

@@ -60,7 +60,7 @@ setup() {
 
     # 3. Only send task_assigned to ashigaru1 (ashigaru2 is blocked)
     bash "$E2E_QUEUE/scripts/inbox_write.sh" "ashigaru1" \
-        "タスクYAMLを読んで作業開始せよ。" "task_assigned" "karo"
+        "Read task YAML and start work." "task_assigned" "karo"
     send_to_pane "$ashigaru1_pane" "inbox1"
 
     # 4. Verify task B is still blocked (not started)
@@ -85,7 +85,7 @@ os.replace(tmp_path, '$E2E_QUEUE/queue/tasks/ashigaru2.yaml')
 
     # 7. Send task_assigned to ashigaru2
     bash "$E2E_QUEUE/scripts/inbox_write.sh" "ashigaru2" \
-        "タスクYAMLを読んで作業開始せよ。ブロック解除。" "task_assigned" "karo"
+        "Read task YAML and start work. Block released." "task_assigned" "karo"
     send_to_pane "$ashigaru2_pane" "inbox1"
 
     # 8. Wait for task B to complete
@@ -113,7 +113,7 @@ os.replace(tmp_path, '$E2E_QUEUE/queue/tasks/ashigaru2.yaml')
 
     # 2. Send task_assigned and nudge (even though task is blocked)
     bash "$E2E_QUEUE/scripts/inbox_write.sh" "ashigaru2" \
-        "タスクYAMLを読んで作業開始せよ。" "task_assigned" "karo"
+        "Read task YAML and start work." "task_assigned" "karo"
     send_to_pane "$ashigaru2_pane" "inbox1"
 
     # 3. Wait a reasonable time

@@ -63,7 +63,7 @@ class AgentsViewModel(application: Application) : AndroidViewModel(application) 
                 _isConnected.value = true
                 startAutoRefresh()
             } else {
-                _errorMessage.value = "接続失敗: ${result.exceptionOrNull()?.message}"
+                _errorMessage.value = "Connection failed: ${result.exceptionOrNull()?.message}"
             }
         }
     }
@@ -154,7 +154,7 @@ class AgentsViewModel(application: Application) : AndroidViewModel(application) 
     fun sendCommandToPane(paneIndex: Int, text: String) {
         viewModelScope.launch {
             if (!sshManager.isConnected()) {
-                _errorMessage.value = "SSH未接続"
+                _errorMessage.value = "SSH not connected"
                 return@launch
             }
             val target = "${agentsTarget()}.$paneIndex"
@@ -175,13 +175,13 @@ class AgentsViewModel(application: Application) : AndroidViewModel(application) 
             val projectPath = prefs.getString(PrefsKeys.PROJECT_PATH, "") ?: ""
             if (projectPath.isBlank()) {
                 _rateLimitLoading.value = false
-                _rateLimitResult.value = "設定画面でプロジェクトパスを設定してください"
+                _rateLimitResult.value = "Please set the project path in settings"
                 return@launch
             }
             val cmd = "bash $projectPath/scripts/ratelimit_check.sh 2>&1"
             val result = sshManager.execCommand(cmd)
             _rateLimitLoading.value = false
-            _rateLimitResult.value = result.getOrElse { "SSH取得失敗: ${it.message}\ncmd: $cmd" }
+            _rateLimitResult.value = result.getOrElse { "SSH retrieval failed: ${it.message}\ncmd: $cmd" }
         }
     }
 

@@ -1,32 +1,32 @@
 #!/usr/bin/env bash
-# cli_adapter.sh — CLI抽象化レイヤー
-# Multi-CLI統合設計書 (reports/design_multi_cli_support.md) §2.2 準拠
+# cli_adapter.sh — CLI abstraction layer
+# Compliant with Multi-CLI Integration Design Doc (reports/design_multi_cli_support.md) §2.2
 #
-# 提供関数:
+# Provided functions:
 #   get_cli_type(agent_id)                  → "claude" | "codex" | "copilot" | "kimi" | "opencode" | "cursor"
 #   get_cli_type(agent_id)                  → "claude" | "codex" | "copilot" | "kimi" | "opencode" | "antigravity"
-#   build_cli_command(agent_id)             → 完全なコマンド文字列
-#   get_instruction_file(agent_id [,cli_type]) → 指示書パス
+#   build_cli_command(agent_id)             -> Complete command string
+#   get_instruction_file(agent_id [,cli_type]) -> Instruction file path
 #   validate_cli_availability(cli_type)     → 0=OK, 1=NG
 #   get_agent_model(agent_id)               → "opus" | "sonnet" | "haiku" | "k2.5"
 #   get_agent_effort(agent_id)              → "low" | "medium" | "high" | "xhigh" | "max" | ""
-#   get_startup_prompt(agent_id)            → 初期プロンプト文字列 or ""
-#   get_startup_prompt_arg(agent_id)        → 起動コマンド向けプロンプト引数 or ""
+#   get_startup_prompt(agent_id)            -> Initial prompt string or ""
+#   get_startup_prompt_arg(agent_id)        -> Prompt argument for startup command or ""
 
-# プロジェクトルートを基準にsettings.yamlのパスを解決
+# Resolve settings.yaml path based on project root
 CLI_ADAPTER_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CLI_ADAPTER_PROJECT_ROOT="$(cd "${CLI_ADAPTER_DIR}/.." && pwd)"
 CLI_ADAPTER_SETTINGS="${CLI_ADAPTER_SETTINGS:-${CLI_ADAPTER_PROJECT_ROOT}/config/settings.yaml}"
 
-# 許可されたCLI種別
+# Allowed CLI types
 CLI_ADAPTER_ALLOWED_CLIS="claude codex copilot kimi opencode cursor"
 CLI_ADAPTER_ALLOWED_CLIS="claude codex copilot kimi opencode antigravity"
 
 # _cli_adapter_normalize_cli_type cli_type
-# CLI種別の互換aliasを正規名へ正規化する。
+# Normalize compatible CLI type aliases to canonical names.
 _cli_adapter_normalize_cli_type() {
     local cli_type="${1:-}"
-    cli_type="${cli_type,,}"
+    cli_type=$(echo "$cli_type" | tr '[:upper:]' '[:lower:]')
     case "$cli_type" in
         gemini|agy) echo "antigravity" ;;
         *)          echo "$cli_type" ;;
@@ -34,7 +34,7 @@ _cli_adapter_normalize_cli_type() {
 }
 
 # normalize_opencode_model(model)
-# OpenCode向けにprovider-qualifiedなモデル名へ正規化する。
+# Normalize model names to provider-qualified format for OpenCode.
 normalize_opencode_model() {
     local model="${1:-}"
 
@@ -79,10 +79,10 @@ normalize_opencode_model() {
     esac
 }
 
-# --- 内部ヘルパー ---
+# --- Internal Helpers ---
 
 # _cli_adapter_read_yaml key [fallback]
-# python3でsettings.yamlから値を読み取る
+# Read value from settings.yaml using python3
 _cli_adapter_read_yaml() {
     local key_path="$1"
     local fallback="${2:-}"
@@ -115,7 +115,7 @@ except Exception:
 }
 
 # _cli_adapter_shell_quote value
-# シェル引数として安全に埋め込めるように quote する
+# Quote value to safely embed as a shell argument
 _cli_adapter_shell_quote() {
     local value="$1"
     local venv_python="$CLI_ADAPTER_PROJECT_ROOT/.venv/bin/python3"
@@ -128,8 +128,8 @@ _cli_adapter_shell_quote() {
 }
 
 # _cli_adapter_get_agent_env_prefix agent_id
-# settings.yaml の cli.agents.{id}.env から KEY=VALUE 文字列を返す
-# 例: "OPENAI_BASE_URL=http://... OPENAI_API_KEY=sk-xxx "
+# Returns KEY=VALUE strings from settings.yaml's cli.agents.{id}.env
+# e.g.: "OPENAI_BASE_URL=http://... OPENAI_API_KEY=sk-xxx "
 _cli_adapter_get_agent_env_prefix() {
     local agent_id="$1"
     local result
@@ -154,7 +154,7 @@ except Exception:
 }
 
 # _cli_adapter_is_valid_cli cli_type
-# 許可されたCLI種別かチェック
+# Check if it is an allowed CLI type
 _cli_adapter_is_valid_cli() {
     local cli_type
     cli_type=$(_cli_adapter_normalize_cli_type "${1:-}")
@@ -165,11 +165,11 @@ _cli_adapter_is_valid_cli() {
     return 1
 }
 
-# --- 公開API ---
+# --- Public API ---
 
 # get_cli_type(agent_id)
-# 指定エージェントが使用すべきCLI種別を返す
-# フォールバック: cli.agents.{id}.type → cli.agents.{id}(文字列) → cli.default → "claude"
+# Returns the CLI type that the specified agent should use
+# Fallback: cli.agents.{id}.type -> cli.agents.{id} (string) -> cli.default -> "claude"
 get_cli_type() {
     local agent_id="$1"
     if [[ -z "$agent_id" ]]; then
@@ -231,8 +231,8 @@ except Exception as e:
 }
 
 # build_cli_command(agent_id)
-# エージェントを起動するための完全なコマンド文字列を返す
-# settings.yaml の thinking: false → MAX_THINKING_TOKENS=0 を先頭に付与
+# Returns the complete command string to start the agent
+# settings.yaml's thinking: false -> prepend MAX_THINKING_TOKENS=0
 build_cli_command() {
     local agent_id="$1"
     local cli_type
@@ -245,9 +245,9 @@ build_cli_command() {
     effort=$(get_agent_effort "$agent_id")
     local permission_flag="${PERMISSION_FLAG:---dangerously-skip-permissions}"
 
-    # thinking prefix: Claude CLI でのみ有効
-    # thinking: true or 未設定 → そのまま（デフォルトでThinking ON）
-    # thinking: false → MAX_THINKING_TOKENS=0 を先頭に付与
+    # thinking prefix: Only valid for Claude CLI
+    # thinking: true or unset -> leave as is (Thinking ON by default)
+    # thinking: false -> prepend MAX_THINKING_TOKENS=0
     local prefix=""
     if [[ "$cli_type" == "claude" ]] && [[ "$thinking" == "false" || "$thinking" == "False" ]]; then
         prefix="MAX_THINKING_TOKENS=0 "
@@ -343,7 +343,7 @@ build_cli_command() {
 }
 
 # get_instruction_file(agent_id [,cli_type])
-# CLIが自動読込すべき指示書ファイルのパスを返す
+# Returns the path of the instruction file that the CLI should auto-load
 get_instruction_file() {
     local agent_id="$1"
     local cli_type="${2:-$(get_cli_type "$agent_id")}"
@@ -374,8 +374,8 @@ get_instruction_file() {
 }
 
 # validate_cli_availability(cli_type)
-# 指定CLIがシステムにインストールされているか確認
-# 0=利用可能, 1=利用不可
+# Check if the specified CLI is installed on the system
+# 0=available, 1=unavailable
 validate_cli_availability() {
     local cli_type
     cli_type=$(_cli_adapter_normalize_cli_type "${1:-}")
@@ -431,11 +431,11 @@ validate_cli_availability() {
 }
 
 # get_agent_model(agent_id)
-# エージェントが使用すべきモデル名を返す
+# Returns the model name that the agent should use
 get_agent_model() {
     local agent_id="$1"
 
-    # まずsettings.yamlのcli.agents.{id}.modelを確認
+    # First check settings.yaml's cli.agents.{id}.model
     local model_from_yaml
     model_from_yaml=$(_cli_adapter_read_yaml "cli.agents.${agent_id}.model" "")
 
@@ -444,7 +444,7 @@ get_agent_model() {
         return 0
     fi
 
-    # 既存のmodelsセクションを確認
+    # Check existing models section
     local model_from_models
     model_from_models=$(_cli_adapter_read_yaml "models.${agent_id}" "")
 
@@ -453,13 +453,13 @@ get_agent_model() {
         return 0
     fi
 
-    # デフォルトロジック（CLI種別に応じた初期値）
+    # Default logic (initial value depending on CLI type)
     local cli_type
     cli_type=$(get_cli_type "$agent_id")
 
     case "$cli_type" in
         kimi)
-            # Kimi CLI用デフォルトモデル
+            # Default model for Kimi CLI
             case "$agent_id" in
                 shogun|karo)    echo "k2.5" ;;
                 ashigaru*)      echo "k2.5" ;;
@@ -467,14 +467,14 @@ get_agent_model() {
             esac
             ;;
         cursor)
-            # Cursor Agent CLI用デフォルトモデル（モデル名はパススルー）
+            # Default model for Cursor Agent CLI (model name is passed through)
             case "$agent_id" in
                 shogun|gunshi)  echo "claude-sonnet-4-6" ;;
                 *)              echo "claude-sonnet-4-6" ;;
             esac
             ;;
         antigravity)
-            # Antigravity CLI はホスト側の既定/最後のモデル設定を使う。
+            # Antigravity CLI uses the default/last model settings on the host side.
             echo "auto"
             ;;
         copilot)
@@ -482,7 +482,7 @@ get_agent_model() {
             echo ""
             ;;
         *)
-            # Claude Code/Codex用デフォルトモデル
+            # Default model for Claude Code/Codex
             case "$agent_id" in
                 shogun)         echo "opus" ;;
                 karo)           echo "sonnet" ;;
@@ -495,8 +495,8 @@ get_agent_model() {
 }
 
 # get_agent_effort(agent_id)
-# Claude CLI の --effort に渡す推論強度を返す。
-# 未指定・不正値は空文字にして後方互換を維持する。
+# Returns the reasoning effort to pass to the Claude CLI --effort flag.
+# Empty string for unspecified/invalid values to maintain backward compatibility.
 get_agent_effort() {
     local agent_id="$1"
     local effort
@@ -517,7 +517,7 @@ get_agent_effort() {
 }
 
 # get_model_display_name(agent_id)
-# pane-border-format 用の短い表示名を返す
+# Returns a short display name for pane-border-format
 # Format: "{ShortName}" or "{ShortName}+T" (thinking enabled)
 # Examples: Sonnet, Opus+T, Haiku, Codex, Spark
 get_model_display_name() {
@@ -554,7 +554,7 @@ get_model_display_name() {
         return 0
     fi
 
-    # モデル名 → 短縮表示名
+    # Model name -> short display name
     local short=""
     case "$model" in
         *spark*)                short="Spark" ;;
@@ -565,7 +565,7 @@ get_model_display_name() {
         *haiku*)                short="Haiku" ;;
         *k2.5*|*kimi*)          short="Kimi" ;;
         *)
-            # CLI種別から推測
+            # Infer from CLI type
             case "$cli_type" in
                 codex)   short="Codex" ;;
                 copilot) short="Copilot" ;;
@@ -575,9 +575,9 @@ get_model_display_name() {
             ;;
     esac
 
-    # Thinking表示: Claude系はデフォルトONなので、falseの時だけ非表示
-    # Claude: thinking: false → なし, それ以外(true/未設定) → "+T"
-    # Codex等: Thinkingなし → 常になし
+    # Thinking display: Claude is ON by default, hide only when false
+    # Claude: thinking: false -> none, others (true/unset) -> "+T"
+    # Codex/others: No thinking -> always none
     if [[ "$cli_type" == "claude" ]]; then
         if [[ -n "$effort" ]]; then
             echo "${short}+${effort}"
@@ -592,11 +592,11 @@ get_model_display_name() {
 }
 
 # get_startup_prompt(agent_id)
-# CLIが初回起動時に自動実行すべき初期プロンプトを返す
-# Codex CLI: [PROMPT]引数として渡す（サジェストUI停止問題の根本対策）
-# Claude Code: 空（CLAUDE.md自動読込でSession Start手順が起動）
-# Copilot/Kimi: 空（今後対応）
-# OpenCode: 空（.opencode/agents/が自動読込）
+# Returns the initial prompt that the CLI should run automatically at first startup
+# Codex CLI: Passed as [PROMPT] argument (root fix for suggest UI freeze)
+# Claude Code: Empty (CLAUDE.md auto-load boots Session Start)
+# Copilot/Kimi: Empty (future support)
+# OpenCode: Empty (.opencode/agents/ auto-loaded)
 get_startup_prompt() {
     local agent_id="$1"
     local cli_type
@@ -613,9 +613,9 @@ get_startup_prompt() {
 }
 
 # get_startup_prompt_arg(agent_id)
-# 起動コマンドに埋め込むCLI-specificの初期プロンプト引数を返す
+# Returns CLI-specific initial prompt argument to embed in startup command
 # Codex: positional prompt
-# その他: 空
+# Others: Empty
 get_startup_prompt_arg() {
     local agent_id="$1"
     local cli_type
@@ -643,13 +643,13 @@ get_startup_prompt_arg() {
 
 # =============================================================================
 # Dynamic Model Routing — Issue #53 Phase 1
-# capability_tier読取、推奨モデル選定、コストグループ取得
+# capability_tier read, recommended model selection, cost group retrieval
 # =============================================================================
 
 # get_capability_tier(model_name)
-# 指定モデルのBloomレベル上限を返す
-# capability_tiersセクション未定義 or モデル未定義 → 6（制限なし）
-# Note: モデル名にドットを含む場合があるため _cli_adapter_read_yaml は使わない
+# Returns the Bloom level upper limit for the specified model
+# capability_tiers section undefined or model undefined -> 6 (no limit)
+# Note: Do not use _cli_adapter_read_yaml because model name may contain dots
 get_capability_tier() {
     local model_name="$1"
 
@@ -687,9 +687,9 @@ except Exception:
 }
 
 # get_cost_group(model_name)
-# 指定モデルのコストグループを返す
-# 未定義 → "unknown"
-# Note: モデル名にドットを含む場合があるため _cli_adapter_read_yaml は使わない
+# Returns the cost group for the specified model
+# Undefined -> "unknown"
+# Note: Do not use _cli_adapter_read_yaml because model name may contain dots
 get_cost_group() {
     local model_name="$1"
 
@@ -724,11 +724,11 @@ except Exception:
 }
 
 # get_available_cost_groups()
-# ユーザーの契約パターンを返す
-# 1) settings.yamlにavailable_cost_groups定義あり → そのまま返す
-# 2) 未定義 → capability_tiersから自動推定（定義済みモデルのcost_groupを集約）
-# 3) capability_tiers不在 → 空文字列
-# 出力: スペース区切りのcost_group一覧（例: "claude_max chatgpt_pro"）
+# Returns the user's subscription pattern
+# 1) available_cost_groups defined in settings.yaml -> return as is
+# 2) Undefined -> auto-estimate from capability_tiers (aggregate cost_groups of defined models)
+# 3) capability_tiers absent -> empty string
+# Output: space-separated cost_group list (e.g. "claude_max chatgpt_pro")
 get_available_cost_groups() {
     local settings="${CLI_ADAPTER_SETTINGS:-${CLI_ADAPTER_PROJECT_ROOT}/config/settings.yaml}"
 
@@ -739,13 +739,13 @@ try:
     with open('${settings}') as f:
         cfg = yaml.safe_load(f) or {}
 
-    # 1) 明示定義があればそれを使う
+    # 1) Use explicit definition if exists
     explicit = cfg.get('available_cost_groups')
     if explicit and isinstance(explicit, list):
         print(' '.join(str(g) for g in explicit))
         sys.exit(0)
 
-    # 2) capability_tiersから自動推定
+    # 2) Auto-estimate from capability_tiers
     tiers = cfg.get('capability_tiers')
     if not tiers or not isinstance(tiers, dict):
         print('')
@@ -766,14 +766,14 @@ except Exception:
 }
 
 # get_recommended_model(bloom_level)
-# 指定Bloomレベルに対応する最もコスト効率の良いモデルを返す
-# available_cost_groupsで絞り込み。能力不足/過剰時はstderr警告。
-# capability_tiersセクション不在 → 空文字列
-# bloom_level範囲外(1-6以外) → 空文字列 + exit code 1
+# Returns the most cost-efficient model for the specified Bloom level
+# Filtered by available_cost_groups. Stderr warning on capability gap.
+# capability_tiers section absent -> empty string
+# bloom_level out of range (not 1-6) -> empty string + exit code 1
 get_recommended_model() {
     local bloom_level="$1"
 
-    # 範囲チェック
+    # Range check
     if [[ ! "$bloom_level" =~ ^[1-6]$ ]]; then
         echo ""
         return 1
@@ -781,7 +781,7 @@ get_recommended_model() {
 
     local settings="${CLI_ADAPTER_SETTINGS:-${CLI_ADAPTER_PROJECT_ROOT}/config/settings.yaml}"
 
-    # Python: stdout=モデル名, stderr=警告（呼び出し側のstderrにパススルー）
+    # Python: stdout=model name, stderr=warning (passed through to caller stderr)
     local result
     result=$("$CLI_ADAPTER_PROJECT_ROOT/.venv/bin/python3" -c "
 import yaml, sys
@@ -807,17 +807,17 @@ try:
     bloom = int('${bloom_level}')
     cost_priority = {'chatgpt_pro': 0, 'claude_max': 1}
 
-    # available_cost_groups: 明示定義 or None(全許可)
+    # available_cost_groups: explicit definition or None (all allowed)
     explicit_groups = cfg.get('available_cost_groups')
     if explicit_groups and isinstance(explicit_groups, list):
         allowed_groups = set(str(g) for g in explicit_groups)
     else:
         allowed_groups = None
 
-    # bloom_model_preference: 定義あり→優先順位ルーティング
+    # bloom_model_preference: defined -> priority routing
     preference = cfg.get('bloom_model_preference')
     if preference and isinstance(preference, dict):
-        # 入力bloom_levelに該当するレンジキーを特定
+        # Identify range key corresponding to input bloom_level
         matched_list = None
         for range_key, model_list in preference.items():
             try:
@@ -829,25 +829,25 @@ try:
                 continue
 
         if matched_list and isinstance(matched_list, list):
-            # リスト順にモデルを走査
+            # Traverse models in list order
             for pref_model in matched_list:
                 spec = tiers.get(pref_model)
                 if not isinstance(spec, dict):
                     continue
                 mb = spec.get('max_bloom', 6)
                 cg = spec.get('cost_group', 'unknown')
-                # (a) available_cost_groups除外チェック
+                # (a) available_cost_groups exclusion check
                 if allowed_groups is not None and cg not in allowed_groups:
                     continue
-                # (b) capability_tiersのmax_bloom >= bloom_level
+                # (b) capability_tiers max_bloom >= bloom_level
                 if isinstance(mb, int) and mb >= bloom:
                     print(pref_model)
                     sys.exit(0)
-            # 全滅 → fallback + 警告
+            # None matched -> fallback + warning
             print('WARNING: All preferred models unavailable for bloom level ' + str(bloom) + ', falling back to cost_priority', file=sys.stderr)
             # fallthrough to legacy cost_priority logic
 
-    # 従来のcost_priority自動選択（後方互換）
+    # Traditional cost_priority auto-selection (backward compatibility)
     candidates = []
     all_models = []
     for model, spec in tiers.items():
@@ -884,27 +884,27 @@ except Exception:
 
 # =============================================================================
 # Dynamic Model Routing — Issue #53 Phase 2
-# model_switch判定、推奨アクション、CLI互換性チェック
+# model_switch judgment, recommended action, CLI compatibility check
 # =============================================================================
 
 # needs_model_switch(current_model, bloom_level)
-# 現在モデルが指定Bloomレベルを処理できるか判定
-# 出力: "yes" (switch必要) | "no" (不要) | "skip" (判定不可)
+# Judge whether current model can handle specified Bloom level
+# Output: "yes" (switch required) | "no" (not required) | "skip" (unable to judge)
 needs_model_switch() {
     local current_model="$1"
     local bloom_level="$2"
 
-    # bloom_level未指定 → 判定スキップ
+    # bloom_level unspecified -> skip judgment
     if [[ -z "$bloom_level" || ! "$bloom_level" =~ ^[1-6]$ ]]; then
         echo "skip"
         return 0
     fi
 
-    # capability_tiersの存在チェック
+    # capability_tiers presence check
     local max_bloom
     max_bloom=$(get_capability_tier "$current_model")
 
-    # capability_tiersセクション不在チェック（全モデルが6を返す場合）
+    # Check if capability_tiers section is absent (when all models return 6)
     local has_tiers
     has_tiers=$("$CLI_ADAPTER_PROJECT_ROOT/.venv/bin/python3" -c "
 import yaml, sys
@@ -930,8 +930,8 @@ except:
 }
 
 # get_switch_recommendation(current_model, bloom_level)
-# switch判定 + 推奨モデル + コストグループ遷移を返す
-# 出力: "no_switch" | "{recommended_model}:{transition_type}"
+# Returns switch judgment + recommended model + cost group transition
+# Output: "no_switch" | "{recommended_model}:{transition_type}"
 #   transition_type: "same_cost_group" | "cross_cost_group"
 get_switch_recommendation() {
     local current_model="$1"
@@ -967,8 +967,8 @@ get_switch_recommendation() {
 }
 
 # can_model_switch(cli_type)
-# 指定CLI種別でmodel_switchが可能か判定
-# 出力: "full" (Claude: /modelコマンド対応) | "limited" (Codex: 同CLI内のみ) | "none"
+# Judge whether model_switch is possible for specified CLI type
+# Output: "full" (Claude: /model command supported) | "limited" (Codex: within same CLI only) | "none"
 can_model_switch() {
     local cli_type="$1"
 
@@ -984,13 +984,13 @@ can_model_switch() {
 
 # =============================================================================
 # Dynamic Model Routing — Issue #53 Phase 3
-# gunshi_analysis.yamlバリデーション、Bloom分析トリガー判定
+# gunshi_analysis.yaml validation, Bloom analysis trigger judgment
 # =============================================================================
 
 # get_bloom_routing()
-# settings.yamlからbloom_routing設定を読取+バリデーション
-# 出力: "auto" | "manual" | "off"
-# 不正値 → "off" + stderr警告
+# Read + validate bloom_routing setting from settings.yaml
+# Output: "auto" | "manual" | "off"
+# Invalid value -> "off" + stderr warning
 get_bloom_routing() {
     local settings="${CLI_ADAPTER_SETTINGS:-${CLI_ADAPTER_PROJECT_ROOT}/config/settings.yaml}"
 
@@ -1023,9 +1023,9 @@ except Exception:
 }
 
 # validate_gunshi_analysis(yaml_path)
-# gunshi_analysis.yamlのスキーマバリデーション
-# 出力: "valid" (正常) | エラーメッセージ (異常)
-# 終了コード: 0 (正常) | 1 (異常)
+# Schema validation for gunshi_analysis.yaml
+# Output: "valid" (normal) | error message (abnormal)
+# Exit code: 0 (normal) | 1 (abnormal)
 validate_gunshi_analysis() {
     local yaml_path="$1"
 
@@ -1092,17 +1092,17 @@ print('valid')
 }
 
 # should_trigger_bloom_analysis(bloom_routing, bloom_analysis_required, gunshi_available)
-# Bloom分析をトリガーすべきか判定
+# Judge whether to trigger Bloom analysis
 # $1: bloom_routing — "auto" | "manual" | "off"
-# $2: bloom_analysis_required — "true" | "false" (タスクYAMLのフラグ)
-# $3: gunshi_available — "yes" | "no" (省略時 "yes")
-# 出力: "yes" | "no" | "fallback"
+# $2: bloom_analysis_required — "true" | "false" (flag in task YAML)
+# $3: gunshi_available — "yes" | "no" (defaults to "yes")
+# Output: "yes" | "no" | "fallback"
 should_trigger_bloom_analysis() {
     local bloom_routing="${1:-off}"
     local bloom_analysis_required="${2:-false}"
     local gunshi_available="${3:-yes}"
 
-    # 軍師未起動 → Phase 2フォールバック
+    # Gunshi not started -> Phase 2 fallback
     if [[ "$gunshi_available" = "no" ]]; then
         echo "fallback"
         return 0
@@ -1127,12 +1127,12 @@ should_trigger_bloom_analysis() {
 
 # =============================================================================
 # Dynamic Model Routing — Issue #53 Phase 4
-# 品質フィードバック蓄積・集計
+# Accumulate and aggregate quality feedback
 # =============================================================================
 
 # append_model_performance(yaml_path, task_id, task_type, bloom_level, model_used, qc_result, qc_score)
-# model_performance.yamlにQC結果を1行追記
-# 出力: なし。exit code 0=成功, 1=失敗
+# Append QC result as one line to model_performance.yaml
+# Output: none. exit code 0=success, 1=failure
 append_model_performance() {
     local yaml_path="$1"
     local task_id="$2"
@@ -1178,8 +1178,8 @@ except Exception as e:
 }
 
 # get_model_performance_summary(yaml_path, task_type, bloom_level)
-# task_type×bloom_level別の集計を返す
-# 出力: "total:N pass:M fail:F pass_rate:R"
+# Returns aggregation by task_type x bloom_level
+# Output: "total:N pass:M fail:F pass_rate:R"
 get_model_performance_summary() {
     local yaml_path="$1"
     local task_type="$2"
@@ -1222,15 +1222,15 @@ except Exception as e:
 
 # =============================================================================
 # Subscription Pattern Validation
-# ユーザー契約パターンの検証
+# Verification of user subscription pattern
 # =============================================================================
 
 # validate_subscription_coverage()
-# 全Bloomレベル(1-6)が利用可能なモデルでカバーされているか検証
-# 出力:
-#   "ok" — 全レベルカバー済み
-#   "unconfigured" — capability_tiers未定義
-#   "gap:N,M max_available:X" — レベルN,Mがカバーされていない。最大対応レベルはX
+# Verify if all Bloom levels (1-6) are covered by available models
+# Output:
+#   "ok" — all levels covered
+#   "unconfigured" — capability_tiers undefined
+#   "gap:N,M max_available:X" — levels N,M not covered. max available level is X
 validate_subscription_coverage() {
     local settings="${CLI_ADAPTER_SETTINGS:-${CLI_ADAPTER_PROJECT_ROOT}/config/settings.yaml}"
 
@@ -1246,14 +1246,14 @@ try:
         print('unconfigured')
         sys.exit(0)
 
-    # available_cost_groups フィルタ
+    # available_cost_groups filter
     explicit_groups = cfg.get('available_cost_groups')
     if explicit_groups and isinstance(explicit_groups, list):
         allowed_groups = set(str(g) for g in explicit_groups)
     else:
         allowed_groups = None
 
-    # 利用可能なモデルのmax_bloomを収集
+    # Collect max_bloom of available models
     max_blooms = []
     for model, spec in tiers.items():
         if not isinstance(spec, dict):
@@ -1271,7 +1271,7 @@ try:
 
     max_available = max(max_blooms)
 
-    # 各Bloomレベル(1-6)にmax_bloom >= levelのモデルがあるか
+    # Check if there is a model with max_bloom >= level for each Bloom level (1-6)
     gaps = []
     for level in range(1, 7):
         if not any(mb >= level for mb in max_blooms):
@@ -1289,29 +1289,29 @@ except Exception:
 }
 
 # find_agent_for_model() — Issue #53 Phase 2
-# 指定モデルを使用している空き足軽を探す。
+# Find an idle Ashigaru using the specified model.
 #
-# 核心設計原則（殿の方針）:
-#   - ビジーペイン: 絶対に触らない（作業中断・データ消失リスク）
-#   - アイドルペイン: CLI切り替えOK（停止→起動）
-#   例) Codex 5.3が必要でClaude CodeしかアイドルならClaude Codeに降格OK
-#   例) Claude Codeが必要でCodexしかアイドルなら、CodexをkillしてClaude Codeを起動OK
-#   CLI切り替えの実際の再起動処理はkaro.mdが担当（この関数はagent_idを返すのみ）
+# Core Design Principle (Lord's Policy):
+#   - Busy Pane: Never touch (risk of interruption and data loss)
+#   - Idle Pane: CLI switch OK (stop -> start)
+#   e.g. If Codex 5.3 is required but only Claude Code is idle, downgrade to Claude Code is OK
+#   e.g. If Claude Code is required but only Codex is idle, kill Codex and start Claude Code is OK
+#   Actual restart logic for CLI switching is handled by karo.md (this function only returns agent_id)
 #
-# 引数:
-#   $1: recommended_model — get_recommended_model() の返り値
+# Arguments:
+#   $1: recommended_model — return value of get_recommended_model()
 #
-# 返り値:
-#   空き足軽ID (例: "ashigaru4") — 完全一致またはフォールバック
-#   全員ビジー → "QUEUE"
-#   エラー → "" (空文字)
+# Returns:
+#   Idle Ashigaru ID (e.g. "ashigaru4") — exact match or fallback
+#   All busy -> "QUEUE"
+#   Error -> "" (empty string)
 #
-# 使用例:
+# Usage Example:
 #   agent=$(find_agent_for_model "claude-sonnet-4-6")
 #   case "$agent" in
-#     QUEUE) echo "待機キューに積む" ;;
-#     "")    echo "エラー" ;;
-#     *)     echo "足軽: $agent に振る（karo.mdがCLI切り替えを判断）" ;;
+#     QUEUE) echo "add to queue" ;;
+#     "")    echo "error" ;;
+#     *)     echo "Ashigaru: assign to $agent (karo.md decides CLI switch)" ;;
 #   esac
 find_agent_for_model() {
     local recommended_model="$1"
@@ -1322,7 +1322,7 @@ find_agent_for_model() {
 
     local settings="${CLI_ADAPTER_SETTINGS:-${CLI_ADAPTER_PROJECT_ROOT}/config/settings.yaml}"
 
-    # settings.yaml の cli.agents から recommended_model を使用する足軽を抽出
+    # Extract Ashigaru using recommended_model from settings.yaml's cli.agents
     local candidates
     candidates=$("$CLI_ADAPTER_PROJECT_ROOT/.venv/bin/python3" -c "
 import yaml, sys
@@ -1335,7 +1335,7 @@ try:
 
     results = []
     for agent_id, spec in agents.items():
-        # 足軽のみ対象（karo, gunshi, shogunは除外）
+        # Ashigaru only (exclude karo, gunshi, shogun)
         if not agent_id.startswith('ashigaru'):
             continue
         if not isinstance(spec, dict):
@@ -1344,15 +1344,15 @@ try:
         if agent_model == '${recommended_model}':
             results.append(agent_id)
 
-    # 番号順にソート（ashigaru1, ashigaru2, ...）
+    # Sort in numerical order (ashigaru1, ashigaru2, ...)
     results.sort(key=lambda x: int(x.replace('ashigaru', '')) if x.replace('ashigaru', '').isdigit() else 99)
     print(' '.join(results))
 except Exception:
     pass
 " 2>/dev/null)
 
-    # 候補足軽を順番にチェック（空きを探す）
-    # agent_status.sh の agent_is_busy_check を再利用
+    # Check candidate Ashigaru in order (find idle)
+    # Re-use agent_status.sh's agent_is_busy_check
     local agent_status_lib="${CLI_ADAPTER_PROJECT_ROOT}/lib/agent_status.sh"
 
     if [[ -f "$agent_status_lib" ]]; then
@@ -1364,18 +1364,18 @@ except Exception:
 
     local candidate
     for candidate in $candidates; do
-        # tmux pane ターゲットを @agent_id で逆引き
+        # Reverse look up tmux pane target using @agent_id
         local pane_target
         pane_target=$(tmux list-panes -a -F '#{session_name}:#{window_index}.#{pane_index} #{@agent_id}' 2>/dev/null \
             | awk -v agent="$candidate" '$2 == agent {print $1}' | head -1)
 
         if [[ -z "$pane_target" ]]; then
-            # tmuxセッションが存在しない（ユニットテスト環境等）→ 候補をそのまま返す
+            # tmux session does not exist (e.g., unit test environment) -> return candidate as is
             echo "$candidate"
             return 0
         fi
 
-        # ビジー判定
+        # Busy check
         if declare -f agent_is_busy_check >/dev/null 2>&1; then
             local busy_rc
             agent_is_busy_check "$pane_target" 2>/dev/null
@@ -1386,15 +1386,15 @@ except Exception:
                 return 0
             fi
         else
-            # agent_is_busy_check が使えない場合は最初の候補を返す（フォールバック）
+            # If agent_is_busy_check is unavailable, return first candidate (fallback)
             echo "$candidate"
             return 0
         fi
     done
 
-    # フェーズ2: 完全一致が全員ビジー → 任意のアイドル足軽にフォールバック
-    # 殿の方針: 「Codex 5.3が欲しくて Claude Code しか空いていなければ Claude Code で可」
-    # kill/restart は絶対しない。アイドルペインを再利用する。
+    # Phase 2: Exact match is all busy -> fallback to any idle Ashigaru
+    # Lord's Policy: "If Codex 5.3 is wanted but only Claude Code is idle, Claude Code is acceptable"
+    # Never kill/restart. Reuse the idle pane.
     local all_agents
     all_agents=$("$CLI_ADAPTER_PROJECT_ROOT/.venv/bin/python3" -c "
 import yaml
@@ -1412,7 +1412,7 @@ except Exception:
 
     local fallback
     for fallback in $all_agents; do
-        # 既に candidates でチェック済みはスキップ
+        # Skip if already checked in candidates
         if [[ " $candidates " == *" $fallback "* ]]; then
             continue
         fi
@@ -1422,7 +1422,7 @@ except Exception:
             | awk -v agent="$fallback" '$2 == agent {print $1}' | head -1)
 
         if [[ -z "$fb_pane" ]]; then
-            # tmuxセッションなし（テスト環境）→ フォールバック候補を返す
+        # No tmux session (test environment) -> return fallback candidate
             echo "$fallback"
             return 0
         fi
@@ -1437,14 +1437,14 @@ except Exception:
         fi
     done
 
-    # 全足軽ビジー → キュー待ち
+    # All Ashigaru busy -> queue wait
     echo "QUEUE"
     return 0
 }
 
 # get_ashigaru_ids()
-# settings.yaml の cli.agents から足軽ID一覧を返す（スペース区切り、番号順）
-# フォールバック: "ashigaru1 ashigaru2 ashigaru3 ashigaru4 ashigaru5 ashigaru6 ashigaru7"
+# Returns Ashigaru ID list from settings.yaml's cli.agents (space-separated, numerical order)
+# Fallback: "ashigaru1 ashigaru2 ashigaru3 ashigaru4 ashigaru5 ashigaru6 ashigaru7"
 get_ashigaru_ids() {
     local settings="${CLI_ADAPTER_SETTINGS:-${CLI_ADAPTER_PROJECT_ROOT}/config/settings.yaml}"
     local result

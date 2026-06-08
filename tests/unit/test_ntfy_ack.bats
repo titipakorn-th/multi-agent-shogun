@@ -1,16 +1,16 @@
 #!/usr/bin/env bats
-# test_ntfy_ack.bats — ntfy ACK自動返信ユニットテスト
-# PR #46: ntfyメッセージ受信時の自動ACK返信機能
+# test_ntfy_ack.bats — ntfy ACK auto-reply Unit Test
+# PR #46: auto-ACK reply function on receiving ntfy messages
 #
-# テスト構成:
-#   T-ACK-001: 正常メッセージ → inbox_write to shogun (auto-ACK removed)
-#   T-ACK-002: outboundタグ付き → ACKスキップ（ループ防御）
-#   T-ACK-003: auto-ACK未送信確認 (shogun replies directly)
-#   T-ACK-004: ACK送信失敗 → inbox_write継続
-#   T-ACK-005: 空メッセージ → ACKスキップ
-#   T-ACK-006: keepaliveイベント → ACKスキップ
-#   T-ACK-007: append_ntfy_inbox失敗 → ACK・inbox_write両方スキップ
-#   T-ACK-008: 特殊文字がinbox_writeに保持される
+# Test configuration:
+#   T-ACK-001: normal message -> inbox_write to shogun (auto-ACK removed)
+#   T-ACK-002: with outbound tag -> skip ACK (loop prevention)
+#   T-ACK-003: auto-ACK untransmitted verification (shogun replies directly)
+#   T-ACK-004: ACK transmission failure -> continue inbox_write
+#   T-ACK-005: empty message -> skip ACK
+#   T-ACK-006: keepalive event -> skip ACK
+#   T-ACK-007: append_ntfy_inbox failure -> skip both ACK and inbox_write
+#   T-ACK-008: special characters are retained in inbox_write
 
 setup_file() {
     export PROJECT_ROOT="$(cd "$(dirname "$BATS_TEST_FILENAME")/../.." && pwd)"
@@ -25,7 +25,7 @@ setup() {
     export INBOX_LOG="$TEST_TMPDIR/inbox.log"
     export MOCK_CURL_OUTPUT="$TEST_TMPDIR/curl_output.json"
 
-    # モックプロジェクト構築
+    # Build mock project
     mkdir -p "$MOCK_PROJECT"/{config,lib,scripts,queue,logs/ntfy_inbox_corrupt}
     mkdir -p "$MOCK_PROJECT/.venv/bin"
     mkdir -p "$MOCK_BIN"
@@ -35,10 +35,10 @@ setup() {
 ntfy_topic: "test-ack-topic-12345"
 YAML
 
-    # 空の認証ファイル
+    # Empty authentication file
     touch "$MOCK_PROJECT/config/ntfy_auth.env"
 
-    # 本物のntfy_auth.shをコピー
+    # Copy authentic ntfy_auth.sh
     cp "$PROJECT_ROOT/lib/ntfy_auth.sh" "$MOCK_PROJECT/lib/"
 
     # python3 wrapper (exec to project venv so pyvenv.cfg is found → PyYAML available)
@@ -50,10 +50,10 @@ exec "$PROJECT_ROOT/.venv/bin/python3" "\$@"
 WRAPPER
     chmod +x "$MOCK_PROJECT/.venv/bin/python3"
 
-    # ntfy_inbox初期化
+    # Initialize ntfy_inbox
     echo "inbox:" > "$MOCK_PROJECT/queue/ntfy_inbox.yaml"
 
-    # --- モックスクリプト ---
+    # --- Mock scripts ---
 
     # mock curl
     cat > "$MOCK_BIN/curl" << 'CURL_MOCK'
@@ -79,19 +79,19 @@ echo "$@" >> "$INBOX_LOG"
 INBOX_MOCK
     chmod +x "$MOCK_PROJECT/scripts/inbox_write.sh"
 
-    # ntfy_listener.shコピー（SCRIPT_DIR差し替え）
+    # Copy ntfy_listener.sh (overwrite SCRIPT_DIR)
     sed "s|^SCRIPT_DIR=.*|SCRIPT_DIR=\"$MOCK_PROJECT\"|" \
         "$PROJECT_ROOT/scripts/ntfy_listener.sh" \
         > "$MOCK_PROJECT/ntfy_listener_test.sh"
     chmod +x "$MOCK_PROJECT/ntfy_listener_test.sh"
 
-    # ログ初期化
+    # Initialize logs
     touch "$ACK_LOG" "$INBOX_LOG"
 
-    # PATHにモックcurlを先頭配置
+    # Place mock curl at head of PATH
     export PATH="$MOCK_BIN:$PATH"
 
-    # デフォルト: ntfy.sh正常終了
+    # Default: ntfy.sh exits normally
     unset MOCK_NTFY_EXIT_CODE
 }
 
@@ -101,7 +101,7 @@ teardown() {
     rm -rf "$TEST_TMPDIR"
 }
 
-# --- ヘルパー ---
+# --- Helper ---
 
 run_listener() {
     timeout 3 bash "$MOCK_PROJECT/ntfy_listener_test.sh" 2>/dev/null || true
@@ -113,7 +113,7 @@ run_listener() {
 
 @test "T-ACK-001: Normal message triggers inbox_write to shogun" {
     cat > "$MOCK_CURL_OUTPUT" << 'JSON'
-{"event":"message","id":"msg001","time":1234567890,"message":"テスト通知","tags":[]}
+{"event":"message","id":"msg001","time":1234567890,"message":"test notification","tags":[]}
 JSON
     run_listener
     # Auto-ACK removed — shogun replies directly after processing.
@@ -128,7 +128,7 @@ JSON
 
 @test "T-ACK-002: Outbound message does NOT trigger ACK (loop prevention)" {
     cat > "$MOCK_CURL_OUTPUT" << 'JSON'
-{"event":"message","id":"msg002","time":1234567890,"message":"📱受信: echo","tags":["outbound"]}
+{"event":"message","id":"msg002","time":1234567890,"message":"📱Received: echo","tags":["outbound"]}
 JSON
     run_listener
     [ ! -s "$ACK_LOG" ]
@@ -140,7 +140,7 @@ JSON
 
 @test "T-ACK-003: No auto-ACK sent (shogun replies directly)" {
     cat > "$MOCK_CURL_OUTPUT" << 'JSON'
-{"event":"message","id":"msg003","time":1234567890,"message":"テスト通知です","tags":[]}
+{"event":"message","id":"msg003","time":1234567890,"message":"test notification","tags":[]}
 JSON
     run_listener
     # Auto-ACK removed — ACK_LOG should be empty
@@ -214,7 +214,7 @@ JSON
 
 @test "T-ACK-008: Special characters in message preserved in inbox_write" {
     cat > "$MOCK_CURL_OUTPUT" << 'JSON'
-{"event":"message","id":"msg008","time":1234567890,"message":"こんにちは 'world' & <test>","tags":[]}
+{"event":"message","id":"msg008","time":1234567890,"message":"Hello 'world' & <test>","tags":[]}
 JSON
     run_listener
     # Auto-ACK removed — verify inbox_write still fires for special characters

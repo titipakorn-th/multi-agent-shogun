@@ -60,7 +60,7 @@ wait_for_log() {
     return 1
 }
 
-# ═══ E2E-010-A: /clear後にidle flagが作成される ═══
+# ═══ E2E-010-A: idle flag is created after /clear ═══
 
 @test "E2E-010-A: /clear recovery creates idle flag" {
     local ashigaru1_pane
@@ -114,7 +114,7 @@ wait_for_log() {
         "$E2E_QUEUE/queue/tasks/ashigaru1.yaml"
 
     bash "$E2E_QUEUE/scripts/inbox_write.sh" "ashigaru1" \
-        "タスクYAMLを読んで作業開始せよ。" "task_assigned" "karo"
+        "Read task YAML and start work." "task_assigned" "karo"
 
     log_file="/tmp/e2e_inbox_watcher_ashigaru1_stale_busy_${BASHPID}.log"
     watcher_pid=$(

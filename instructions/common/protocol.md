@@ -11,13 +11,13 @@ bash scripts/inbox_write.sh <target_agent> "<message>" <type> <from>
 Examples:
 ```bash
 # Shogun → Karo
-bash scripts/inbox_write.sh karo "cmd_048を書いた。実行せよ。" cmd_new shogun
+bash scripts/inbox_write.sh karo "Wrote cmd_048. Please execute." cmd_new shogun
 
 # Ashigaru → Karo
-bash scripts/inbox_write.sh karo "足軽5号、任務完了。報告YAML確認されたし。" report_received ashigaru5
+bash scripts/inbox_write.sh karo "Ashigaru 5, mission complete. Please verify report YAML." report_received ashigaru5
 
 # Karo → Ashigaru
-bash scripts/inbox_write.sh ashigaru3 "タスクYAMLを読んで作業開始せよ。" task_assigned karo
+bash scripts/inbox_write.sh ashigaru3 "Read the task YAML and start work." task_assigned karo
 ```
 
 Delivery is handled by `inbox_watcher.sh` (infrastructure layer).
@@ -60,8 +60,8 @@ Read-cost controls:
 
 | Elapsed | Action | Trigger |
 |---------|--------|---------|
-| 0〜2 min | Standard pty nudge | Normal delivery |
-| 2〜4 min | Escape×2 + nudge | Copilot/Kimi use Escape×2 + Ctrl-C + nudge. Claude/Codex/OpenCode use a plain nudge instead |
+| 0-2 min | Standard pty nudge | Normal delivery |
+| 2-4 min | Escape×2 + nudge | Copilot/Kimi use Escape×2 + Ctrl-C + nudge. Claude/Codex/OpenCode use a plain nudge instead |
 | 4 min+ | Context reset sent (max once per 5 min, skipped for Codex) | Force session reset + YAML re-read |
 
 ## Inbox Processing Protocol (karo/ashigaru/gunshi)
@@ -89,7 +89,7 @@ When Karo determines a task needs to be redone:
 
 1. Karo writes new task YAML with new task_id (e.g., `subtask_097d` → `subtask_097d2`), adds `redo_of` field
 2. Karo sends `clear_command` type inbox message (NOT `task_assigned`)
-3. inbox_watcher delivers context reset to the agent（Claude/Copilot/Kimi: `/clear`, Codex/OpenCode: `/new`）→ session reset
+3. inbox_watcher delivers context reset to the agent (Claude/Copilot/Kimi: `/clear`, Codex/OpenCode: `/new`) → session reset
 4. Agent recovers via Session Start procedure, reads new task YAML, starts fresh
 
 Race condition is eliminated: context reset wipes old context. Agent re-reads YAML with new task_id.
@@ -122,7 +122,7 @@ bash scripts/inbox_write.sh <target> "<message>" <type> <from>
 After writing report YAML, notify Karo:
 
 ```bash
-bash scripts/inbox_write.sh karo "足軽{N}号、任務完了でござる。報告書を確認されよ。" report_received ashigaru{N}
+bash scripts/inbox_write.sh karo "Ashigaru {N}, mission complete. Please verify the report." report_received ashigaru{N}
 ```
 
 That's it. No state checking, no retry, no delivery verification.

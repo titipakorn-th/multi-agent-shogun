@@ -1,16 +1,16 @@
 #!/usr/bin/env bash
 # ============================================================
-# first_setup.sh - multi-agent-shogun 初回セットアップスクリプト
-# Ubuntu / WSL / Mac 用環境構築ツール
+# first_setup.sh - multi-agent-shogun Initial Setup Script
+# Environment construction tool for Ubuntu / WSL / Mac
 # ============================================================
-# 実行方法:
+# Run method:
 #   chmod +x first_setup.sh
 #   ./first_setup.sh
 # ============================================================
 
 set -e
 
-# 色定義
+# Color definitions
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
@@ -19,7 +19,7 @@ CYAN='\033[0;36m'
 NC='\033[0m' # No Color
 BOLD='\033[1m'
 
-# アイコン付きログ関数
+# Logging functions with icons
 log_info() {
     echo -e "${BLUE}[INFO]${NC} $1"
 }
@@ -40,32 +40,32 @@ log_step() {
     echo -e "\n${CYAN}${BOLD}━━━ $1 ━━━${NC}\n"
 }
 
-# スクリプトのディレクトリを取得
+# Get script directory
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
-# 結果追跡用変数
+# Variables for result tracking
 RESULTS=()
 HAS_ERROR=false
 
 echo ""
 echo "  ╔══════════════════════════════════════════════════════════════╗"
-echo "  ║  🏯 multi-agent-shogun インストーラー                         ║"
+echo "  ║  🏯 multi-agent-shogun Installer                              ║"
 echo "  ║     Initial Setup Script for Ubuntu / WSL                    ║"
 echo "  ╚══════════════════════════════════════════════════════════════╝"
 echo ""
-echo "  このスクリプトは初回セットアップ用です。"
-echo "  依存関係の確認とディレクトリ構造の作成を行います。"
+echo "  This script is for the initial setup."
+echo "  It verifies dependencies and creates the directory structure."
 echo ""
-echo "  インストール先: $SCRIPT_DIR"
+echo "  Installation destination: $SCRIPT_DIR"
 echo ""
 
 # ============================================================
-# STEP 1: OS チェック
+# STEP 1: OS Check
 # ============================================================
-log_step "STEP 1: システム環境チェック"
+log_step "STEP 1: System Environment Check"
 
-# OS情報を取得
+# Get OS information
 UNAME_S="$(uname -s)"
 if [ "$UNAME_S" = "Darwin" ]; then
     OS_NAME="macOS"
@@ -78,42 +78,42 @@ elif [ -f /etc/os-release ]; then
     log_info "OS: $OS_NAME $OS_VERSION"
 else
     OS_NAME="Unknown"
-    log_warn "OS情報を取得できませんでした"
+    log_warn "Failed to retrieve OS information"
 fi
 
-# WSL チェック
+# WSL Check
 IS_WSL=false
 if grep -qi microsoft /proc/version 2>/dev/null; then
-    log_info "環境: WSL (Windows Subsystem for Linux)"
+    log_info "Environment: WSL (Windows Subsystem for Linux)"
     IS_WSL=true
 elif [ "$UNAME_S" = "Darwin" ]; then
-    log_info "環境: macOS"
+    log_info "Environment: macOS"
 else
-    log_info "環境: Native Linux"
+    log_info "Environment: Native Linux"
 fi
 
-RESULTS+=("システム環境: OK")
+RESULTS+=("System environment: OK")
 
 # ============================================================
-# STEP 2: tmux チェック・インストール
+# STEP 2: Checking and Installing tmux
 # ============================================================
-log_step "STEP 2: tmux チェック"
+log_step "STEP 2: Checking tmux"
 
 if command -v tmux &> /dev/null; then
     TMUX_VERSION=$(tmux -V | awk '{print $2}')
-    log_success "tmux がインストール済みです (v$TMUX_VERSION)"
+    log_success "tmux is already installed (v$TMUX_VERSION)"
     RESULTS+=("tmux: OK (v$TMUX_VERSION)")
 else
-    log_warn "tmux がインストールされていません"
+    log_warn "tmux is not installed"
     echo ""
 
-    # Ubuntu/Debian系かチェック
+    # Check if Ubuntu/Debian family
     if command -v apt-get &> /dev/null; then
-        log_info "tmux をインストール中..."
+        log_info "Installing tmux..."
         if ! sudo -n apt-get update -qq 2>/dev/null; then
             if ! sudo apt-get update -qq 2>/dev/null; then
-                log_error "sudo の実行に失敗しました。ターミナルから直接実行してください"
-                RESULTS+=("tmux: インストール失敗 (sudo失敗)")
+                log_error "sudo execution failed. Please run it directly from the terminal"
+                RESULTS+=("tmux: installation failed (sudo failed)")
                 HAS_ERROR=true
             fi
         fi
@@ -121,8 +121,8 @@ else
         if [ "$HAS_ERROR" != true ]; then
             if ! sudo -n apt-get install -y tmux 2>/dev/null; then
                 if ! sudo apt-get install -y tmux 2>/dev/null; then
-                    log_error "tmux のインストールに失敗しました"
-                    RESULTS+=("tmux: インストール失敗")
+                    log_error "Failed to install tmux"
+                    RESULTS+=("tmux: installation failed")
                     HAS_ERROR=true
                 fi
             fi
@@ -130,133 +130,133 @@ else
 
         if command -v tmux &> /dev/null; then
             TMUX_VERSION=$(tmux -V | awk '{print $2}')
-            log_success "tmux インストール完了 (v$TMUX_VERSION)"
-            RESULTS+=("tmux: インストール完了 (v$TMUX_VERSION)")
+            log_success "tmux installation complete (v$TMUX_VERSION)"
+            RESULTS+=("tmux: installation complete (v$TMUX_VERSION)")
         else
-            log_error "tmux のインストールに失敗しました"
-            RESULTS+=("tmux: インストール失敗")
+            log_error "Failed to install tmux"
+            RESULTS+=("tmux: installation failed")
             HAS_ERROR=true
         fi
     else
-        log_error "apt-get が見つかりません。手動で tmux をインストールしてください"
+        log_error "apt-get not found. Please install tmux manually"
         echo ""
-        echo "  インストール方法:"
+        echo "  How to install:"
         echo "    Ubuntu/Debian: sudo apt-get install tmux"
         echo "    Fedora:        sudo dnf install tmux"
         echo "    macOS:         brew install tmux"
-        RESULTS+=("tmux: 未インストール (手動インストール必要)")
+        RESULTS+=("tmux: not installed (manual installation required)")
         HAS_ERROR=true
     fi
 fi
 
 # ============================================================
-# STEP 3: tmux マウススクロール設定
+# STEP 3: tmux Mouse Scroll Setting
 # ============================================================
-log_step "STEP 3: tmux マウススクロール設定"
+log_step "STEP 3: tmux Mouse Scroll Setting"
 
 TMUX_CONF="$HOME/.tmux.conf"
 TMUX_MOUSE_SETTING="set -g mouse on"
 
 if [ -f "$TMUX_CONF" ] && grep -qF "$TMUX_MOUSE_SETTING" "$TMUX_CONF" 2>/dev/null; then
-    log_info "tmux マウス設定は既に ~/.tmux.conf に存在します"
+    log_info "tmux mouse setting already exists in ~/.tmux.conf"
 else
-    log_info "~/.tmux.conf に '$TMUX_MOUSE_SETTING' を追加中..."
+    log_info "Adding '$TMUX_MOUSE_SETTING' to ~/.tmux.conf..."
     echo "" >> "$TMUX_CONF"
-    echo "# マウススクロール有効化 (added by first_setup.sh)" >> "$TMUX_CONF"
+    echo "# Enable mouse scroll (added by first_setup.sh)" >> "$TMUX_CONF"
     echo "$TMUX_MOUSE_SETTING" >> "$TMUX_CONF"
-    log_success "tmux マウス設定を追加しました"
+    log_success "Added tmux mouse setting"
 fi
 
-# tmux が起動中の場合は即反映
+# Apply immediately if tmux is running
 if command -v tmux &> /dev/null && tmux list-sessions &> /dev/null; then
-    log_info "tmux が起動中のため、設定を即反映します..."
+    log_info "tmux is running, applying settings immediately..."
     if tmux source-file "$TMUX_CONF" 2>/dev/null; then
-        log_success "tmux 設定を再読み込みしました"
+        log_success "Reloaded tmux configuration"
     else
-        log_warn "tmux 設定の再読み込みに失敗しました（手動で tmux source-file ~/.tmux.conf を実行してください）"
+        log_warn "Failed to reload tmux configuration (please run 'tmux source-file ~/.tmux.conf' manually)"
     fi
 else
-    log_info "tmux は起動していないため、次回起動時に反映されます"
+    log_info "tmux is not running, settings will be applied on next startup"
 fi
 
-RESULTS+=("tmux マウス設定: OK")
+RESULTS+=("tmux mouse setting: OK")
 
 # ============================================================
-# STEP 4: Node.js チェック
+# STEP 4: Checking Node.js
 # ============================================================
-log_step "STEP 4: Node.js チェック"
+log_step "STEP 4: Checking Node.js"
 
 if command -v node &> /dev/null; then
     NODE_VERSION=$(node -v)
-    log_success "Node.js がインストール済みです ($NODE_VERSION)"
+    log_success "Node.js is already installed ($NODE_VERSION)"
 
-    # バージョンチェック（18以上推奨）
+    # Version check (v18+ recommended)
     NODE_MAJOR=$(echo $NODE_VERSION | cut -d'.' -f1 | tr -d 'v')
     if [ "$NODE_MAJOR" -lt 18 ]; then
-        log_warn "Node.js 18以上を推奨します（現在: $NODE_VERSION）"
-        RESULTS+=("Node.js: OK (v$NODE_MAJOR - 要アップグレード推奨)")
+        log_warn "Node.js 18+ is recommended (Current: $NODE_VERSION)"
+        RESULTS+=("Node.js: OK (v$NODE_MAJOR - Upgrade recommended)")
     else
         RESULTS+=("Node.js: OK ($NODE_VERSION)")
     fi
 else
-    log_warn "Node.js がインストールされていません"
+    log_warn "Node.js is not installed"
     echo ""
 
-    # nvm が既にインストール済みか確認
+    # Check if nvm is already installed
     export NVM_DIR="${NVM_DIR:-$HOME/.nvm}"
     if [ -s "$NVM_DIR/nvm.sh" ]; then
-        log_info "nvm が既にインストール済みです。Node.js をセットアップ中..."
+        log_info "nvm is already installed. Setting up Node.js..."
         \. "$NVM_DIR/nvm.sh"
     else
-        # nvm 自動インストール
-        log_info "nvm をインストール中..."
+        # Automatic installation of nvm
+        log_info "Installing nvm..."
         curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash
         export NVM_DIR="$HOME/.nvm"
         [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
     fi
 
-    # nvm が利用可能なら Node.js をインストール
+    # Install Node.js if nvm is available
     if command -v nvm &> /dev/null; then
-        log_info "Node.js 20 をインストール中..."
+        log_info "Installing Node.js 20..."
         nvm install 20 || true
         nvm use 20 || true
 
         if command -v node &> /dev/null; then
             NODE_VERSION=$(node -v)
-            log_success "Node.js インストール完了 ($NODE_VERSION)"
-            RESULTS+=("Node.js: インストール完了 ($NODE_VERSION)")
+            log_success "Node.js installation complete ($NODE_VERSION)"
+            RESULTS+=("Node.js: Installation complete ($NODE_VERSION)")
         else
-            log_error "Node.js のインストールに失敗しました"
-            RESULTS+=("Node.js: インストール失敗")
+            log_error "Failed to install Node.js"
+            RESULTS+=("Node.js: Installation failed")
             HAS_ERROR=true
         fi
     elif [ "$HAS_ERROR" != true ]; then
-        log_error "nvm のインストールに失敗しました"
+        log_error "Failed to install nvm"
         echo ""
-        echo "  手動でインストールしてください:"
+        echo "  Please install manually:"
         echo "    curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash"
         echo "    source ~/.bashrc"
         echo "    nvm install 20"
         echo ""
-        RESULTS+=("Node.js: 未インストール (nvm失敗)")
+        RESULTS+=("Node.js: Not installed (nvm failed)")
         HAS_ERROR=true
     fi
 fi
 
-# npm チェック
+# npm Check
 if command -v npm &> /dev/null; then
     NPM_VERSION=$(npm -v)
-    log_success "npm がインストール済みです (v$NPM_VERSION)"
+    log_success "npm is already installed (v$NPM_VERSION)"
 else
     if command -v node &> /dev/null; then
-        log_warn "npm が見つかりません（Node.js と一緒にインストールされるはずです）"
+        log_warn "npm not found (it should be installed with Node.js)"
     fi
 fi
 
 # ============================================================
-# STEP 4.5: Python3 / venv / flock / file-watcher チェック
+# STEP 4.5: Checking Python3 / venv / flock / file-watcher
 # ============================================================
-log_step "STEP 4.5: Python3 / venv / flock / file-watcher チェック"
+log_step "STEP 4.5: Checking Python3 / venv / flock / file-watcher"
 
 # Detect OS
 SETUP_OS="$(uname -s)"
@@ -264,30 +264,30 @@ SETUP_OS="$(uname -s)"
 # --- python3 ---
 if command -v python3 &> /dev/null; then
     PY3_VERSION=$(python3 --version 2>&1)
-    log_success "python3 がインストール済みです ($PY3_VERSION)"
+    log_success "python3 is already installed ($PY3_VERSION)"
     RESULTS+=("python3: OK ($PY3_VERSION)")
 else
-    log_warn "python3 がインストールされていません"
+    log_warn "python3 is not installed"
     if command -v apt-get &> /dev/null; then
-        log_info "python3 をインストール中..."
+        log_info "Installing python3..."
         sudo apt-get update -qq 2>/dev/null
         if sudo apt-get install -y python3 2>/dev/null; then
             PY3_VERSION=$(python3 --version 2>&1)
-            log_success "python3 インストール完了 ($PY3_VERSION)"
-            RESULTS+=("python3: インストール完了 ($PY3_VERSION)")
+            log_success "python3 installation complete ($PY3_VERSION)"
+            RESULTS+=("python3: Installation complete ($PY3_VERSION)")
         else
-            log_error "python3 のインストールに失敗しました"
-            RESULTS+=("python3: インストール失敗")
+            log_error "Failed to install python3"
+            RESULTS+=("python3: Installation failed")
             HAS_ERROR=true
         fi
     elif [ "$SETUP_OS" = "Darwin" ]; then
-        log_error "python3 がインストールされていません"
-        echo "  macOS: brew install python3 または https://www.python.org/ からインストール"
-        RESULTS+=("python3: 未インストール (手動インストール必要)")
+        log_error "python3 is not installed"
+        echo "  macOS: Install via 'brew install python3' or download from https://www.python.org/"
+        RESULTS+=("python3: Not installed (Manual installation required)")
         HAS_ERROR=true
     else
-        log_error "手動で python3 をインストールしてください"
-        RESULTS+=("python3: 未インストール (手動インストール必要)")
+        log_error "Please install python3 manually"
+        RESULTS+=("python3: Not installed (Manual installation required)")
         HAS_ERROR=true
     fi
 fi
@@ -295,61 +295,61 @@ fi
 # --- Python venv + PyYAML (via requirements.txt) ---
 VENV_DIR="$SCRIPT_DIR/.venv"
 if [ -f "$VENV_DIR/bin/python3" ] && "$VENV_DIR/bin/python3" -c "import yaml" 2>/dev/null; then
-    log_success "Python venv + PyYAML がセットアップ済みです"
+    log_success "Python venv + PyYAML is already set up"
     RESULTS+=("venv + PyYAML: OK")
 else
-    log_info "Python venv をセットアップ中..."
+    log_info "Setting up Python venv..."
     if command -v python3 &> /dev/null; then
         if command -v apt-get &> /dev/null; then
             sudo apt-get update -qq 2>/dev/null
             sudo apt-get install -y python3-venv 2>/dev/null
         fi
         if python3 -m venv "$VENV_DIR" 2>/dev/null; then
-            log_success "venv 作成完了: $VENV_DIR"
+            log_success "venv creation complete: $VENV_DIR"
             if [ -f "$SCRIPT_DIR/requirements.txt" ]; then
                 if "$VENV_DIR/bin/pip" install -r "$SCRIPT_DIR/requirements.txt" 2>/dev/null; then
-                    log_success "PyYAML インストール完了 (venv)"
-                    RESULTS+=("venv + PyYAML: セットアップ完了")
+                    log_success "PyYAML installation complete (venv)"
+                    RESULTS+=("venv + PyYAML: Setup complete")
                 else
-                    log_error "pip install に失敗しました"
-                    RESULTS+=("venv + PyYAML: pip失敗")
+                    log_error "pip install failed"
+                    RESULTS+=("venv + PyYAML: pip failed")
                     HAS_ERROR=true
                 fi
             else
-                log_warn "requirements.txt が見つかりません"
-                RESULTS+=("venv + PyYAML: requirements.txt不在")
+                log_warn "requirements.txt not found"
+                RESULTS+=("venv + PyYAML: requirements.txt missing")
                 HAS_ERROR=true
             fi
         else
-            log_error "python3 -m venv に失敗しました"
-            echo "  python3-venv パッケージが必要かもしれません:"
+            log_error "python3 -m venv failed"
+            echo "  The python3-venv package might be required:"
             echo "    Ubuntu/Debian: sudo apt-get install python3-venv"
-            RESULTS+=("venv: 作成失敗")
+            RESULTS+=("venv: Creation failed")
             HAS_ERROR=true
         fi
     else
-        log_error "python3 が必要です（上のステップでインストールしてください）"
-        RESULTS+=("venv: python3不在のためスキップ")
+        log_error "python3 is required (please install it in the step above)"
+        RESULTS+=("venv: Skipped due to python3 missing")
         HAS_ERROR=true
     fi
 fi
 
 # --- flock ---
 if command -v flock &> /dev/null; then
-    log_success "flock がインストール済みです"
+    log_success "flock is already installed"
     RESULTS+=("flock: OK")
 else
-    log_warn "flock がインストールされていません"
+    log_warn "flock is not installed"
     if [ "$SETUP_OS" = "Darwin" ]; then
         echo "  macOS: brew install flock"
-        RESULTS+=("flock: 未インストール (brew install flock)")
+        RESULTS+=("flock: Not installed (brew install flock)")
     elif command -v apt-get &> /dev/null; then
-        log_info "util-linux (flock含む) は通常プリインストールです"
+        log_info "util-linux (including flock) is normally pre-installed"
         echo "  sudo apt-get install util-linux"
-        RESULTS+=("flock: 未インストール (apt-get install util-linux)")
+        RESULTS+=("flock: Not installed (apt-get install util-linux)")
     else
-        echo "  手動でインストールしてください"
-        RESULTS+=("flock: 未インストール")
+        echo "  Please install manually"
+        RESULTS+=("flock: Not installed")
     fi
     HAS_ERROR=true
 fi
@@ -372,7 +372,7 @@ if [ "$SETUP_OS" = "Darwin" ]; then
     if ! command -v gtimeout &>/dev/null; then
         log_warn "GNU coreutils not found. inbox_watcher will use bash fallback for timeout."
         log_warn "Recommended: brew install coreutils"
-        RESULTS+=("coreutils: 未インストール (brew install coreutils)")
+        RESULTS+=("coreutils: Not installed (brew install coreutils)")
     else
         log_success "GNU coreutils detected (gtimeout available)"
     fi
@@ -382,162 +382,162 @@ fi
 if [ "$SETUP_OS" = "Darwin" ]; then
     # macOS: fswatch
     if command -v fswatch &> /dev/null; then
-        log_success "fswatch がインストール済みです (macOS file watcher)"
+        log_success "fswatch is already installed (macOS file watcher)"
         RESULTS+=("file-watcher: OK (fswatch)")
     else
-        log_warn "fswatch がインストールされていません"
+        log_warn "fswatch is not installed"
         echo "  macOS: brew install fswatch"
-        RESULTS+=("file-watcher: 未インストール (brew install fswatch)")
+        RESULTS+=("file-watcher: Not installed (brew install fswatch)")
         HAS_ERROR=true
     fi
 else
     # Linux: inotifywait
     if command -v inotifywait &> /dev/null; then
-        log_success "inotify-tools がインストール済みです"
+        log_success "inotify-tools is already installed"
         RESULTS+=("file-watcher: OK (inotifywait)")
     else
-        log_warn "inotify-tools がインストールされていません"
+        log_warn "inotify-tools is not installed"
         if command -v apt-get &> /dev/null; then
-            log_info "inotify-tools をインストール中..."
+            log_info "Installing inotify-tools..."
             if sudo apt-get install -y inotify-tools 2>/dev/null; then
-                log_success "inotify-tools インストール完了"
-                RESULTS+=("file-watcher: インストール完了 (inotifywait)")
+                log_success "inotify-tools installation complete"
+                RESULTS+=("file-watcher: Installation complete (inotifywait)")
             else
-                log_error "inotify-tools のインストールに失敗しました"
-                RESULTS+=("file-watcher: インストール失敗")
+                log_error "Failed to install inotify-tools"
+                RESULTS+=("file-watcher: Installation failed")
                 HAS_ERROR=true
             fi
         else
-            log_error "手動で inotify-tools をインストールしてください"
-            RESULTS+=("file-watcher: 未インストール")
+            log_error "Please install inotify-tools manually"
+            RESULTS+=("file-watcher: Not installed")
             HAS_ERROR=true
         fi
     fi
 fi
 
 # ============================================================
-# STEP 5: Claude Code CLI チェック（ネイティブ版）
-# ※ npm版は公式非推奨（deprecated）。ネイティブ版を使用する。
-#    Node.jsはMCPサーバー（npx経由）で引き続き必要。
+# STEP 5: Claude Code CLI Check (Native Version)
+# * The npm version is deprecated. Use the native version.
+#    Node.js is still required for MCP servers (via npx).
 # ============================================================
-log_step "STEP 5: Claude Code CLI チェック"
+log_step "STEP 5: Checking Claude Code CLI"
 
-# ネイティブ版の既存インストールを検出するため、PATHに ~/.local/bin を含める
+# Include ~/.local/bin in PATH to detect existing native installations
 export PATH="$HOME/.local/bin:$PATH"
 
 NEED_CLAUDE_INSTALL=false
 HAS_NPM_CLAUDE=false
 
 if command -v claude &> /dev/null; then
-    # claude コマンドは存在する → 実際に動くかチェック
+    # claude command exists -> check if it actually runs
     CLAUDE_VERSION=$(claude --version 2>&1)
     CLAUDE_PATH=$(which claude 2>/dev/null)
 
     if [ $? -eq 0 ] && [ "$CLAUDE_VERSION" != "unknown" ] && [[ "$CLAUDE_VERSION" != *"not found"* ]]; then
-        # 動作する claude が見つかった → npm版かネイティブ版かを判定
+        # Found working claude -> determine if it is npm or native version
         if echo "$CLAUDE_PATH" | grep -qi "npm\|node_modules\|AppData"; then
-            # npm版が動いている
+            # npm version is running
             HAS_NPM_CLAUDE=true
-            log_warn "npm版 Claude Code CLI が検出されました（公式非推奨）"
-            log_info "検出パス: $CLAUDE_PATH"
-            log_info "バージョン: $CLAUDE_VERSION"
+            log_warn "npm version of Claude Code CLI detected (Officially deprecated)"
+            log_info "Detected path: $CLAUDE_PATH"
+            log_info "Version: $CLAUDE_VERSION"
             echo ""
-            echo "  npm版は公式で非推奨（deprecated）となっています。"
-            echo "  ネイティブ版をインストールし、npm版はアンインストールすることを推奨します。"
+            echo "  The npm version is officially deprecated."
+            echo "  We recommend installing the native version and uninstalling the npm version."
             echo ""
             if [ ! -t 0 ]; then
                 REPLY="Y"
             else
-                read -p "  ネイティブ版をインストールしますか? [Y/n]: " REPLY
+                read -p "  Do you want to install the native version? [Y/n]: " REPLY
             fi
             REPLY=${REPLY:-Y}
             if [[ $REPLY =~ ^[Yy]$ ]]; then
                 NEED_CLAUDE_INSTALL=true
-                # npm版のアンインストール案内
+                # Guidance for uninstalling npm version
                 echo ""
-                log_info "先にnpm版をアンインストールしてください:"
+                log_info "Please uninstall the npm version first:"
                 if echo "$CLAUDE_PATH" | grep -qi "mnt/c\|AppData"; then
-                    echo "  Windows の PowerShell で:"
+                    echo "  In Windows PowerShell:"
                     echo "    npm uninstall -g @anthropic-ai/claude-code"
                 else
                     echo "    npm uninstall -g @anthropic-ai/claude-code"
                 fi
                 echo ""
             else
-                log_warn "ネイティブ版への移行をスキップしました（npm版で続行）"
-                RESULTS+=("Claude Code CLI: OK (npm版・移行推奨)")
+                log_warn "Skipped migration to native version (continuing with npm version)"
+                RESULTS+=("Claude Code CLI: OK (npm version - migration recommended)")
             fi
         else
-            # ネイティブ版が正常に動作している
-            log_success "Claude Code CLI がインストール済みです（ネイティブ版）"
-            log_info "バージョン: $CLAUDE_VERSION"
+            # Native version is working fine
+            log_success "Claude Code CLI is already installed (native version)"
+            log_info "Version: $CLAUDE_VERSION"
             RESULTS+=("Claude Code CLI: OK")
         fi
     else
-        # command -v で見つかるが動かない（npm版でNode.js無し等）
-        log_warn "Claude Code CLI が見つかりましたが正常に動作しません"
-        log_info "検出パス: $CLAUDE_PATH"
+        # Found via command -v but not working (e.g. npm version without Node.js)
+        log_warn "Claude Code CLI was found but does not function properly"
+        log_info "Detected path: $CLAUDE_PATH"
         if echo "$CLAUDE_PATH" | grep -qi "npm\|node_modules\|AppData"; then
             HAS_NPM_CLAUDE=true
-            log_info "→ npm版（Node.js依存）が検出されました"
+            log_info "→ npm version (Node.js dependent) was detected"
         else
-            log_info "→ バージョン取得に失敗しました"
+            log_info "→ Failed to retrieve version"
         fi
         NEED_CLAUDE_INSTALL=true
     fi
 else
-    # claude コマンドが見つからない
+    # claude command not found
     NEED_CLAUDE_INSTALL=true
 fi
 
 if [ "$NEED_CLAUDE_INSTALL" = true ]; then
-    log_info "ネイティブ版 Claude Code CLI をインストールします"
-    log_info "Claude Code CLI をインストール中（ネイティブ版）..."
+    log_info "Installing the native version of Claude Code CLI"
+    log_info "Installing Claude Code CLI (native version)..."
     curl -fsSL https://claude.ai/install.sh | bash
 
-    # PATHを更新（インストール直後は反映されていない可能性）
+    # Update PATH (may not be reflected immediately after installation)
     export PATH="$HOME/.local/bin:$PATH"
 
-    # .bashrc に永続化（重複追加を防止）
+    # Persist in ~/.bashrc (prevent duplicate additions)
     if ! grep -q 'export PATH="\$HOME/.local/bin:\$PATH"' "$HOME/.bashrc" 2>/dev/null; then
         echo '' >> "$HOME/.bashrc"
         echo '# Claude Code CLI PATH (added by first_setup.sh)' >> "$HOME/.bashrc"
         echo 'export PATH="$HOME/.local/bin:$PATH"' >> "$HOME/.bashrc"
-        log_info "~/.local/bin を ~/.bashrc の PATH に追加しました"
+        log_info "Added ~/.local/bin to PATH in ~/.bashrc"
     fi
 
     if command -v claude &> /dev/null; then
         CLAUDE_VERSION=$(claude --version 2>/dev/null || echo "unknown")
-        log_success "Claude Code CLI インストール完了（ネイティブ版）"
-        log_info "バージョン: $CLAUDE_VERSION"
-        RESULTS+=("Claude Code CLI: インストール完了")
+        log_success "Claude Code CLI installation complete (native version)"
+        log_info "Version: $CLAUDE_VERSION"
+        RESULTS+=("Claude Code CLI: Installation complete")
 
-        # npm版が残っている場合の案内
+        # Guidance when npm version remains
         if [ "$HAS_NPM_CLAUDE" = true ]; then
             echo ""
-            log_info "ネイティブ版がPATHで優先されるため、npm版は無効化されます"
-            log_info "npm版を完全に削除するには以下を実行してください:"
+            log_info "Since the native version takes precedence in PATH, the npm version will be deactivated"
+            log_info "To completely remove the npm version, run the following:"
             if echo "$CLAUDE_PATH" | grep -qi "mnt/c\|AppData"; then
-                echo "  Windows の PowerShell で:"
+                echo "  In Windows PowerShell:"
                 echo "    npm uninstall -g @anthropic-ai/claude-code"
             else
                 echo "    npm uninstall -g @anthropic-ai/claude-code"
             fi
         fi
     else
-        log_error "インストールに失敗しました。パスを確認してください"
-        log_info "~/.local/bin がPATHに含まれているか確認してください"
-        RESULTS+=("Claude Code CLI: インストール失敗")
+        log_error "Installation failed. Please check your path"
+        log_info "Please check if ~/.local/bin is included in your PATH"
+        RESULTS+=("Claude Code CLI: Installation failed")
         HAS_ERROR=true
     fi
 fi
 
 # ============================================================
-# STEP 6: ディレクトリ構造作成
+# STEP 6: Create Directory Structure
 # ============================================================
-log_step "STEP 6: ディレクトリ構造作成"
+log_step "STEP 6: Create Directory Structure"
 
-# 必要なディレクトリ一覧
+# List of required directories
 DIRECTORIES=(
     "queue/tasks"
     "queue/reports"
@@ -556,7 +556,7 @@ EXISTED_COUNT=0
 for dir in "${DIRECTORIES[@]}"; do
     if [ ! -d "$SCRIPT_DIR/$dir" ]; then
         mkdir -p "$SCRIPT_DIR/$dir"
-        log_info "作成: $dir/"
+        log_info "Created: $dir/"
         CREATED_COUNT=$((CREATED_COUNT + 1))
     else
         EXISTED_COUNT=$((EXISTED_COUNT + 1))
@@ -564,18 +564,18 @@ for dir in "${DIRECTORIES[@]}"; do
 done
 
 if [ $CREATED_COUNT -gt 0 ]; then
-    log_success "$CREATED_COUNT 個のディレクトリを作成しました"
+    log_success "Created $CREATED_COUNT directories"
 fi
 if [ $EXISTED_COUNT -gt 0 ]; then
-    log_info "$EXISTED_COUNT 個のディレクトリは既に存在します"
+    log_info "$EXISTED_COUNT directories already exist"
 fi
 
-RESULTS+=("ディレクトリ構造: OK (作成:$CREATED_COUNT, 既存:$EXISTED_COUNT)")
+RESULTS+=("Directory structure: OK (Created:$CREATED_COUNT, Existing:$EXISTED_COUNT)")
 
 # ============================================================
-# STEP 6.5: OSSスキルインストール
+# STEP 6.5: Install OSS Skills
 # ============================================================
-log_step "STEP 6.5: OSSスキルインストール"
+log_step "STEP 6.5: Install OSS Skills"
 
 CLAUDE_SKILLS_DIR="$HOME/.claude/skills"
 mkdir -p "$CLAUDE_SKILLS_DIR"
@@ -593,67 +593,67 @@ for skill_dir in "$SCRIPT_DIR/skills"/*/; do
     target="$CLAUDE_SKILLS_DIR/$skill_name"
 
     if [ -d "$target" ]; then
-        log_info "スキル $skill_name は既に存在します（スキップ）"
+        log_info "Skill $skill_name already exists (Skipped)"
         SKIPPED_SKILLS=$((SKIPPED_SKILLS + 1))
     else
         cp -r "$skill_dir" "$target"
-        log_success "スキルをインストールしました: $skill_name"
+        log_success "Installed skill: $skill_name"
         INSTALLED_SKILLS=$((INSTALLED_SKILLS + 1))
     fi
 done
 shopt -u nullglob
 
 if [ "$FOUND_SKILLS" -eq 0 ]; then
-    log_warn "インストール可能なスキルが見つかりませんでした"
-    RESULTS+=("OSSスキル: スキップ (skills/ 未検出)")
+    log_warn "No installable skills found"
+    RESULTS+=("OSS Skills: Skipped (skills/ not detected)")
 else
-    log_info "/shogun-model-switch などのスキルが使用可能になりました"
-    RESULTS+=("OSSスキル: OK (新規:$INSTALLED_SKILLS, 既存:$SKIPPED_SKILLS)")
+    log_info "Skills such as /shogun-model-switch are now available"
+    RESULTS+=("OSS Skills: OK (New:$INSTALLED_SKILLS, Existing:$SKIPPED_SKILLS)")
 fi
 
 # ============================================================
-# STEP 7: 設定ファイル初期化
+# STEP 7: Configuration Files Verification
 # ============================================================
-log_step "STEP 7: 設定ファイル確認"
+log_step "STEP 7: Configuration Files Verification"
 
 # config/settings.yaml
 if [ ! -f "$SCRIPT_DIR/config/settings.yaml" ]; then
-    log_info "config/settings.yaml を作成中..."
+    log_info "Creating config/settings.yaml..."
     cat > "$SCRIPT_DIR/config/settings.yaml" << EOF
-# multi-agent-shogun 設定ファイル
+# multi-agent-shogun configuration file
 
-# 言語設定
-# ja: 日本語（戦国風日本語のみ、併記なし）
-# en: 英語（戦国風日本語 + 英訳併記）
-# その他の言語コード（es, zh, ko, fr, de 等）も対応
+# Language settings
+# ja: Japanese (Sengoku-style Japanese only, no translations)
+# en: English (Sengoku-style Japanese + English translations)
+# Other language codes (es, zh, ko, fr, de, etc.) are also supported
 language: ja
 
-# シェル設定
-# bash: bash用プロンプト（デフォルト）
-# zsh: zsh用プロンプト
+# Shell settings
+# bash: Prompt for bash (default)
+# zsh: Prompt for zsh
 shell: bash
 
-# スキル設定
+# Skill settings
 skill:
-  # スキル保存先（スキル名に shogun- プレフィックスを付けて保存）
+  # Skill save path (saves with 'shogun-' prefix)
   save_path: "~/.claude/skills/"
 
-  # ローカルスキル保存先（このプロジェクト専用）
+  # Local skill save path (project specific)
   local_path: "$SCRIPT_DIR/skills/"
 
-# ログ設定
+# Logging settings
 logging:
   level: info  # debug | info | warn | error
   path: "$SCRIPT_DIR/logs/"
 EOF
-    log_success "settings.yaml を作成しました"
+    log_success "Created settings.yaml"
 else
-    log_info "config/settings.yaml は既に存在します"
+    log_info "config/settings.yaml already exists"
 fi
 
 # config/projects.yaml
 if [ ! -f "$SCRIPT_DIR/config/projects.yaml" ]; then
-    log_info "config/projects.yaml を作成中..."
+    log_info "Creating config/projects.yaml..."
     cat > "$SCRIPT_DIR/config/projects.yaml" << 'EOF'
 projects:
   - id: sample_project
@@ -664,50 +664,50 @@ projects:
 
 current_project: sample_project
 EOF
-    log_success "projects.yaml を作成しました"
+    log_success "Created projects.yaml"
 else
-    log_info "config/projects.yaml は既に存在します"
+    log_info "config/projects.yaml already exists"
 fi
 
-# memory/MEMORY.md（Shogun 永続メモリ — 既存ファイルは上書きしない）
+# memory/MEMORY.md (Shogun Persistent Memory - do not overwrite existing file)
 if [ ! -f "$SCRIPT_DIR/memory/MEMORY.md" ]; then
-    log_info "memory/MEMORY.md を作成中..."
+    log_info "Creating memory/MEMORY.md..."
     cp "$SCRIPT_DIR/memory/MEMORY.md.sample" "$SCRIPT_DIR/memory/MEMORY.md"
-    log_success "memory/MEMORY.md を作成しました（MEMORY.md.sample からコピー）"
-    log_info "memory/MEMORY.md を編集して、あなたの情報を記入してください"
+    log_success "Created memory/MEMORY.md (copied from MEMORY.md.sample)"
+    log_info "Please edit memory/MEMORY.md to fill in your information"
 else
-    log_info "memory/MEMORY.md は既に存在します（スキップ）"
+    log_info "memory/MEMORY.md already exists (Skipped)"
 fi
 
-# memory/global_context.md（システム全体のコンテキスト）
+# memory/global_context.md (System-wide Context)
 if [ ! -f "$SCRIPT_DIR/memory/global_context.md" ]; then
-    log_info "memory/global_context.md を作成中..."
+    log_info "Creating memory/global_context.md..."
     cat > "$SCRIPT_DIR/memory/global_context.md" << 'EOF'
-# グローバルコンテキスト
-最終更新: (未設定)
+# Global Context
+Last Updated: (Not Set)
 
-## システム方針
-- (殿の好み・方針をここに記載)
+## System Policy
+- (Describe the Lord's preferences/policies here)
 
-## プロジェクト横断の決定事項
-- (複数プロジェクトに影響する決定をここに記載)
+## Cross-project Decisions
+- (Describe decisions affecting multiple projects here)
 
-## 注意事項
-- (全エージェントが知るべき注意点をここに記載)
+## Precautions
+- (Describe precautions all agents should know here)
 EOF
-    log_success "global_context.md を作成しました"
+    log_success "Created global_context.md"
 else
-    log_info "memory/global_context.md は既に存在します"
+    log_info "memory/global_context.md already exists"
 fi
 
-RESULTS+=("設定ファイル: OK")
+RESULTS+=("Configuration files: OK")
 
 # ============================================================
-# STEP 8: 足軽用タスク・レポートファイル初期化
+# STEP 8: Initialize Ashigaru Task/Report Files
 # ============================================================
-log_step "STEP 8: キューファイル初期化"
+log_step "STEP 8: Initialize Queue Files"
 
-# 足軽数を settings.yaml から動的に取得（設定がなければデフォルト7）
+# Dynamically retrieve Ashigaru count from settings.yaml (default 7 if not configured)
 _SETUP_VENV_PYTHON="$SCRIPT_DIR/.venv/bin/python3"
 _SETUP_ASHIGARU_COUNT=$(
     if [[ -x "$_SETUP_VENV_PYTHON" ]]; then
@@ -728,12 +728,12 @@ except Exception:
 )
 _SETUP_ASHIGARU_COUNT=${_SETUP_ASHIGARU_COUNT:-7}
 
-# 足軽用タスクファイル作成
+# Create Ashigaru task files
 for i in $(seq 1 "$_SETUP_ASHIGARU_COUNT"); do
     TASK_FILE="$SCRIPT_DIR/queue/tasks/ashigaru${i}.yaml"
     if [ ! -f "$TASK_FILE" ]; then
         cat > "$TASK_FILE" << EOF
-# 足軽${i}専用タスクファイル
+# Ashigaru ${i} Dedicated Task File
 task:
   task_id: null
   parent_cmd: null
@@ -744,9 +744,9 @@ task:
 EOF
     fi
 done
-log_info "足軽タスクファイル (1-${_SETUP_ASHIGARU_COUNT}) を確認/作成しました"
+log_info "Verified/Created Ashigaru task files (1-${_SETUP_ASHIGARU_COUNT})"
 
-# 足軽用レポートファイル作成
+# Create Ashigaru report files
 for i in $(seq 1 "$_SETUP_ASHIGARU_COUNT"); do
     REPORT_FILE="$SCRIPT_DIR/queue/reports/ashigaru${i}_report.yaml"
     if [ ! -f "$REPORT_FILE" ]; then
@@ -759,14 +759,14 @@ result: null
 EOF
     fi
 done
-log_info "足軽レポートファイル (1-${_SETUP_ASHIGARU_COUNT}) を確認/作成しました"
+log_info "Verified/Created Ashigaru report files (1-${_SETUP_ASHIGARU_COUNT})"
 
-RESULTS+=("キューファイル: OK")
+RESULTS+=("Queue files: OK")
 
 # ============================================================
-# STEP 9: スクリプト実行権限付与
+# STEP 9: Grant execution permissions to scripts
 # ============================================================
-log_step "STEP 9: 実行権限設定"
+log_step "STEP 9: Set Execution Permissions"
 
 SCRIPTS=(
     "setup.sh"
@@ -786,24 +786,24 @@ if [ "${#TARGETS[@]}" -ne 0 ]; then
     chmod +x "${TARGETS[@]}"
 
     for target in "${TARGETS[@]}"; do
-        log_info "$(basename "$target") に実行権限を付与しました"
+        log_info "Granted execution permission to $(basename "$target")"
     done
 fi
 
-RESULTS+=("実行権限: OK")
+RESULTS+=("Execution permissions: OK")
 
 # ============================================================
-# STEP 10: bashrc alias設定
+# STEP 10: Set bashrc aliases
 # ============================================================
-log_step "STEP 10: alias設定"
+log_step "STEP 10: Set bashrc aliases"
 
-# alias追加対象ファイル
+# Target file for adding aliases
 BASHRC_FILE="$HOME/.bashrc"
 
-# css/csm を関数として定義（destroy-unattached で自動掃除）
-# - 複数端末から接続しても画面サイズが干渉しない
-# - SSH切断・アプリ終了時に一時セッションが自動消滅
-# - 本体セッション (shogun/multiagent) は絶対に消えない
+# Define css/csm as functions (auto-cleanup via destroy-unattached)
+# - Screen sizes do not interfere even when connecting from multiple terminals
+# - Temporary session automatically disappears on SSH disconnect or app closure
+# - Main sessions (shogun/multiagent) will never disappear
 CSS_FUNC='css() { local s="shogun-$$"; local cols=$(tput cols 2>/dev/null || echo 80); tmux new-session -d -t shogun -s "$s" 2>/dev/null && tmux set-option -t "$s" destroy-unattached on 2>/dev/null; if [ "$cols" -lt 80 ]; then tmux new-window -t "$s" -n mobile 2>/dev/null; tmux attach-session -t "$s:mobile" 2>/dev/null || tmux attach-session -t shogun; else tmux attach-session -t "$s" 2>/dev/null || tmux attach-session -t shogun; fi; }'
 CSM_FUNC='csm() { local s="multi-$$"; local cols=$(tput cols 2>/dev/null || echo 80); tmux new-session -d -t multiagent -s "$s" 2>/dev/null && tmux set-option -t "$s" destroy-unattached on 2>/dev/null; if [ "$cols" -lt 80 ]; then tmux new-window -t "$s" -n mobile 2>/dev/null; tmux attach-session -t "$s:mobile" 2>/dev/null || tmux attach-session -t multiagent; else tmux attach-session -t "$s" 2>/dev/null || tmux attach-session -t multiagent; fi; }'
 DASH_FUNC="dash() { python3 \"$SCRIPT_DIR/scripts/dashboard-viewer.py\" \"\$@\"; }"
@@ -811,165 +811,165 @@ DASH_FUNC="dash() { python3 \"$SCRIPT_DIR/scripts/dashboard-viewer.py\" \"\$@\";
 ALIAS_ADDED=false
 
 if [ -f "$BASHRC_FILE" ]; then
-    # 古い alias 形式を削除（存在する場合）
+    # Remove old alias format (if exists)
     if grep -q "alias css=" "$BASHRC_FILE" 2>/dev/null; then
         sed -i '/alias css=/d' "$BASHRC_FILE"
-        log_info "旧 alias css を削除しました"
+        log_info "Removed old css alias"
     fi
     if grep -q "alias csm=" "$BASHRC_FILE" 2>/dev/null; then
         sed -i '/alias csm=/d' "$BASHRC_FILE"
-        log_info "旧 alias csm を削除しました"
+        log_info "Removed old csm alias"
     fi
 
-    # css 関数
+    # css function
     if ! grep -q "^css()" "$BASHRC_FILE" 2>/dev/null; then
         if ! grep -q "multi-agent-shogun aliases" "$BASHRC_FILE" 2>/dev/null; then
             echo "" >> "$BASHRC_FILE"
             echo "# multi-agent-shogun aliases (added by first_setup.sh)" >> "$BASHRC_FILE"
         fi
         echo "$CSS_FUNC" >> "$BASHRC_FILE"
-        log_info "css 関数を追加しました（将軍ウィンドウ — 自動掃除付き）"
+        log_info "Added css function (Shogun window — with auto-cleanup)"
         ALIAS_ADDED=true
     else
-        # 関数は存在する → 最新版に更新
+        # Function exists -> update to latest version
         sed -i '/^css()/d' "$BASHRC_FILE"
         echo "$CSS_FUNC" >> "$BASHRC_FILE"
-        log_info "css 関数を更新しました"
+        log_info "Updated css function"
         ALIAS_ADDED=true
     fi
 
-    # csm 関数
+    # csm function
     if ! grep -q "^csm()" "$BASHRC_FILE" 2>/dev/null; then
         echo "$CSM_FUNC" >> "$BASHRC_FILE"
-        log_info "csm 関数を追加しました（家老・足軽ウィンドウ — 自動掃除付き）"
+        log_info "Added csm function (Karo/Ashigaru window — with auto-cleanup)"
         ALIAS_ADDED=true
     else
         sed -i '/^csm()/d' "$BASHRC_FILE"
         echo "$CSM_FUNC" >> "$BASHRC_FILE"
-        log_info "csm 関数を更新しました"
+        log_info "Updated csm function"
         ALIAS_ADDED=true
     fi
 
-    # dash 関数
+    # dash function
     if ! grep -q "^dash()" "$BASHRC_FILE" 2>/dev/null; then
         echo "$DASH_FUNC" >> "$BASHRC_FILE"
-        log_info "dash 関数を追加しました（ダッシュボードビューア）"
+        log_info "Added dash function (Dashboard viewer)"
         ALIAS_ADDED=true
     else
         sed -i '/^dash()/d' "$BASHRC_FILE"
         echo "$DASH_FUNC" >> "$BASHRC_FILE"
-        log_info "dash 関数を更新しました"
+        log_info "Updated dash function"
         ALIAS_ADDED=true
     fi
 else
-    log_warn "$BASHRC_FILE が見つかりません"
+    log_warn "$BASHRC_FILE not found"
 fi
 
 if [ "$ALIAS_ADDED" = true ]; then
-    log_success "alias設定を追加しました（destroy-unattached 方式）"
-    log_warn "alias を反映するには、以下のいずれかを実行してください："
+    log_success "Added alias configurations (destroy-unattached style)"
+    log_warn "To apply the aliases, please perform one of the following:"
     log_info "  1. source ~/.bashrc"
-    log_info "  2. PowerShell で 'wsl --shutdown' してからターミナルを開き直す"
-    log_info "  ※ ウィンドウを閉じるだけでは WSL が終了しないため反映されません"
+    log_info "  2. Run 'wsl --shutdown' in PowerShell, then reopen the terminal"
+    log_info "  * Simply closing the window will not stop WSL, so changes will not be reflected."
 fi
 
-RESULTS+=("alias設定: OK")
+RESULTS+=("Alias configuration: OK")
 
 # ============================================================
-# STEP 10.5: WSL メモリ最適化設定
+# STEP 10.5: WSL Memory Optimization Settings
 # ============================================================
 if [ "$IS_WSL" = true ]; then
-    log_step "STEP 10.5: WSL メモリ最適化設定"
+    log_step "STEP 10.5: WSL Memory Optimization Settings"
 
-    # .wslconfig の確認・設定（Windows側のユーザーディレクトリに配置）
+    # Check/Set .wslconfig (Placed in the Windows user directory)
     WIN_USER_DIR=$(cmd.exe /C "echo %USERPROFILE%" 2>/dev/null | tr -d '\r')
     if [ -n "$WIN_USER_DIR" ]; then
-        # Windows パスを WSL パスに変換
+        # Convert Windows path to WSL path
         WSLCONFIG_PATH=$(wslpath "$WIN_USER_DIR")/.wslconfig
 
         if [ -f "$WSLCONFIG_PATH" ]; then
             if grep -q "autoMemoryReclaim" "$WSLCONFIG_PATH" 2>/dev/null; then
-                log_info ".wslconfig に autoMemoryReclaim は既に設定済みです"
+                log_info "autoMemoryReclaim is already configured in .wslconfig"
             else
-                log_info ".wslconfig に autoMemoryReclaim=gradual を追加中..."
-                # [experimental] セクションがあるか確認
+                log_info "Adding autoMemoryReclaim=gradual to .wslconfig..."
+                # Check if [experimental] section exists
                 if grep -q "\[experimental\]" "$WSLCONFIG_PATH" 2>/dev/null; then
-                    # [experimental] セクションの直後に追加
+                    # Add immediately after [experimental] section
                     sed -i '/\[experimental\]/a autoMemoryReclaim=gradual' "$WSLCONFIG_PATH"
                 else
                     echo "" >> "$WSLCONFIG_PATH"
                     echo "[experimental]" >> "$WSLCONFIG_PATH"
                     echo "autoMemoryReclaim=gradual" >> "$WSLCONFIG_PATH"
                 fi
-                log_success ".wslconfig に autoMemoryReclaim=gradual を追加しました"
-                log_warn "反映には 'wsl --shutdown' 後の再起動が必要です"
+                log_success "Added autoMemoryReclaim=gradual to .wslconfig"
+                log_warn "Requires restart after 'wsl --shutdown' to take effect"
             fi
         else
-            log_info ".wslconfig を新規作成中..."
+            log_info "Creating new .wslconfig..."
             cat > "$WSLCONFIG_PATH" << 'EOF'
 [experimental]
 autoMemoryReclaim=gradual
 EOF
-            log_success ".wslconfig を作成しました (autoMemoryReclaim=gradual)"
-            log_warn "反映には 'wsl --shutdown' 後の再起動が必要です"
+            log_success "Created .wslconfig (autoMemoryReclaim=gradual)"
+            log_warn "Requires restart after 'wsl --shutdown' to take effect"
         fi
 
-        RESULTS+=("WSL メモリ最適化: OK (.wslconfig設定済み)")
+        RESULTS+=("WSL Memory Optimization: OK (.wslconfig configured)")
     else
-        log_warn "Windowsユーザーディレクトリの取得に失敗しました"
-        log_info "手動で %USERPROFILE%\\.wslconfig に以下を追加してください:"
+        log_warn "Failed to retrieve Windows user directory"
+        log_info "Please manually add the following to %USERPROFILE%\\.wslconfig:"
         echo "  [experimental]"
         echo "  autoMemoryReclaim=gradual"
-        RESULTS+=("WSL メモリ最適化: 手動設定必要")
+        RESULTS+=("WSL Memory Optimization: Manual configuration required")
     fi
 
-    # 即時キャッシュクリアの案内
-    log_info "メモリキャッシュを即時クリアするには以下を実行:"
+    # Guidance for immediate cache clearing
+    log_info "To clear memory cache immediately, run the following:"
     echo "  sudo sh -c 'echo 3 > /proc/sys/vm/drop_caches'"
 else
-    log_info "WSL環境ではないため、メモリ最適化設定をスキップ"
+    log_info "Not in WSL environment. Skipping memory optimization settings."
 fi
 
 # ============================================================
-# STEP 11: Memory MCP セットアップ
+# STEP 11: Memory MCP Setup
 # ============================================================
-log_step "STEP 11: Memory MCP セットアップ"
+log_step "STEP 11: Memory MCP Setup"
 
 if command -v claude &> /dev/null; then
-    # Memory MCP が既に設定済みか確認
+    # Check if Memory MCP is already configured
     if claude mcp list 2>/dev/null | grep -q "memory"; then
-        log_info "Memory MCP は既に設定済みです"
-        RESULTS+=("Memory MCP: OK (設定済み)")
+        log_info "Memory MCP is already configured"
+        RESULTS+=("Memory MCP: OK (Configured)")
     else
-        log_info "Memory MCP を設定中..."
+        log_info "Configuring Memory MCP..."
         if claude mcp add memory \
             -e MEMORY_FILE_PATH="$SCRIPT_DIR/memory/shogun_memory.jsonl" \
             -- npx -y @modelcontextprotocol/server-memory 2>/dev/null; then
-            log_success "Memory MCP 設定完了"
-            RESULTS+=("Memory MCP: 設定完了")
+            log_success "Memory MCP setup complete"
+            RESULTS+=("Memory MCP: Setup complete")
         else
-            log_warn "Memory MCP の設定に失敗しました（手動で設定可能）"
-            RESULTS+=("Memory MCP: 設定失敗 (手動設定可能)")
+            log_warn "Failed to configure Memory MCP (can be configured manually)"
+            RESULTS+=("Memory MCP: Setup failed (can be configured manually)")
         fi
     fi
 else
-    log_warn "claude コマンドが見つからないため Memory MCP 設定をスキップ"
-    RESULTS+=("Memory MCP: スキップ (claude未インストール)")
+    log_warn "claude command not found. Skipping Memory MCP setup."
+    RESULTS+=("Memory MCP: Skipped (claude not installed)")
 fi
 
 # ============================================================
-# 結果サマリー
+# Result Summary
 # ============================================================
 echo ""
 echo "  ╔══════════════════════════════════════════════════════════════╗"
-echo "  ║  📋 セットアップ結果サマリー                                  ║"
+echo "  ║  📋 Setup Result Summary                                  ║"
 echo "  ╚══════════════════════════════════════════════════════════════╝"
 echo ""
 
 for result in "${RESULTS[@]}"; do
-    if [[ $result == *"未インストール"* ]] || [[ $result == *"失敗"* ]]; then
+    if [[ $result == *"Not installed"* ]] || [[ $result == *"failed"* ]]; then
         echo -e "  ${RED}✗${NC} $result"
-    elif [[ $result == *"アップグレード"* ]] || [[ $result == *"スキップ"* ]]; then
+    elif [[ $result == *"Upgrade"* ]] || [[ $result == *"Skipped"* ]]; then
         echo -e "  ${YELLOW}!${NC} $result"
     else
         echo -e "  ${GREEN}✓${NC} $result"
@@ -980,60 +980,60 @@ echo ""
 
 if [ "$HAS_ERROR" = true ]; then
     echo "  ╔══════════════════════════════════════════════════════════════╗"
-    echo "  ║  ⚠️  一部の依存関係が不足しています                           ║"
+    echo "  ║  ⚠️  Some dependencies are missing                           ║"
     echo "  ╚══════════════════════════════════════════════════════════════╝"
     echo ""
-    echo "  上記の警告を確認し、不足しているものをインストールしてください。"
-    echo "  すべての依存関係が揃ったら、再度このスクリプトを実行して確認できます。"
+    echo "  Please check the warnings above and install what is missing."
+    echo "  Once all dependencies are met, you can run this script again."
 else
     echo "  ╔══════════════════════════════════════════════════════════════╗"
-    echo "  ║  ✅ セットアップ完了！準備万端でござる！                      ║"
+    echo "  ║  ✅ Setup complete! Prepared for battle!                     ║"
     echo "  ╚══════════════════════════════════════════════════════════════╝"
 fi
 
 echo ""
 echo "  ┌──────────────────────────────────────────────────────────────┐"
-echo "  │  📜 次のステップ                                             │"
+echo "  │  📜 Next Steps                                               │"
 echo "  └──────────────────────────────────────────────────────────────┘"
 echo ""
-echo "  ⚠️  初回のみ: 以下を手動で実行してください"
+echo "  ⚠️  First time only: Please run the following manually"
 echo ""
-echo "  STEP 0: PATHの反映（このシェルにインストール結果を反映）"
+echo "  STEP 0: Apply PATH (reflect installation results in this shell)"
 echo "     source ~/.bashrc"
 echo ""
-echo "  STEP A: OAuth認証 + Bypass Permissions の承認（1コマンドで完了）"
+echo "  STEP A: OAuth Auth + Bypass Permissions Approval (Completed in 1 command)"
 echo "     claude --dangerously-skip-permissions"
 echo ""
-echo "     1. ブラウザが開く → Anthropicアカウントでログイン → CLIに戻る"
-echo "        ※ WSLでブラウザが開かない場合は、表示されるURLをWindows側の"
-echo "          ブラウザに手動で貼り付けてください"
-echo "     2. Bypass Permissions の承認画面が表示される"
-echo "        → 「Yes, I accept」を選択（↓キーで2を選んでEnter）"
-echo "     3. /exit で退出"
+echo "     1. Browser opens -> Log in with Anthropic account -> Return to CLI"
+echo "        * If browser does not open in WSL, copy/paste the URL to your"
+echo "          Windows browser manually."
+echo "     2. Bypass Permissions approval screen appears"
+echo "        -> Select \"Yes, I accept\" (Press down arrow to select 2 and press Enter)"
+echo "     3. Exit with /exit"
 echo ""
-echo "     ※ 一度承認すれば ~/.claude/ に保存され、以降は不要です"
+echo "     * Once approved, it is saved in ~/.claude/ and not needed hereafter."
 echo ""
 echo "  ────────────────────────────────────────────────────────────────"
 echo ""
-echo "  出陣（全エージェント起動）:"
+echo "  DEPARTING FOR BATTLE (Start all agents):"
 echo "     ./shutsujin_departure.sh"
 echo ""
-echo "  オプション:"
-echo "     ./shutsujin_departure.sh -s            # セットアップのみ（Claude手動起動）"
-echo "     ./shutsujin_departure.sh -t            # Windows Terminalタブ展開"
-echo "     ./shutsujin_departure.sh -shell bash   # bash用プロンプトで起動"
-echo "     ./shutsujin_departure.sh -shell zsh    # zsh用プロンプトで起動"
+echo "  Options:"
+echo "     ./shutsujin_departure.sh -s            # Setup only (Manual Claude launch)"
+echo "     ./shutsujin_departure.sh -t            # Open Windows Terminal tabs"
+echo "     ./shutsujin_departure.sh -shell bash   # Launch with bash prompt"
+echo "     ./shutsujin_departure.sh -shell zsh    # Launch with zsh prompt"
 echo ""
-echo "  ※ シェル設定は config/settings.yaml の shell: でも変更可能です"
+echo "  * Shell settings can also be modified in config/settings.yaml under 'shell:'"
 echo ""
-echo "  詳細は README.md を参照してください。"
+echo "  For details, please refer to README.md."
 echo ""
 echo "  ════════════════════════════════════════════════════════════════"
-echo "   天下布武！ (Tenka Fubu!)"
+echo "   Tenka Fubu! (Rule the realm!)"
 echo "  ════════════════════════════════════════════════════════════════"
 echo ""
 
-# 依存関係不足の場合は exit 1 を返す（install.bat が検知できるように）
+# Return exit 1 if dependencies are missing (so install.bat can detect it)
 if [ "$HAS_ERROR" = true ]; then
     exit 1
 fi

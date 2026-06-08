@@ -3,7 +3,7 @@
 # ntfy Input Listener
 # Streams messages from ntfy topic, writes to inbox YAML, wakes shogun.
 # NOT polling — uses ntfy's streaming endpoint (long-lived HTTP connection).
-# FR-066: ntfy認証対応 (Bearer token / Basic auth)
+# FR-066: ntfy authentication support (Bearer token / Basic auth)
 # ═══════════════════════════════════════════════════════════════
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -13,7 +13,7 @@ INBOX="$SCRIPT_DIR/queue/ntfy_inbox.yaml"
 LOCKFILE="${INBOX}.lock"
 CORRUPT_DIR="$SCRIPT_DIR/logs/ntfy_inbox_corrupt"
 
-# ntfy_auth.sh読み込み
+# Load ntfy_auth.sh
 # shellcheck source=../lib/ntfy_auth.sh
 source "$SCRIPT_DIR/lib/ntfy_auth.sh"
 
@@ -22,7 +22,7 @@ if [ -z "$TOPIC" ]; then
     exit 1
 fi
 
-# トピック名セキュリティ検証
+# Validate topic name security
 ntfy_validate_topic "$TOPIC" || true
 
 # Initialize inbox if not exists
@@ -30,7 +30,7 @@ if [ ! -f "$INBOX" ]; then
     echo "inbox:" > "$INBOX"
 fi
 
-# 認証引数を取得（設定がなければ空 = 後方互換）
+# Retrieve authentication arguments (empty if not configured = backward compatibility)
 AUTH_ARGS=()
 while IFS= read -r line; do
     [ -n "$line" ] && AUTH_ARGS+=("$line")
@@ -167,9 +167,9 @@ while true; do
 
         # Auto-reply removed — shogun replies directly after processing.
 
-        # Wake shogun via inbox (ntfy処理は将軍が直接受信)
+        # Wake shogun via inbox (Shogun directly receives and processes ntfy)
         bash "$SCRIPT_DIR/scripts/inbox_write.sh" shogun \
-            "ntfyから新しいメッセージ受信。queue/ntfy_inbox.yaml を確認し処理せよ。" \
+            "Received new message from ntfy. Please check and process queue/ntfy_inbox.yaml." \
             ntfy_received ntfy_listener
     done
 

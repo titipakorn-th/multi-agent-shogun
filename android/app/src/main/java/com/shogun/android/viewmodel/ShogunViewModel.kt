@@ -68,7 +68,7 @@ class ShogunViewModel(application: Application) : AndroidViewModel(application) 
                 startForegroundService()
                 startAutoRefresh()
             } else {
-                _errorMessage.value = "接続失敗: ${result.exceptionOrNull()?.message}"
+                _errorMessage.value = "Connection failed: ${result.exceptionOrNull()?.message}"
             }
         }
     }
@@ -112,18 +112,18 @@ class ShogunViewModel(application: Application) : AndroidViewModel(application) 
     private fun startReconnect() {
         reconnectJob?.cancel()
         reconnectJob = viewModelScope.launch {
-            _paneContent.value += "\n[自動再接続中...]\n"
+            _paneContent.value += "\n[Auto-reconnecting...]\n"
             val result = sshManager.reconnect(maxAttempts = 3, delayMs = 5000)
             if (result.isSuccess) {
                 _isConnected.value = true
                 _errorMessage.value = null
-                _paneContent.value += "[再接続成功]\n"
+                _paneContent.value += "[Reconnection successful]\n"
                 startForegroundService()
                 startAutoRefresh()
             } else {
                 _isConnected.value = false
-                _errorMessage.value = "再接続失敗: ${result.exceptionOrNull()?.message}"
-                _paneContent.value += "[再接続失敗。手動で再接続してください]\n"
+                _errorMessage.value = "Reconnection failed: ${result.exceptionOrNull()?.message}"
+                _paneContent.value += "[Reconnection failed. Please reconnect manually.]\n"
                 stopForegroundService()
             }
         }

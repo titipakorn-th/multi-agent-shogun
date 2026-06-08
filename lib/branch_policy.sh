@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
 # Shared helpers for branch policy scripts.
 
-BRANCH_POLICY_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+BRANCH_POLICY_ROOT="${PROJECT_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]:-.}")/.." && pwd)}"
 BRANCH_POLICY_SETTINGS="${BRANCH_POLICY_SETTINGS:-$BRANCH_POLICY_ROOT/config/settings.yaml}"
 
 branch_policy_python() {
-    if [[ -x "$BRANCH_POLICY_ROOT/.venv/bin/python3" ]]; then
-        printf '%s\n' "$BRANCH_POLICY_ROOT/.venv/bin/python3"
+    if [[ -x "${BRANCH_POLICY_ROOT:-}/.venv/bin/python3" ]]; then
+        printf '%s\n' "${BRANCH_POLICY_ROOT}/.venv/bin/python3"
     else
-        command -v python3
+        command -v python3 || echo "python3"
     fi
 }
 

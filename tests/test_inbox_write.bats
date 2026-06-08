@@ -1,62 +1,62 @@
 #!/usr/bin/env bats
-# test_inbox_write.bats — inbox_write.sh ユニットテスト
-# リグレッションテスト仕様書 T-001 ~ T-013 実装
+# test_inbox_write.bats — inbox_write.sh Unit Test
+# Regression test specification T-001 ~ T-013 implementation
 #
-# テスト構成:
-#   T-001~T-002: 引数バリデーション
-#   T-003~T-004: 正常書き込み（新規/追記）
-#   T-005: メッセージID一意性
-#   T-006~T-007: デフォルト値（type/from）
-#   T-008~T-009: Overflow Protection（50件制限）
-#   T-010: flock競合時のリトライ
-#   T-011: 特殊文字のエスケープ処理
-#   T-012: inbox初期化（ディレクトリ自動作成）
-#   T-013~T-014: lock directory解放
+# Test configuration:
+#   T-001~T-002: Argument validation
+#   T-003~T-004: Normal write (new/append)
+#   T-005: Message ID uniqueness
+#   T-006~T-007: Default values (type/from)
+#   T-008~T-009: Overflow Protection (50 message limit)
+#   T-010: Retry on flock conflict
+#   T-011: Escape handling of special characters
+#   T-012: inbox initialization (directory auto-creation)
+#   T-013~T-014: lock directory release
 
-# --- セットアップ ---
+# --- Setup ---
 
 setup_file() {
     export PROJECT_ROOT="$(cd "$(dirname "$BATS_TEST_FILENAME")/.." && pwd)"
     export INBOX_WRITE_SCRIPT="$PROJECT_ROOT/scripts/inbox_write.sh"
     export VENV_PYTHON="$PROJECT_ROOT/.venv/bin/python3"
 
-    # スクリプト存在確認（前提条件）
+    # Verify script existence (prerequisite)
     [ -f "$INBOX_WRITE_SCRIPT" ] || return 1
 
-    # venv python3 + PyYAML存在確認
+    # Verify venv python3 + PyYAML existence
     "$VENV_PYTHON" -c "import yaml" 2>/dev/null || return 1
 }
 
 setup() {
-    # テスト毎に独立したtmpディレクトリを作成
+    # Create independent tmp directory per test
     export TEST_TMPDIR="$(mktemp -d "$BATS_TMPDIR/inbox_write_test.XXXXXX")"
     export TEST_INBOX_DIR="$TEST_TMPDIR/queue/inbox"
     mkdir -p "$TEST_INBOX_DIR"
 
-    # inbox_write.shが参照するSCRIPT_DIRをtmpに向けるため、wrapper scriptを作成
-    # inbox_write.shはSCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"で解決するため、
-    # シンボリックリンクでテスト用ディレクトリを作成
+    # Create wrapper script to point SCRIPT_DIR referenced by inbox_write.sh to tmp
+    # Since inbox_write.sh resolves SCRIPT_DIR via SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)",
+    # create test directory using symbolic link
     export TEST_SCRIPT_DIR="$TEST_TMPDIR/scripts"
     mkdir -p "$TEST_SCRIPT_DIR"
 
-    # 元のスクリプトをコピー（SCRIPT_DIRをテスト用に書き換える）
+    # Copy original script (overwrite SCRIPT_DIR for testing)
     sed "s|SCRIPT_DIR=\"\$(cd \"\$(dirname \"\${BASH_SOURCE\[0\]}\")/..*|SCRIPT_DIR=\"$TEST_TMPDIR\"|" \
         "$PROJECT_ROOT/scripts/inbox_write.sh" > "$TEST_SCRIPT_DIR/inbox_write.sh"
     chmod +x "$TEST_SCRIPT_DIR/inbox_write.sh"
 
-    # .venvをプロジェクトルートからシンボリックリンク（inbox_write.shが$SCRIPT_DIR/.venv/bin/python3を参照）
+    # Symlink .venv from project root (inbox_write.sh references $SCRIPT_DIR/.venv/bin/python3)
     ln -sf "$PROJECT_ROOT/.venv" "$TEST_TMPDIR/.venv"
 
     export TEST_INBOX_WRITE="$TEST_SCRIPT_DIR/inbox_write.sh"
 }
 
 teardown() {
-    # テスト用tmpディレクトリを削除
+    # Delete test tmp directory
     [ -n "$TEST_TMPDIR" ] && [ -d "$TEST_TMPDIR" ] && rm -rf "$TEST_TMPDIR"
 }
 
 # =============================================================================
-# T-001: 引数バリデーション — target未指定でexit 1
+# T-001: Argument validation — exit 1 when target is unspecified
 # =============================================================================
 
 @test "T-001: no arguments → exit 1 with Usage message" {
@@ -66,7 +66,7 @@ teardown() {
 }
 
 # =============================================================================
-# T-002: 引数バリデーション — content未指定でexit 1
+# T-002: Argument validation — exit 1 when content is unspecified
 # =============================================================================
 
 @test "T-002: only target, no content → exit 1" {
@@ -76,7 +76,7 @@ teardown() {
 }
 
 # =============================================================================
-# T-002b: 引数バリデーション — type/from未指定でexit 1
+# T-002b: Argument validation — exit 1 when type/from are unspecified
 # =============================================================================
 
 @test "T-002b: missing type and from → exit 1" {
@@ -86,7 +86,7 @@ teardown() {
 }
 
 # =============================================================================
-# T-002c: 自己送信ガード — from==targetでexit 1
+# T-002c: Self-transmission guard — exit 1 when from==target
 # =============================================================================
 
 @test "T-002c: self-send (from==target) → exit 1 with REJECTED" {
@@ -96,38 +96,38 @@ teardown() {
 }
 
 # =============================================================================
-# T-003: 正常書き込み — 新規inboxファイル作成
+# T-003: Normal write — New inbox file creation
 # =============================================================================
 
 @test "T-003: normal write to new inbox file → messages array with correct fields" {
-    run bash "$TEST_INBOX_WRITE" "test_agent" "テストメッセージ" "cmd_new" "shogun"
+    run bash "$TEST_INBOX_WRITE" "test_agent" "test message" "cmd_new" "shogun"
     [ "$status" -eq 0 ]
 
-    # YAMLファイルが作成されていることを確認
+    # Confirm YAML file is created
     [ -f "$TEST_INBOX_DIR/test_agent.yaml" ]
 
-    # python3でYAML検証
+    # Verify YAML with python3
     "$VENV_PYTHON" <<EOF
 import yaml, sys
 
 with open('$TEST_INBOX_DIR/test_agent.yaml') as f:
     data = yaml.safe_load(f)
 
-# messages配列が存在し、1件あること
+# messages array exists and has 1 entry
 assert 'messages' in data, 'messages key not found'
 assert len(data['messages']) == 1, f'Expected 1 message, got {len(data["messages"])}'
 
 msg = data['messages'][0]
 
-# 必須フィールドの存在確認
+# Confirm existence of required fields
 required_fields = ['id', 'from', 'timestamp', 'type', 'content', 'read']
 for field in required_fields:
     assert field in msg, f'Field {field} not found in message'
 
-# フィールド値の検証
+# Verify field values
 assert msg['from'] == 'shogun', f'Expected from=shogun, got {msg["from"]}'
 assert msg['type'] == 'cmd_new', f'Expected type=cmd_new, got {msg["type"]}'
-assert msg['content'] == 'テストメッセージ', f'Expected content=テストメッセージ, got {msg["content"]}'
+assert msg['content'] == 'test message', f'Expected content=test message, got {msg["content"]}'
 assert msg['read'] == False, f'Expected read=False, got {msg["read"]}'
 assert msg['id'].startswith('msg_'), f'Message ID should start with msg_, got {msg["id"]}'
 
@@ -136,18 +136,18 @@ EOF
 }
 
 # =============================================================================
-# T-004: 正常書き込み — 既存inboxへの追記
+# T-004: Normal write — Append to existing inbox
 # =============================================================================
 
 @test "T-004: append to existing inbox → preserves existing messages, adds new one" {
-    # 1件目の書き込み
-    bash "$TEST_INBOX_WRITE" "test_agent" "メッセージ1" "type1" "sender1"
+    # First write
+    bash "$TEST_INBOX_WRITE" "test_agent" "message1" "type1" "sender1"
 
-    # 2件目の書き込み
-    run bash "$TEST_INBOX_WRITE" "test_agent" "メッセージ2" "type2" "sender2"
+    # Second write
+    run bash "$TEST_INBOX_WRITE" "test_agent" "message2" "type2" "sender2"
     [ "$status" -eq 0 ]
 
-    # python3で検証
+    # Verify with python3
     "$VENV_PYTHON" <<EOF
 import yaml
 
@@ -156,24 +156,24 @@ with open('$TEST_INBOX_DIR/test_agent.yaml') as f:
 
 assert len(data['messages']) == 2, f'Expected 2 messages, got {len(data["messages"])}'
 
-# 順序検証（1件目が先頭）
-assert data['messages'][0]['content'] == 'メッセージ1', 'First message mismatch'
-assert data['messages'][1]['content'] == 'メッセージ2', 'Second message mismatch'
+# Verify order (first write is at top)
+assert data['messages'][0]['content'] == 'message1', 'First message mismatch'
+assert data['messages'][1]['content'] == 'message2', 'Second message mismatch'
 
 print('T-004: PASS')
 EOF
 }
 
 # =============================================================================
-# T-005: メッセージID一意性
+# T-005: Message ID uniqueness
 # =============================================================================
 
 @test "T-005: message ID uniqueness → 2 rapid writes produce different IDs" {
-    # 2回連続書き込み
-    bash "$TEST_INBOX_WRITE" "test_agent" "メッセージA" "test_type" "sender_a"
-    bash "$TEST_INBOX_WRITE" "test_agent" "メッセージB" "test_type" "sender_b"
+    # Two consecutive writes
+    bash "$TEST_INBOX_WRITE" "test_agent" "messageA" "test_type" "sender_a"
+    bash "$TEST_INBOX_WRITE" "test_agent" "messageB" "test_type" "sender_b"
 
-    # python3で検証
+    # Verify with python3
     "$VENV_PYTHON" <<EOF
 import yaml
 
@@ -192,24 +192,24 @@ EOF
 }
 
 # =============================================================================
-# T-006: デフォルト値 — type未指定でwake_up
+# T-006: Default values — wake_up when type is unspecified
 # =============================================================================
 
 @test "T-006: missing type/from → exit 1 with Usage message" {
-    run bash "$TEST_INBOX_WRITE" "test_agent" "デフォルトテスト"
+    run bash "$TEST_INBOX_WRITE" "test_agent" "default test"
     [ "$status" -eq 1 ]
     [[ "$output" =~ "Usage" ]]
 }
 
 # =============================================================================
-# T-007: カスタムtype/from指定
+# T-007: Custom type/from specified
 # =============================================================================
 
 @test "T-007: custom type/from → 4th and 5th args set type and from correctly" {
-    run bash "$TEST_INBOX_WRITE" "test_agent" "カスタムメッセージ" "custom_type" "custom_sender"
+    run bash "$TEST_INBOX_WRITE" "test_agent" "custom message" "custom_type" "custom_sender"
     [ "$status" -eq 0 ]
 
-    # python3で検証
+    # Verify with python3
     "$VENV_PYTHON" <<EOF
 import yaml
 
@@ -226,11 +226,11 @@ EOF
 }
 
 # =============================================================================
-# T-008: Overflow Protection — 50件超で古い既読を削除
+# T-008: Overflow Protection — Delete old read messages when exceeding 50 entries
 # =============================================================================
 
 @test "T-008: overflow protection at 50 messages → oldest read messages removed" {
-    # 既読メッセージ60件を事前に作成
+    # Pre-create 60 read messages
     "$VENV_PYTHON" <<EOF
 import yaml
 
@@ -241,7 +241,7 @@ for i in range(60):
         'from': 'test_sender',
         'timestamp': f'2026-01-01T00:{i:02d}:00',
         'type': 'test_type',
-        'content': f'既読メッセージ {i}',
+        'content': f'read message {i}',
         'read': True
     })
 
@@ -251,11 +251,11 @@ with open('$TEST_INBOX_DIR/test_agent.yaml', 'w') as f:
     yaml.dump(data, f, default_flow_style=False, allow_unicode=True, indent=2)
 EOF
 
-    # 新規メッセージ1件書き込み
-    run bash "$TEST_INBOX_WRITE" "test_agent" "新規メッセージ" "test_type" "other_sender"
+    # Write 1 new message
+    run bash "$TEST_INBOX_WRITE" "test_agent" "new message" "test_type" "other_sender"
     [ "$status" -eq 0 ]
 
-    # 検証: 合計50件以下、新規メッセージは存在
+    # Verification: total 50 or fewer, new message exists
     "$VENV_PYTHON" <<EOF
 import yaml
 
@@ -264,8 +264,8 @@ with open('$TEST_INBOX_DIR/test_agent.yaml') as f:
 
 assert len(data['messages']) <= 50, f'Expected <= 50 messages, got {len(data["messages"])}'
 
-# 新規メッセージが含まれていることを確認
-new_msg_found = any(msg['content'] == '新規メッセージ' for msg in data['messages'])
+# Confirm new message is included
+new_msg_found = any(msg['content'] == 'new message' for msg in data['messages'])
 assert new_msg_found, 'New message not found after overflow protection'
 
 print('T-008: PASS')
@@ -273,35 +273,35 @@ EOF
 }
 
 # =============================================================================
-# T-009: Overflow Protection — 未読メッセージは削除されない
+# T-009: Overflow Protection — Unread messages are not deleted
 # =============================================================================
 
 @test "T-009: overflow preserves unread → unread messages are NOT removed even when over 50" {
-    # 未読20件 + 既読40件を事前に作成
+    # Pre-create 20 unread + 40 read messages
     "$VENV_PYTHON" <<EOF
 import yaml
 
 messages = []
 
-# 未読20件
+# 20 unread
 for i in range(20):
     messages.append({
         'id': f'msg_unread_{i:03d}',
         'from': 'test_sender',
         'timestamp': f'2026-01-01T00:{i:02d}:00',
         'type': 'test_type',
-        'content': f'未読メッセージ {i}',
+        'content': f'unread message {i}',
         'read': False
     })
 
-# 既読40件
+# 40 read
 for i in range(40):
     messages.append({
         'id': f'msg_read_{i:03d}',
         'from': 'test_sender',
         'timestamp': f'2026-01-01T01:{i:02d}:00',
         'type': 'test_type',
-        'content': f'既読メッセージ {i}',
+        'content': f'read message {i}',
         'read': True
     })
 
@@ -311,11 +311,11 @@ with open('$TEST_INBOX_DIR/test_agent.yaml', 'w') as f:
     yaml.dump(data, f, default_flow_style=False, allow_unicode=True, indent=2)
 EOF
 
-    # 新規メッセージ1件書き込み（未読20→21件になる）
-    run bash "$TEST_INBOX_WRITE" "test_agent" "新規未読" "test_type" "other_sender"
+    # Write 1 new message (unread becomes 20 -> 21)
+    run bash "$TEST_INBOX_WRITE" "test_agent" "new unread" "test_type" "other_sender"
     [ "$status" -eq 0 ]
 
-    # 検証: 未読21件が全て保持される
+    # Verification: all 21 unread messages are preserved
     "$VENV_PYTHON" <<EOF
 import yaml
 
@@ -326,9 +326,9 @@ unread_count = sum(1 for msg in data['messages'] if not msg.get('read', False))
 
 assert unread_count == 21, f'Expected 21 unread messages, got {unread_count}'
 
-# 元の未読メッセージが全て残っていることを確認
+# Confirm all original unread messages remain
 for i in range(20):
-    found = any(msg['content'] == f'未読メッセージ {i}' for msg in data['messages'])
+    found = any(msg['content'] == f'unread message {i}' for msg in data['messages'])
     assert found, f'Unread message {i} was removed'
 
 print('T-009: PASS')
@@ -336,29 +336,29 @@ EOF
 }
 
 # =============================================================================
-# T-010: flock競合時のリトライ（並行書き込みテスト）
+# T-010: flock retry on conflict (parallel write test)
 # =============================================================================
 
 @test "T-010: concurrent writes (flock test) → 8 parallel writes all succeed, no data loss" {
-    # 並行書き込み用のスクリプトを作成
+    # Create script for parallel writing
     cat > "$TEST_TMPDIR/parallel_write.sh" <<'SCRIPT_EOF'
 #!/bin/bash
 INBOX_WRITE="$1"
 AGENT="$2"
 ID="$3"
-bash "$INBOX_WRITE" "$AGENT" "並行メッセージ $ID" "concurrent" "writer_$ID" 2>/dev/null
+bash "$INBOX_WRITE" "$AGENT" "parallel message $ID" "concurrent" "writer_$ID" 2>/dev/null
 SCRIPT_EOF
     chmod +x "$TEST_TMPDIR/parallel_write.sh"
 
-    # 8個の並行書き込みプロセスを起動
+    # Launch 8 parallel writing processes
     for i in {1..8}; do
         "$TEST_TMPDIR/parallel_write.sh" "$TEST_INBOX_WRITE" "test_agent" "$i" &
     done
 
-    # 全プロセスの完了を待つ
+    # Wait for all processes to complete
     wait
 
-    # 検証: 8件全てが書き込まれていること
+    # Verification: all 8 entries are written
     "$VENV_PYTHON" <<EOF
 import yaml
 
@@ -367,7 +367,7 @@ with open('$TEST_INBOX_DIR/test_agent.yaml') as f:
 
 assert len(data['messages']) == 8, f'Expected 8 messages, got {len(data["messages"])}'
 
-# 全てのIDが異なることを確認
+# Confirm all IDs are unique
 ids = [msg['id'] for msg in data['messages']]
 assert len(ids) == len(set(ids)), 'Duplicate message IDs found'
 
@@ -376,21 +376,21 @@ EOF
 }
 
 # =============================================================================
-# T-011: 特殊文字のエスケープ処理
+# T-011: Escape handling of special characters
 # =============================================================================
 
 @test "T-011: special characters in content → YAML special chars handled safely" {
-    # YAML特殊文字を含むメッセージ
-    SPECIAL_CONTENT="引用符: \"test\" と 'test'
-改行を含む
-コロン: key: value
-ブレース: {key: value}
-配列: [1, 2, 3]"
+    # Message containing YAML special characters
+    SPECIAL_CONTENT="quotes: \"test\" and 'test'
+includes newlines
+colon: key: value
+braces: {key: value}
+array: [1, 2, 3]"
 
     run bash "$TEST_INBOX_WRITE" "test_agent" "$SPECIAL_CONTENT" "test_type" "other_sender"
     [ "$status" -eq 0 ]
 
-    # 検証: 特殊文字が正しく保存・復元されること
+    # Verification: special characters are correctly saved and restored
     "$VENV_PYTHON" <<EOF
 import yaml
 
@@ -399,11 +399,11 @@ with open('$TEST_INBOX_DIR/test_agent.yaml') as f:
 
 msg = data['messages'][0]
 
-expected_content = '''引用符: "test" と 'test'
-改行を含む
-コロン: key: value
-ブレース: {key: value}
-配列: [1, 2, 3]'''
+expected_content = '''quotes: "test" and 'test'
+includes newlines
+colon: key: value
+braces: {key: value}
+array: [1, 2, 3]'''
 
 assert msg['content'] == expected_content, f'Content mismatch: {msg["content"]}'
 
@@ -412,25 +412,25 @@ EOF
 }
 
 # =============================================================================
-# T-012: inbox初期化 — ディレクトリ自動作成
+# T-012: inbox initialization — directory auto-creation
 # =============================================================================
 
 @test "T-012: auto-create inbox directory → missing queue/inbox/ directory is created" {
-    # queue/inbox/ ディレクトリを削除
+    # Delete queue/inbox/ directory
     rm -rf "$TEST_INBOX_DIR"
 
-    # ディレクトリが存在しないことを確認
+    # Confirm directory does not exist
     [ ! -d "$TEST_INBOX_DIR" ]
 
-    # メッセージ書き込み
-    run bash "$TEST_INBOX_WRITE" "test_agent" "自動作成テスト" "test_type" "other_sender"
+    # Write message
+    run bash "$TEST_INBOX_WRITE" "test_agent" "auto-creation test" "test_type" "other_sender"
     [ "$status" -eq 0 ]
 
-    # ディレクトリとファイルが作成されていることを確認
+    # Confirm directory and file are created
     [ -d "$TEST_INBOX_DIR" ]
     [ -f "$TEST_INBOX_DIR/test_agent.yaml" ]
 
-    # 内容検証
+    # Verify content
     "$VENV_PYTHON" <<EOF
 import yaml
 

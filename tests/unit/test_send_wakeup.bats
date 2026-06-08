@@ -3,7 +3,7 @@
 # Sources the REAL inbox_watcher.sh with __INBOX_WATCHER_TESTING__=1
 # to test actual production functions with mocked externals (tmux, pgrep, etc).
 #
-# テスト構成:
+# Test configuration:
 #   T-SW-001: send_wakeup — active self-watch → skip nudge
 #   T-SW-002: send_wakeup — no self-watch → tmux send-keys
 #   T-SW-003: send_wakeup — send-keys content is "inboxN" + Enter (separated)
@@ -32,12 +32,12 @@
 #   T-CODEX-004: C-u NOT sent when agent is busy
 #   T-CODEX-005: send_cli_command — claude /clear passes through as-is
 #   T-CODEX-006: inbox_watcher.sh has agent_is_busy and Codex/Copilot handlers
-#   T-CODEX-007: pane @agent_cli=codex overrides stale CLI_TYPE (Phase2 C-c抑止)
+#   T-CODEX-007: pane @agent_cli=codex overrides stale CLI_TYPE (Phase 2 C-c suppression)
 #   T-CODEX-008: pane @agent_cli=codex overrides stale CLI_TYPE (/clear→/new)
 #   T-CODEX-009: normalize_special_command rejects invalid model_switch payload
 #   T-CODEX-010: unresolved CLI type falls back to codex-safe path
-#   T-CODEX-011: clear_command処理でauto-recovery task_assignedを自動投入
-#   T-CODEX-012: auto-recovery task_assignedは重複投入しない
+#   T-CODEX-011: automatically inject auto-recovery task_assigned during clear_command processing
+#   T-CODEX-012: do not duplicate auto-recovery task_assigned injection
 #   T-CODEX-016: Codex transcript echo is not treated as stuck input
 #   T-SHOGUN-001: session_has_client — returns 0 when client attached
 #   T-SHOGUN-002: session_has_client — returns 1 when no client
@@ -66,7 +66,7 @@
 #   T-COPILOT-001: send_cli_command — copilot /clear → Ctrl-C + restart
 #   T-COPILOT-002: send_cli_command — copilot /model → skip
 
-# --- セットアップ ---
+# --- Setup ---
 
 setup_file() {
     export PROJECT_ROOT="$(cd "$(dirname "$BATS_TEST_FILENAME")/../.." && pwd)"

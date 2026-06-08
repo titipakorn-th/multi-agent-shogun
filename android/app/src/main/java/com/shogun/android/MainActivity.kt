@@ -47,10 +47,10 @@ import com.shogun.android.ui.ShogunScreen
 import com.shogun.android.ui.theme.ShogunTheme
 
 sealed class Screen(val route: String, val label: String, val icon: ImageVector) {
-    object Shogun : Screen("shogun", "将軍", Icons.Default.Star)
-    object Agents : Screen("agents", "エージェント", Icons.Default.List)
-    object Dashboard : Screen("dashboard", "戦況", Icons.Default.Home)
-    object Settings : Screen("settings", "設定", Icons.Default.Settings)
+    object Shogun : Screen("shogun", "Shogun", Icons.Default.Star)
+    object Agents : Screen("agents", "Agents", Icons.Default.List)
+    object Dashboard : Screen("dashboard", "Dashboard", Icons.Default.Home)
+    object Settings : Screen("settings", "Settings", Icons.Default.Settings)
 }
 
 val bottomNavItems = listOf(
@@ -116,18 +116,18 @@ class MainActivity : ComponentActivity() {
 
         val sshManager = SshManager.getInstance()
         if (!sshManager.isConnected()) {
-            Toast.makeText(this, "❌ SSH未接続。先にアプリを開いて接続してください", Toast.LENGTH_LONG).show()
+            Toast.makeText(this, "❌ SSH not connected. Please open the app and connect first", Toast.LENGTH_LONG).show()
             return
         }
 
         val prefs = getSharedPreferences(PrefsKeys.PREFS_NAME, Context.MODE_PRIVATE)
         val projectPath = prefs.getString(PrefsKeys.PROJECT_PATH, "") ?: ""
         if (projectPath.isBlank()) {
-            Toast.makeText(this, "❌ 設定画面でプロジェクトパスを設定してください", Toast.LENGTH_LONG).show()
+            Toast.makeText(this, "❌ Please set the project path in settings", Toast.LENGTH_LONG).show()
             return
         }
         val total = imageUris.size
-        Toast.makeText(this, "転送中... (${total}枚)", Toast.LENGTH_SHORT).show()
+        Toast.makeText(this, "Transferring... ($total images)", Toast.LENGTH_SHORT).show()
         lifecycleScope.launch {
             var success = 0
             var failed = 0
@@ -137,7 +137,7 @@ class MainActivity : ComponentActivity() {
                     onFailure = { failed++ }
                 )
             }
-            val msg = if (failed == 0) "✅ ${success}枚 転送完了" else "✅ ${success}枚 完了 / ❌ ${failed}枚 失敗"
+            val msg = if (failed == 0) "✅ $success images transferred successfully" else "✅ $success images completed / ❌ $failed images failed"
             Toast.makeText(this@MainActivity, msg, Toast.LENGTH_LONG).show()
         }
     }
@@ -153,9 +153,9 @@ fun ShogunApp() {
     // BGM — 3 tracks, tap to cycle: shogun → shogun_reiwa → shogun_ashigirls → OFF → shogun ...
     data class BgmTrack(val resId: Int, val label: String)
     val tracks = remember { listOf(
-        BgmTrack(R.raw.shogun, "将軍"),
-        BgmTrack(R.raw.shogun_reiwa, "令和"),
-        BgmTrack(R.raw.shogun_ashigirls, "足軽ガールズ")
+        BgmTrack(R.raw.shogun, "Shogun"),
+        BgmTrack(R.raw.shogun_reiwa, "Reiwa"),
+        BgmTrack(R.raw.shogun_ashigirls, "Ashigirls")
     ) }
     var currentTrackIndex by remember { mutableIntStateOf(-1) } // -1 = OFF
     var isBgmPlaying by remember { mutableStateOf(false) }

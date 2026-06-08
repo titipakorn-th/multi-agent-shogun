@@ -58,7 +58,7 @@ setup() {
        "$E2E_QUEUE/queue/tasks/ashigaru1.yaml"
 
     bash "$E2E_QUEUE/scripts/inbox_write.sh" "ashigaru1" \
-        "初回タスク開始。" "task_assigned" "karo"
+        "First task started." "task_assigned" "karo"
     send_to_pane "$ashigaru1_pane" "inbox1"
 
     # 2. Wait for initial task to complete
@@ -113,7 +113,7 @@ EOF
        "$E2E_QUEUE/queue/tasks/ashigaru1.yaml"
 
     bash "$E2E_QUEUE/scripts/inbox_write.sh" "ashigaru1" \
-        "初回タスク開始。" "task_assigned" "karo"
+        "First task started." "task_assigned" "karo"
     send_to_pane "$ashigaru1_pane" "inbox1"
 
     run wait_for_yaml_value "$E2E_QUEUE/queue/tasks/ashigaru1.yaml" "task.status" "done" 30

@@ -2,18 +2,18 @@ package com.shogun.android.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-// ━━ 戦国カラーパレット ━━
+// ━━ Sengoku Color Palette ━━
 // Based on .interface-design/system.md
 
 // Primitives
-val Shikkoku = Color(0xFF1A1A1A)  // 漆黒 — lacquered armor base
-val Sumi     = Color(0xFF2D2D2D)  // 墨   — ink stone, castle wall
-val Kinpaku  = Color(0xFFC9A94E)  // 金箔 — gold leaf on shrine
-val Zouge    = Color(0xFFE8DCC8)  // 象牙 — washi paper, scroll
-val Shuaka   = Color(0xFFB33B24)  // 朱赤 — vermilion torii gate
-val Matsuba  = Color(0xFF3C6E47)  // 松葉 — pine garden (success)
-val Tetsukon = Color(0xFF3A4A5C)  // 鉄紺 — iron armor plate
-val Kurenai  = Color(0xFFCC3333)  // 紅   — blood red (error)
+val Shikkoku = Color(0xFF1A1A1A)  // Shikkoku (Jet Black) — lacquered armor base
+val Sumi     = Color(0xFF2D2D2D)  // Sumi (Ink Black) — ink stone, castle wall
+val Kinpaku  = Color(0xFFC9A94E)  // Kinpaku (Gold Leaf) — gold leaf on shrine
+val Zouge    = Color(0xFFE8DCC8)  // Zouge (Ivory) — washi paper, scroll
+val Shuaka   = Color(0xFFB33B24)  // Shuaka (Vermilion) — vermilion torii gate
+val Matsuba  = Color(0xFF3C6E47)  // Matsuba (Pine Needle Green) — pine garden (success)
+val Tetsukon = Color(0xFF3A4A5C)  // Tetsukon (Iron Blue) — iron armor plate
+val Kurenai  = Color(0xFFCC3333)  // Kurenai (Crimson Red) — blood red (error)
 
 // Surface elevation
 val Surface0 = Color(0xFF1A1A1A)  // Screen background

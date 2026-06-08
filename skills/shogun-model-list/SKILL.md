@@ -4,7 +4,7 @@ description: >
   All AI CLI tools × available models × required subscriptions × Bloom max capability.
   Reference table for choosing which models to use in multi-agent-shogun.
   Trigger: "model list", "what models", "model comparison", "which models can I use",
-  "モデル一覧", "モデル比較", "どのモデルが使える"
+  "model list", "model comparison", "which models can I use"
 ---
 
 # /shogun-model-list — Model Capability Reference
@@ -20,7 +20,7 @@ in `config/settings.yaml`.
 - "What models can I use with my subscription?"
 - "Which model handles L5 tasks?"
 - "Compare Claude vs Codex model tiers"
-- "Show me all models" / "モデル一覧"
+- "Show me all models" / "model list"
 - Before running `/shogun-bloom-config` to understand the landscape
 
 ## Instructions

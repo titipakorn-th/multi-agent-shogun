@@ -1,65 +1,65 @@
-# context ディレクトリ
+# context Directory
 
-プロジェクト固有のコンテキストを管理するディレクトリ。
+Directory for managing project-specific context.
 
-## 目的
-- プロジェクトごとの知識・決定事項を保存
-- セッション間での情報共有
-- 新規参加者（足軽）への引継ぎ
+## Purpose
+- Store knowledge and decisions for each project
+- Share information across sessions
+- Handover instructions to new participants (Ashigaru)
 
-## ファイル構成
+## File Structure
 ```
 context/
-  README.md           ← このファイル
-  {project_id}.md     ← プロジェクト固有のコンテキスト
+  README.md           ← This file
+  {project_id}.md     ← Project-specific context file
 ```
 
-## 使い方
+## How to Use
 
-### 新規プロジェクト追加時
-1. `context/{project_id}.md` を作成
-2. 下記テンプレートに沿って記載
+### Adding a New Project
+1. Create `context/{project_id}.md`
+2. Fill it out according to the template below
 
-### 作業開始時
-1. `memory/global_context.md` を読む（システム全体の設定）
-2. `context/{project_id}.md` を読む（プロジェクト固有情報）
+### Starting Work
+1. Read `memory/global_context.md` (System-wide configuration)
+2. Read `context/{project_id}.md` (Project-specific information)
 
-## テンプレート
+## Template
 
 ```markdown
-# {project_id} プロジェクトコンテキスト
-最終更新: YYYY-MM-DD
+# {project_id} Project Context
+Last Updated: YYYY-MM-DD
 
-## 基本情報
-- **プロジェクトID**: {project_id}
-- **正式名称**: {name}
-- **パス**: {path}
-- **Notion URL**: {url}（あれば）
+## Basic Info
+- **Project ID**: {project_id}
+- **Official Name**: {name}
+- **Path**: {path}
+- **Notion URL**: {url} (if any)
 
-## 概要
-{プロジェクトの概要を1-2文で}
+## Overview
+{1-2 sentences summarizing the project}
 
-## 技術スタック
-- 言語:
-- フレームワーク:
-- データベース:
+## Tech Stack
+- Language:
+- Framework:
+- Database:
 
-## 重要な決定事項
-- {決定1}
-- {決定2}
+## Important Decisions
+- {Decision 1}
+- {Decision 2}
 
-## マイルストーン
-- **期限**: YYYY-MM-DD（{イベント名}）
+## Milestones
+- **Deadline**: YYYY-MM-DD ({Event Name})
 
-## 進行状況
-- [x] 完了タスク
-- [ ] 未完了タスク
+## Progress
+- [x] Completed tasks
+- [ ] Remaining tasks
 
-## 注意事項
-{プロジェクト固有の注意点}
+## Notes
+{Project-specific notes/cautions}
 ```
 
-## 更新ルール
-- 重要な決定があったら即座に更新
-- 日付を必ず更新
-- 不要になった情報は削除（シンプルに保つ）
+## Update Rules
+- Update immediately when important decisions are made
+- Always update the date
+- Delete obsolete information (keep it simple)

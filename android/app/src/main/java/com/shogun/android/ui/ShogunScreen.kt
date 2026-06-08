@@ -155,7 +155,7 @@ fun ShogunScreen(
             modifier = Modifier.fillMaxSize()
         )
         Column(modifier = Modifier.fillMaxSize()) {
-        // 陣幕バー — connection status
+        // Jinmaku bar — connection status
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -164,7 +164,7 @@ fun ShogunScreen(
             horizontalArrangement = Arrangement.Center
         ) {
             Text(
-                text = if (isConnected) "接続中 — 将軍セッション" else "未接続",
+                text = if (isConnected) "Connected — Shogun Session" else "Disconnected",
                 color = Zouge,
                 fontSize = 12.sp
             )
@@ -179,7 +179,7 @@ fun ShogunScreen(
         ) {
             if (errorMessage != null) {
                 Text(
-                    text = "エラー: $errorMessage",
+                    text = "Error: $errorMessage",
                     color = Kurenai,
                     fontFamily = FontFamily.Monospace,
                     fontSize = 13.sp,
@@ -224,7 +224,7 @@ fun ShogunScreen(
                 value = inputTextValue,
                 onValueChange = { inputTextValue = it },
                 modifier = Modifier.weight(1f),
-                placeholder = { Text("コマンドを入力", color = TextMuted) },
+                placeholder = { Text("Enter command", color = TextMuted) },
                 singleLine = !isInputExpanded,
                 maxLines = if (isInputExpanded) 6 else 1,
                 colors = OutlinedTextFieldDefaults.colors(
@@ -245,7 +245,7 @@ fun ShogunScreen(
             ) {
                 Icon(
                     imageVector = if (isInputExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
-                    contentDescription = "展開",
+                    contentDescription = "Expand",
                     tint = Kinpaku
                 )
             }
@@ -297,7 +297,7 @@ fun ShogunScreen(
             ) {
                 Icon(
                     imageVector = Icons.Default.Mic,
-                    contentDescription = "音声入力",
+                    contentDescription = "Voice Input",
                     tint = if (isListening) Kurenai else Kinpaku
                 )
             }
@@ -314,7 +314,7 @@ fun ShogunScreen(
             ) {
                 Icon(
                     imageVector = Icons.Default.Send,
-                    contentDescription = "送信",
+                    contentDescription = "Send",
                     tint = if (inputTextValue.text.isNotBlank() && isConnected && !isListening) Kinpaku else TextMuted
                 )
             }

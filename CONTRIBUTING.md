@@ -411,7 +411,7 @@ Use GitHub Issues for:
 - **Feature requests** — Describe the use case, proposed solution, alternatives considered
 - **Questions** — Ask about implementation details, design decisions
 
-**日本語でのイシュー報告も歓迎します** (Issues in Japanese are welcome).
+Issues in Japanese are welcome.
 
 ### GitHub Discussions
 

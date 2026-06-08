@@ -69,8 +69,8 @@ if [ "$STOP_HOOK_ACTIVE" = "True" ]; then
         exit 0
     fi
     # UNREAD=0: agent processed its inbox. Wait for new incoming messages.
-    # stop_hook_active=True 時も inotifywait 待機（連続処理ループ対応）
-    # タイムアウト(55秒)でexit 0 → ループは有限回で終了
+    # Also wait with inotifywait when stop_hook_active=True (for handling continuous loop processing)
+    # exit 0 on timeout (55s) -> loop terminates after a finite number of iterations
     WATCH_TARGETS_ACTIVE=("$INBOX")
     if [ "$AGENT_ID" = "shogun" ]; then
         WATCH_TARGETS_ACTIVE+=("$SCRIPT_DIR/dashboard.md")
@@ -96,14 +96,14 @@ if [ -n "$LAST_MSG" ]; then
     NOTIFY_TYPE=""
     NOTIFY_CONTENT=""
 
-    # Completion detection (日本語 + 英語)
-    if echo "$LAST_MSG" | grep -qiE '任務完了|完了でござる|報告YAML.*更新|report.*updated|task completed|タスク完了'; then
+    # Completion detection (English)
+    if echo "$LAST_MSG" | grep -qiE 'report.*updated|task completed|mission complete|completed'; then
         NOTIFY_TYPE="report_completed"
-        NOTIFY_CONTENT="${AGENT_ID}、タスク完了。report確認されたし。"
+        NOTIFY_CONTENT="${AGENT_ID}, task completed. Please check the report."
     # Error detection (require verb+context to avoid false positives)
-    elif echo "$LAST_MSG" | grep -qiE 'エラー.*中断|失敗.*中断|見つからない.*中断|abort|error.*abort|failed.*stop'; then
+    elif echo "$LAST_MSG" | grep -qiE 'abort|error.*abort|failed.*stop|error.*stop|failed.*abort|interrupted.*error|not found.*interrupt'; then
         NOTIFY_TYPE="error_report"
-        NOTIFY_CONTENT="${AGENT_ID}、エラーで停止。確認されたし。"
+        NOTIFY_CONTENT="${AGENT_ID}, stopped with error. Please check."
     fi
 
     # Send notification to karo (background, non-blocking)
@@ -128,8 +128,8 @@ UNREAD_COUNT=$(grep -c 'read: false' "$INBOX" 2>/dev/null || true)
 FLAG="${IDLE_FLAG_DIR:-/tmp}/shogun_idle_${AGENT_ID}"
 if [ "${UNREAD_COUNT:-0}" -eq 0 ]; then
     touch "$FLAG"
-    # inotifywait で inbox 変更を最大55秒待機
-    # dashboard.md も監視（shogunの場合のみ）
+    # Wait up to 55 seconds for inbox changes using inotifywait
+    # Also monitor dashboard.md (only for shogun)
     WATCH_TARGETS=("$INBOX")
     if [ "$AGENT_ID" = "shogun" ]; then
         WATCH_TARGETS+=("$SCRIPT_DIR/dashboard.md")
@@ -142,12 +142,12 @@ if [ "${UNREAD_COUNT:-0}" -eq 0 ]; then
         # inotifywait not available: fall through to exit 0
         :
     fi
-    # 待機後に再チェック
+    # Re-check after waiting
     UNREAD_COUNT=$(grep -c 'read: false' "$INBOX" 2>/dev/null || true)
     if [ "${UNREAD_COUNT:-0}" -eq 0 ]; then
         exit 0
     fi
-    # 未読あり → fall through to block response below
+    # Unread messages exist → fall through to block response below
 fi
 # NOTE: Do NOT rm -f the flag here. The old logic removed the flag when
 # unread > 0 and blocked the stop, expecting the re-fired stop_hook
@@ -187,8 +187,8 @@ try:
         parts.append(f'[{frm}/{typ}] {content}')
     summary = ' | '.join(parts)
 except Exception:
-    summary = f'inbox未読{count}件あり'
+    summary = f'{count} unread messages in inbox'
 
-reason = f'inbox未読{count}件あり。queue/inbox/{agent_id}.yamlを読んで処理せよ。内容: {summary}'
+reason = f'{count} unread messages in inbox. Read and process queue/inbox/{agent_id}.yaml. Content: {summary}'
 print(json.dumps({'decision': 'block', 'reason': reason}, ensure_ascii=False))
-" 2>/dev/null || echo "{\"decision\":\"block\",\"reason\":\"inbox未読${UNREAD_COUNT}件あり。queue/inbox/${AGENT_ID}.yamlを読んで処理せよ。\"}"
+" 2>/dev/null || echo "{\"decision\":\"block\",\"reason\":\"${UNREAD_COUNT} unread messages in inbox. Read and process queue/inbox/${AGENT_ID}.yaml.\"}"

@@ -1,31 +1,31 @@
 #!/usr/bin/env python3
-"""機微情報マスキングスクリプト — スクショ内の機密情報を黒塗りする"""
+"""Sensitive info masking script — Blacks out confidential info in screenshots"""
 import argparse
 import sys
 
 
 def main():
     parser = argparse.ArgumentParser(
-        description="スクショ内の機微情報を矩形で塗りつぶす",
-        epilog='例: mask_sensitive.py --input shot.png --output masked.png --regions "100,50,400,80" "500,200,800,230"',
+        description="Fills sensitive information in screenshots with rectangles",
+        epilog='Example: mask_sensitive.py --input shot.png --output masked.png --regions "100,50,400,80" "500,200,800,230"',
     )
-    parser.add_argument("--input", required=True, help="入力画像のパス")
-    parser.add_argument("--output", required=True, help="出力画像のパス")
+    parser.add_argument("--input", required=True, help="Path to input image")
+    parser.add_argument("--output", required=True, help="Path to output image")
     parser.add_argument(
         "--regions",
         nargs="+",
         required=True,
-        help='マスク領域 "x1,y1,x2,y2"（複数指定可。左上(0,0)基準、ピクセル値）',
+        help='Mask regions "x1,y1,x2,y2" (Multiple regions can be specified. Top-left (0,0) origin, pixel values)',
     )
     parser.add_argument(
         "--color",
         default="0,0,0",
-        help='塗りつぶし色 "R,G,B"（デフォルト: 0,0,0 = 黒）',
+        help='Blackout color "R,G,B" (Default: 0,0,0 = Black)',
     )
     parser.add_argument(
         "--preview",
         action="store_true",
-        help="マスク領域を赤枠で表示（塗りつぶさない。位置確認用）",
+        help="Display mask regions with a red border (No blackout. For position verification)",
     )
     args = parser.parse_args()
 
@@ -33,32 +33,32 @@ def main():
         from PIL import Image, ImageDraw
     except ImportError:
         print(
-            "ERROR: Pillow が未インストールです。以下のコマンドでインストールしてください:",
+            "ERROR: Pillow is not installed. Please install it using the following command:",
             file=sys.stderr,
         )
         print("  pip install Pillow", file=sys.stderr)
         sys.exit(1)
 
-    # 色のパース
+    # Parse colors
     try:
         fill_color = tuple(int(v.strip()) for v in args.color.split(","))
         if len(fill_color) != 3:
             raise ValueError
     except ValueError:
         print(
-            'ERROR: --color は "R,G,B" 形式で指定してください（例: "0,0,0"）',
+            'ERROR: --color must be specified in the format "R,G,B" (e.g. "0,0,0")',
             file=sys.stderr,
         )
         sys.exit(1)
 
-    # 画像読み込み
+    # Load image
     try:
         img = Image.open(args.input)
     except FileNotFoundError:
-        print(f"ERROR: 入力ファイルが見つかりません: {args.input}", file=sys.stderr)
+        print(f"ERROR: Input file not found: {args.input}", file=sys.stderr)
         sys.exit(1)
     except Exception as e:
-        print(f"ERROR: 画像を開けません: {e}", file=sys.stderr)
+        print(f"ERROR: Cannot open image: {e}", file=sys.stderr)
         sys.exit(1)
 
     w, h = img.size
@@ -73,22 +73,22 @@ def main():
             x1, y1, x2, y2 = coords
         except ValueError:
             print(
-                f'ERROR: 領域{i} "{region}" は "x1,y1,x2,y2" 形式で指定してください',
+                f'ERROR: Region {i} "{region}" must be specified in the format "x1,y1,x2,y2"',
                 file=sys.stderr,
             )
             sys.exit(1)
 
-        # 座標をクランプ
+        # Clamp coordinates
         x1 = max(0, min(x1, w))
         y1 = max(0, min(y1, h))
         x2 = max(x1, min(x2, w))
         y2 = max(y1, min(y2, h))
 
         if args.preview:
-            # プレビューモード: 赤枠で表示
+            # Preview mode: Draw red rectangle
             draw.rectangle([x1, y1, x2, y2], outline=(255, 0, 0), width=3)
         else:
-            # マスクモード: 塗りつぶし
+            # Mask mode: Fill rectangle
             draw.rectangle([x1, y1, x2, y2], fill=fill_color)
         masked_count += 1
 

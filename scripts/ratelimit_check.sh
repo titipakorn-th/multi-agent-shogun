@@ -1,23 +1,23 @@
 #!/usr/bin/env bash
 # scripts/ratelimit_check.sh — CLI Rate Limit Monitor
-# CLI種別ごとに重複排除し、共有クォータの消費状況を統合表示する。
+# Deduplicate by CLI type and integrate display of shared quota consumption.
 #
 # Usage:
-#   bash scripts/ratelimit_check.sh              # 日本語出力
+#   bash scripts/ratelimit_check.sh              # Default English output
 #   bash scripts/ratelimit_check.sh --lang en    # English output
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 # ─── Defaults ───
-LANG_MODE="ja"
+LANG_MODE="en"
 
 # ─── Parse args ───
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --lang)  LANG_MODE="$2"; shift 2 ;;
         --help|-h)
-            echo "Usage: ratelimit_check.sh [--lang en|ja]"
+            echo "Usage: ratelimit_check.sh [--lang en]"
             exit 0
             ;;
         *) echo "Unknown option: $1"; exit 1 ;;
@@ -325,8 +325,6 @@ print(f'MESSAGES={messages}')
                 CLAUDE_TODAY_DETAIL="${model_name}: $(printf "%'d" "$model_val")"
             fi
         done < <(echo "$claude_data" | grep '^MODEL_')
-
-        # Warning is now handled by OAuth utilization in Phase 4 display
     fi
 fi
 
@@ -451,11 +449,7 @@ fi
 # ═══════════════════════════════════════════════════════
 
 printf "\n"
-if [[ "$LANG_MODE" == "en" ]]; then
-    printf "══ Rate Limit Status (%s) ══\n" "$TODAY"
-else
-    printf "══ レートリミット状況 (%s) ══\n" "$TODAY"
-fi
+printf "══ Rate Limit Status (%s) ══\n" "$TODAY"
 
 # --- Claude group ---
 if [[ ${#CLAUDE_AGENTS[@]} -gt 0 ]]; then
@@ -531,11 +525,7 @@ if [[ ${#CODEX_AGENTS[@]} -gt 0 ]]; then
     printf "  Agents: ashigaru1-%d (%s)\n" "${#CODEX_AGENTS[@]}" "$codex_model"
 
     # Context display
-    if [[ "$LANG_MODE" == "en" ]]; then
-        printf "  Context left:\n    "
-    else
-        printf "  コンテキスト残量:\n    "
-    fi
+    printf "  Context left:\n    "
 
     count=0
     for agent in "${CODEX_AGENTS[@]}"; do

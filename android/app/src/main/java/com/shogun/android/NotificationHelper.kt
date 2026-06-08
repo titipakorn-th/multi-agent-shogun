@@ -20,25 +20,25 @@ object NotificationHelper {
     fun initChannels(context: Context) {
         val nm = context.getSystemService(NotificationManager::class.java)
         val channels = listOf(
-            NotificationChannel(CH_CMD_COMPLETE, "タスク完了", NotificationManager.IMPORTANCE_DEFAULT).apply {
+            NotificationChannel(CH_CMD_COMPLETE, "Task Completed", NotificationManager.IMPORTANCE_DEFAULT).apply {
                 enableVibration(true)
                 vibrationPattern = longArrayOf(0, 200)
             },
-            NotificationChannel(CH_CMD_FAILURE, "タスク失敗", NotificationManager.IMPORTANCE_HIGH).apply {
+            NotificationChannel(CH_CMD_FAILURE, "Task Failed", NotificationManager.IMPORTANCE_HIGH).apply {
                 enableVibration(true)
                 vibrationPattern = longArrayOf(0, 300, 100, 300)
             },
-            NotificationChannel(CH_ACTION_REQUIRED, "要対応", NotificationManager.IMPORTANCE_HIGH).apply {
+            NotificationChannel(CH_ACTION_REQUIRED, "Action Required", NotificationManager.IMPORTANCE_HIGH).apply {
                 enableVibration(true)
                 vibrationPattern = longArrayOf(0, 300, 100, 300)
             },
-            NotificationChannel(CH_DASHBOARD_UPDATE, "ダッシュボード", NotificationManager.IMPORTANCE_LOW).apply {
+            NotificationChannel(CH_DASHBOARD_UPDATE, "Dashboard", NotificationManager.IMPORTANCE_LOW).apply {
                 enableVibration(false)
             },
-            NotificationChannel(CH_STREAK_UPDATE, "ストリーク", NotificationManager.IMPORTANCE_LOW).apply {
+            NotificationChannel(CH_STREAK_UPDATE, "Streak", NotificationManager.IMPORTANCE_LOW).apply {
                 enableVibration(false)
             },
-            NotificationChannel(CH_AGENT_RESPONSE, "エージェント", NotificationManager.IMPORTANCE_LOW).apply {
+            NotificationChannel(CH_AGENT_RESPONSE, "Agent", NotificationManager.IMPORTANCE_LOW).apply {
                 enableVibration(false)
             },
         )
@@ -89,7 +89,7 @@ object NotificationHelper {
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         )
         val notification = Notification.Builder(context, channelId)
-            .setContentTitle(title.ifBlank { "将軍通知" })
+            .setContentTitle(title.ifBlank { "Shogun Notification" })
             .setContentText(message)
             .setSmallIcon(android.R.drawable.ic_dialog_info)
             .setContentIntent(pendingIntent)

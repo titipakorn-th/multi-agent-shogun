@@ -1,58 +1,58 @@
-# Cursor Agent CLI — 固有の操作ルール
+# Cursor Agent CLI — Specific Operation Rules
 
-これは Cursor Agent CLI 環境でのみ適用される操作ルール。
-共有プロトコル（CLAUDE.md / AGENTS.md）と role 指示書と組み合わせて使う。
+These are operation rules applied only in the Cursor Agent CLI environment.
+Use them in combination with the shared protocols (CLAUDE.md / AGENTS.md) and role instructions.
 
-## 概要
+## Overview
 
-- `CLAUDE.md`・`AGENTS.md`・`.cursor/rules/` はセッション開始時に自動読み込みされる
-- `--yolo` モード（Auto-run）で起動するため、ツール実行に追加の承認は不要
-- エージェント間通信は `inbox-write` スキル経由で行う
+- `CLAUDE.md`, `AGENTS.md`, and `.cursor/rules/` are automatically loaded at the start of a session.
+- Runs in `--yolo` mode (Auto-run), so no additional approval is required for tool execution.
+- Inter-agent communication is performed via the `inbox-write` skill.
 
-## セッションリセット
+## Session Reset
 
 ```
 /new-chat
 ```
 
-## 終了
+## Exit
 
 ```
 /quit
 ```
 
-（テキストと Enter は 0.3s 分けて送信される。）
+(Text and Enter are sent with a 0.3s delay in between.)
 
-## エージェント間通信
+## Inter-Agent Communication
 
-エージェントへのメッセージ送信は必ず `inbox-write` スキルを使うこと。
-tmux を直接操作することは禁止。
+Always use the `inbox-write` skill to send messages to other agents.
+Direct manipulation of tmux is prohibited.
 
 ```bash
 bash scripts/inbox_write.sh <target_agent> "<message>" <type> <from>
 ```
 
-## モデル切り替え
+## Model Switching
 
 ```
 /model <model-name>
 ```
 
-引数なしで実行すると利用可能なモデル一覧を表示する。
+Running it without arguments displays the list of available models.
 
-## 自動読み込みファイル
+## Auto-Loaded Files
 
-| ファイル | 内容 |
-|----------|------|
-| `CLAUDE.md` | セッション手順・通信プロトコル・禁止事項 |
-| `AGENTS.md` | エージェント構成 |
-| `.cursor/rules/` | 追加ルール（Always Apply タイプ） |
-| `.cursor/skills/` | スキル定義（起動時に自動ロード） |
+| File | Contents |
+|------|----------|
+| `CLAUDE.md` | Session procedures, communication protocols, and forbidden actions |
+| `AGENTS.md` | Agent configuration |
+| `.cursor/rules/` | Additional rules (Always Apply type) |
+| `.cursor/skills/` | Skill definitions (auto-loaded at startup) |
 
-## 利用可能なツール
+## Available Tools
 
-Cursor Agent は以下のツールを提供する：
+Cursor Agent provides the following tools:
 
-- **ファイル操作**: 読み取り・書き込み・編集
-- **シェルコマンド**: ターミナルコマンドの実行
-- **Web 検索**: 組み込みの検索機能
+- **File Operations**: Read, write, and edit files
+- **Shell Commands**: Execute terminal commands
+- **Web Search**: Built-in search functionality

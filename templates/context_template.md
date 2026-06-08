@@ -1,31 +1,31 @@
 # {project_id}
-最終更新: YYYY-MM-DD
+Last Updated: YYYY-MM-DD
 
-## What（これは何か）
-{1-2文で説明}
+## What (What is this)
+{1-2 sentences explanation}
 
-## Why（なぜやるのか）
-- 目的:
-- 成功の定義:
+## Why (Why do we do this)
+- Purpose:
+- Definition of Success:
 
-## Who（誰が関係するか）
-- 責任者:
-- 関係者:
+## Who (Who is involved)
+- Owner:
+- Stakeholders:
 
-## Constraints（制約は何か）
-- 期限:
-- 予算:
-- その他:
+## Constraints (What are the constraints)
+- Deadline:
+- Budget:
+- Others:
 
-## Current State（今どこにいるか）
-- ステータス: {未着手/進行中/レビュー中/完了}
-- 進捗:
-- 次のアクション:
-- ブロッカー:
+## Current State (Where are we now)
+- Status: {Not Started / In Progress / Under Review / Completed}
+- Progress:
+- Next Action:
+- Blockers:
 
-## Decisions（決まったこと）
-| 日付 | 決定事項 | 理由 |
+## Decisions (Decisions made)
+| Date | Decision | Reason |
 |------|----------|------|
 
-## Notes（メモ・気づき）
-{自由記述}
+## Notes (Notes / Observations)
+{Free text}

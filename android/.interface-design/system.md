@@ -69,7 +69,7 @@ Base unit: 8dp
 - Tab labels: Medium weight, ALL CAPS optional for gravitas
 
 ## Signature Element
-**Jinmaku bar (陣幕バー)** — the top status bar spans full width like war camp curtains:
+**Jinmaku bar** — the top status bar spans full width like war camp curtains:
 - Connected: Matsuba green (#3C6E47) with subtle texture
 - Disconnected: Kurenai red (#CC3333)
 - Reconnecting: Kinpaku gold (#C9A94E) pulsing
@@ -81,7 +81,7 @@ Base unit: 8dp
 - Separator: thin gold line at top (#C9A94E at 20%)
 - Active icon/label: Kinpaku gold
 - Inactive icon/label: #666666
-- Labels: 将軍 / 陣形 / 軍配 / 設定
+- Labels: Shogun / Formation / Gunbai / Settings
 
 ### Pane Card (Agent Grid)
 - Background: Sumi #2D2D2D

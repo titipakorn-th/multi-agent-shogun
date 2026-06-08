@@ -34,7 +34,7 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
                 _isConnected.value = true
                 loadDashboard()
             } else {
-                _errorMessage.value = "接続失敗: ${result.exceptionOrNull()?.message}"
+                _errorMessage.value = "Connection failed: ${result.exceptionOrNull()?.message}"
             }
         }
     }
@@ -44,7 +44,7 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
             _isLoading.value = true
             val projectPath = prefs.getString(PrefsKeys.PROJECT_PATH, "") ?: ""
             if (projectPath.isBlank()) {
-                _errorMessage.value = "設定画面でプロジェクトパスを設定してください"
+                _errorMessage.value = "Please set the project path in settings"
                 _isLoading.value = false
                 return@launch
             }

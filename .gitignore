@@ -1,15 +1,15 @@
 # ══════════════════════════════════════════════════
 # Whitelist-based .gitignore
-# デフォルト全除外 → OSS公開対象のみ許可
+# Default exclude all -> allow OSS public release targets only
 # ══════════════════════════════════════════════════
 
-# Step 1: 全て除外
+# Step 1: Exclude all
 *
 
-# Step 2: ディレクトリの探索を許可（中身は個別に許可）
+# Step 2: Allow directory discovery (contents allowed individually)
 !*/
 
-# Step 3: OSS公開対象ファイルを許可
+# Step 3: Allow OSS public release target files
 !.gitignore
 !.gitattributes
 !.gitleaks.toml

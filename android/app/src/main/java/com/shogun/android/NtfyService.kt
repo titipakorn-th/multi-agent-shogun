@@ -105,10 +105,10 @@ class NtfyService : Service() {
     private fun createForegroundChannel() {
         val channel = NotificationChannel(
             CHANNEL_ID,
-            "ntfy接続",
+            "ntfy Connection",
             NotificationManager.IMPORTANCE_LOW
         ).apply {
-            description = "プッシュ通知の受信を維持します"
+            description = "Maintains push notification reception"
         }
         getSystemService(NotificationManager::class.java).createNotificationChannel(channel)
     }
@@ -120,8 +120,8 @@ class NtfyService : Service() {
             PendingIntent.FLAG_IMMUTABLE
         )
         return Notification.Builder(this, CHANNEL_ID)
-            .setContentTitle("将軍通知")
-            .setContentText("ntfy受信中...")
+            .setContentTitle("Shogun Notification")
+            .setContentText("ntfy listening...")
             .setSmallIcon(android.R.drawable.ic_menu_info_details)
             .setContentIntent(pendingIntent)
             .setOngoing(true)

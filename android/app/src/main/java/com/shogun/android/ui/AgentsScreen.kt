@@ -136,9 +136,9 @@ private fun formatResetTime(resetStr: String): String {
             val dow = ldt.dayOfWeek.getDisplayName(java.time.format.TextStyle.SHORT, locale)
             val timeStr = "${ldt.monthValue}/${ldt.dayOfMonth}($dow) %02d:%02d".format(ldt.hour, ldt.minute)
             if (ldt.isBefore(now)) {
-                "$timeStr にリセット済み"
+                "$timeStr reset at"
             } else {
-                "$timeStr にリセット"
+                "$timeStr reset at"
             }
         } else {
             val ld = java.time.LocalDate.parse(resetStr)
@@ -146,9 +146,9 @@ private fun formatResetTime(resetStr: String): String {
             val dow = ld.dayOfWeek.getDisplayName(java.time.format.TextStyle.SHORT, locale)
             val dateStr = "${ld.monthValue}/${ld.dayOfMonth}($dow)"
             if (ld.isBefore(today)) {
-                "$dateStr にリセット済み"
+                "$dateStr reset at"
             } else {
-                "$dateStr にリセット"
+                "$dateStr reset at"
             }
         }
     } catch (_: Exception) {
@@ -224,7 +224,7 @@ fun AgentsScreen(
                 if (errorMessage != null) {
                     SelectionContainer {
                         Text(
-                            text = "エラー: $errorMessage",
+                            text = "Error: $errorMessage",
                             color = MaterialTheme.colorScheme.error,
                             modifier = Modifier.padding(8.dp)
                         )
@@ -262,7 +262,7 @@ fun AgentsScreen(
             ) {
                 Icon(
                     imageVector = Icons.Default.Speed,
-                    contentDescription = "使用量",
+                    contentDescription = "Usage",
                     modifier = Modifier.size(24.dp)
                 )
             }
@@ -322,7 +322,7 @@ fun AgentsScreen(
                         viewModel.clearRateLimitResult()
                     }) {
                         SelectionContainer {
-                            Text("閉じる", color = Kinpaku)
+                            Text("Close", color = Kinpaku)
                         }
                     }
                 },
@@ -447,7 +447,7 @@ fun PaneFullScreen(
             IconButton(onClick = onBack) {
                 Icon(
                     imageVector = Icons.Default.ArrowBack,
-                    contentDescription = "戻る",
+                    contentDescription = "Back",
                     tint = Kinpaku
                 )
             }
@@ -510,7 +510,7 @@ fun PaneFullScreen(
                 value = commandTextValue,
                 onValueChange = { commandTextValue = it },
                 modifier = Modifier.weight(1f),
-                placeholder = { Text("コマンドを入力") },
+                placeholder = { Text("Enter command") },
                 singleLine = true
             )
             Spacer(modifier = Modifier.width(4.dp))
@@ -538,7 +538,7 @@ fun PaneFullScreen(
             ) {
                 Icon(
                     imageVector = Icons.Default.Mic,
-                    contentDescription = "音声入力",
+                    contentDescription = "Voice Input",
                     tint = if (isListening) Kurenai else Kinpaku
                 )
             }
@@ -554,7 +554,7 @@ fun PaneFullScreen(
             ) {
                 Icon(
                     imageVector = Icons.Default.Send,
-                    contentDescription = "送信",
+                    contentDescription = "Send",
                     tint = if (commandTextValue.text.isNotBlank() && !isListening) Kinpaku else TextMuted
                 )
             }
@@ -580,7 +580,7 @@ private fun RateLimitContent(rawText: String) {
             verticalArrangement = Arrangement.spacedBy(6.dp)
         ) {
             if (!hasAnyData && rawText.isNotBlank()) {
-                Text("パース失敗 — Raw出力:", color = Color(0xFFCC4444), fontSize = 11.sp)
+                Text("Parse failed — Raw output:", color = Color(0xFFCC4444), fontSize = 11.sp)
                 Text(rawText, color = Zouge, fontSize = 10.sp, fontFamily = FontFamily.Monospace)
             }
 
@@ -590,7 +590,7 @@ private fun RateLimitContent(rawText: String) {
 
             claudeMax.window5h?.let { w ->
                 val color = rateLimitBarColor(w.percent)
-                Text("5時間枠", color = Zouge, fontSize = 12.sp)
+                Text("5h Limit", color = Zouge, fontSize = 12.sp)
                 LinearProgressIndicator(
                     progress = { w.percent / 100f },
                     modifier = Modifier.fillMaxWidth(),
@@ -605,7 +605,7 @@ private fun RateLimitContent(rawText: String) {
 
         claudeMax.window7d?.let { w ->
             val color = rateLimitBarColor(w.percent)
-            Text("7日枠", color = Zouge, fontSize = 12.sp)
+            Text("7d Limit", color = Zouge, fontSize = 12.sp)
             LinearProgressIndicator(
                 progress = { w.percent / 100f },
                 modifier = Modifier.fillMaxWidth(),
@@ -625,27 +625,27 @@ private fun RateLimitContent(rawText: String) {
         }
 
         claudeMax.todayTokens?.let { tokens ->
-            Text("本日トークン", color = Zouge, fontSize = 12.sp)
+            Text("Today's Tokens", color = Zouge, fontSize = 12.sp)
             Text(tokens, color = Kinpaku, fontSize = 15.sp, fontFamily = FontFamily.Monospace)
         }
 
         if (claudeMax.sessions != null || claudeMax.messages != null) {
             Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                claudeMax.sessions?.let { Text("セッション: $it", color = Color(0xFF888888), fontSize = 11.sp) }
-                claudeMax.messages?.let { Text("メッセージ: $it", color = Color(0xFF888888), fontSize = 11.sp) }
+                claudeMax.sessions?.let { Text("Sessions: $it", color = Color(0xFF888888), fontSize = 11.sp) }
+                claudeMax.messages?.let { Text("Messages: $it", color = Color(0xFF888888), fontSize = 11.sp) }
             }
         }
 
         // ── Codex Quota section ──
         if (codexQuota.account5h != null || codexQuota.model5h != null) {
             Spacer(modifier = Modifier.height(4.dp))
-            Text("ChatGPT Pro クォータ", color = Kinpaku, fontSize = 13.sp, fontFamily = FontFamily.Monospace)
+            Text("ChatGPT Pro Quota", color = Kinpaku, fontSize = 13.sp, fontFamily = FontFamily.Monospace)
             Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(Color(0xFF555555)))
 
             // Account-level quota
             codexQuota.account5h?.let { w ->
                 val color = rateLimitBarColor(w.percent)
-                Text("Account 5時間枠", color = Zouge, fontSize = 12.sp)
+                Text("Account 5h Limit", color = Zouge, fontSize = 12.sp)
                 LinearProgressIndicator(
                     progress = { w.percent / 100f },
                     modifier = Modifier.fillMaxWidth(),
@@ -677,7 +677,7 @@ private fun RateLimitContent(rawText: String) {
                 val label = codexQuota.modelName ?: "Model"
                 codexQuota.model5h.let { w ->
                     val color = rateLimitBarColor(w.percent)
-                    Text("$label 5時間枠", color = Zouge, fontSize = 12.sp)
+                    Text("$label 5h Limit", color = Zouge, fontSize = 12.sp)
                     LinearProgressIndicator(
                         progress = { w.percent / 100f },
                         modifier = Modifier.fillMaxWidth(),
@@ -709,7 +709,7 @@ private fun RateLimitContent(rawText: String) {
         // ── Codex context per agent ──
         if (codexEntries.isNotEmpty()) {
             Spacer(modifier = Modifier.height(4.dp))
-            Text("Codex5.3 コンテキスト", color = Kinpaku, fontSize = 13.sp, fontFamily = FontFamily.Monospace)
+            Text("Codex5.3 Context", color = Kinpaku, fontSize = 13.sp, fontFamily = FontFamily.Monospace)
             Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(Color(0xFF555555)))
 
             codexEntries.forEach { entry ->

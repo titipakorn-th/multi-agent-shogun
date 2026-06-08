@@ -65,7 +65,7 @@ fun DashboardScreen(
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = "エラー: $errorMessage",
+                    text = "Error: $errorMessage",
                     color = MaterialTheme.colorScheme.error
                 )
             }
@@ -74,7 +74,7 @@ fun DashboardScreen(
                 modifier = Modifier.fillMaxSize(),
                 contentAlignment = Alignment.Center
             ) {
-                Text("読み込み中…", color = Zouge)
+                Text("Loading...", color = Zouge)
             }
         } else {
             AndroidView(

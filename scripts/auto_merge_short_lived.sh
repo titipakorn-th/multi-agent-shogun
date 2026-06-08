@@ -41,7 +41,10 @@ NOW_SECONDS="$(date +%s)"
 if [[ -n "$REPO_OVERRIDE" ]]; then
     REPO_PATHS=("$REPO_OVERRIDE")
 else
-    mapfile -t REPO_PATHS < <(branch_policy_query repos)
+    REPO_PATHS=()
+    while IFS= read -r line; do
+        [[ -n "$line" ]] && REPO_PATHS+=("$line")
+    done < <(branch_policy_query repos)
 fi
 
 merge_short_lived_branch() {

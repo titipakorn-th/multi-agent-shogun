@@ -32,7 +32,10 @@ export BRANCH_POLICY_DRY_RUN="$DRY_RUN"
 
 MAX_AGE_SECONDS="$(branch_policy_query max_age_seconds)"
 NOW_SECONDS="$(date +%s)"
-mapfile -t REPO_PATHS < <(branch_policy_query repos)
+REPO_PATHS=()
+while IFS= read -r line; do
+    [[ -n "$line" ]] && REPO_PATHS+=("$line")
+done < <(branch_policy_query repos)
 
 for repo_path in "${REPO_PATHS[@]}"; do
     if ! branch_policy_is_git_repo "$repo_path"; then

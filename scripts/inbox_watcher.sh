@@ -1,24 +1,23 @@
-#!/usr/bin/env bash
 # ═══════════════════════════════════════════════════════════════
-# inbox_watcher.sh — メールボックス監視＆起動シグナル配信
+# inbox_watcher.sh — Mailbox monitoring & wake-up signal delivery
 # Usage: bash scripts/inbox_watcher.sh <agent_id> <pane_target> [cli_type]
 # Example: bash scripts/inbox_watcher.sh karo multiagent:0.0 claude
 #
-# 設計思想:
-#   メッセージ本体はファイル（inbox YAML）に書く = 確実
-#   起動シグナルは tmux send-keys（テキストとEnterを分離送信）
-#   エージェントが自分でinboxをReadして処理する
-#   冪等: 2回届いてもunreadがなければ何もしない
+# Design Philosophy:
+#   Message body is written to file (inbox YAML) = Reliable
+#   Wake-up signal is sent via tmux send-keys (text and Enter sent separately)
+#   Agent reads and processes its own inbox
+#   Idempotence: If received twice but no unread, do nothing
 #
-# inotifywait でファイル変更を検知（イベント駆動、ポーリングではない）
-# Fallback 1: 30秒タイムアウト（WSL2 inotify不発時の安全網）
-# Fallback 2: rc=1処理（Claude Code atomic write = tmp+rename でinode変更時）
+# Detect file changes using inotifywait (event-driven, not polling)
+# Fallback 1: 30s timeout (safety net when WSL2 inotify fails)
+# Fallback 2: rc=1 handling (when inode changes via Claude Code atomic write = tmp+rename)
 #
-# エスカレーション（未読メッセージが放置されている場合）:
-#   0〜2分: 通常nudge（send-keys）。ただしWorking中はスキップ
-#   2〜4分: Copilot/Kimi は Escape×2 + Ctrl-C + nudge。
-#            Claude/Codex/OpenCode は通常nudgeへフォールバック
-#   4分〜 : /clear送信（5分に1回まで。強制リセット+YAML再読）
+# Escalation (when unread messages are ignored):
+#   0-2 min: Normal nudge (send-keys). Skipped if active (Working)
+#   2-4 min: Copilot/Kimi gets Escape x 2 + Ctrl-C + nudge.
+#            Claude/Codex/OpenCode falls back to normal nudge
+#   4 min+: Send /clear (max once per 5 minutes. Force reset + re-read YAML)
 # ═══════════════════════════════════════════════════════════════
 
 # ─── Testing guard ───
@@ -31,7 +30,7 @@ if [ "${__INBOX_WATCHER_TESTING__:-}" != "1" ]; then
     SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
     AGENT_ID="$1"
     PANE_TARGET="$2"
-    CLI_TYPE="${3:-claude}"  # CLI種別（claude/codex/copilot/kimi/opencode/antigravity）。未指定→claude（後方互換）
+    CLI_TYPE="${3:-claude}"  # CLI Type (claude/codex/copilot/kimi/opencode/antigravity). Defaults to claude if unspecified (backwards compatibility)
     case "$CLI_TYPE" in
         gemini|agy) CLI_TYPE="antigravity" ;;
     esac
@@ -129,7 +128,7 @@ ESCALATE_COOLDOWN=${ESCALATE_COOLDOWN:-300}
 LAST_NUDGE_TS=${LAST_NUDGE_TS:-0}
 LAST_NUDGE_COUNT=${LAST_NUDGE_COUNT:-""}
 NUDGE_COOLDOWN_SEC=${NUDGE_COOLDOWN_SEC:-60}
-# Codex は「思考中に入力が入ると即拾う」挙動があり、思考がループすることがあるため長めにする。
+# Codex has a behavior where it picks up input immediately if received while thinking, which can cause loops, so we set a longer cooldown.
 NUDGE_COOLDOWN_SEC_CODEX=${NUDGE_COOLDOWN_SEC_CODEX:-300}
 
 reset_nudge_throttle() {
@@ -385,8 +384,8 @@ try:
     # ensures task resumption after the /clear inbox nudge is consumed.
     msg = {
         "content": (
-            f"[auto-recovery] /clear 後の再着手通知。"
-            f"queue/tasks/{agent_id}.yaml を再読し、assigned タスクを即時再開せよ。"
+            f"[auto-recovery] Resume task notification after /clear. "
+            f"Please re-read queue/tasks/{agent_id}.yaml and immediately resume the assigned task."
         ),
         "from": "inbox_watcher",
         "id": f"msg_auto_recovery_{now.strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:8]}",
@@ -501,10 +500,10 @@ PY
 
 # ─── Send CLI command via pty direct write ───
 # For /clear and /model only. These are CLI commands, not conversation messages.
-# CLI_TYPE別分岐: claude→そのまま, codex→/clear対応・/modelスキップ,
-#                  copilot→Ctrl-C+再起動・/modelスキップ, opencode→/clear→/new・/modelスキップ,
-#                  antigravity→/clearそのまま・/modelスキップ
-# 実行時にtmux paneの @agent_cli を再確認し、ドリフト時はpane値を優先する。
+# CLI_TYPE branch: claude -> as-is, codex -> supports /clear & skips /model,
+#                  copilot -> Ctrl-C + restart & skips /model, opencode -> /clear -> /new & skips /model,
+#                  antigravity -> as-is /clear & skips /model
+# Re-verify @agent_cli on the tmux pane at runtime; pane value takes precedence on drift.
 send_cli_command() {
     local cmd="$1"
     local effective_cli
@@ -543,12 +542,12 @@ send_cli_command() {
         return 0
     fi
 
-    # CLI別コマンド変換
+    # CLI-specific command conversion
     local actual_cmd="$cmd"
     case "$effective_cli" in
         codex)
-            # Codex: /clear不存在→/newで新規会話開始, /model非対応→スキップ
-            # /clearはCodexでは未定義コマンドでCLI終了してしまうため、/newに変換
+            # Codex: /clear does not exist -> starts a new conversation via /new, /model not supported -> skipped
+            # /clear is undefined in Codex and terminates the CLI, so it is translated to /new
             if [[ "$cmd" == "/clear" ]]; then
                 # Guard: skip duplicate /new if already sent for this batch
                 if [ "${NEW_CONTEXT_SENT:-0}" -eq 1 ]; then
@@ -598,7 +597,7 @@ send_cli_command() {
             fi
             ;;
         copilot)
-            # Copilot: /clearはCtrl-C+再起動, /model非対応→スキップ
+            # Copilot: /clear sends Ctrl-C + restart, /model not supported -> skipped
             if [[ "$cmd" == "/clear" ]]; then
                 echo "[$(date)] [SEND-KEYS] Copilot /clear: sending Ctrl-C + restart for $AGENT_ID" >&2
                 timeout 5 tmux send-keys -t "$PANE_TARGET" C-c 2>/dev/null || true
@@ -615,7 +614,7 @@ send_cli_command() {
             fi
             ;;
         cursor)
-            # Cursor: /clear不存在→/new-chatで新規会話開始, /modelは対応
+            # Cursor: /clear does not exist -> starts a new conversation via /new-chat, /model is supported
             if [[ "$cmd" == "/clear" ]]; then
                 if [ "${NEW_CONTEXT_SENT:-0}" -eq 1 ]; then
                     echo "[$(date)] [SKIP] Cursor /new-chat already sent for $AGENT_ID — skipping duplicate clear_command" >&2
@@ -843,10 +842,10 @@ agent_is_busy() {
     local effective_cli
     effective_cli=$(get_effective_cli_type)
     if [[ "$effective_cli" == "claude" ]]; then
-        # フラグファイル方式: フラグなし=busy(return 0)、あり=idle(return 1)
+        # Flag file method: no flag = busy (return 0), exists = idle (return 1)
         [ ! -f "${IDLE_FLAG_DIR:-/tmp}/shogun_idle_${AGENT_ID}" ]
     else
-        # 従来のpane解析（Codex等フォールバック）
+        # Traditional pane analysis (fallback for Codex etc.)
         agent_is_busy_check "$PANE_TARGET" "$effective_cli"
     fi
 }
@@ -876,7 +875,7 @@ session_has_client() {
 # Layered approach:
 #   1. If agent has active inotifywait self-watch → skip (agent wakes itself)
 #   2. If agent is busy (Working) → skip (nudge during Working loses Enter)
-#   3. tmux send-keys (短いnudgeのみ、timeout 5s)
+#   3. tmux send-keys (short nudge only, timeout 5s)
 send_wakeup() {
     local unread_count="$1"
     local nudge="inbox${unread_count}"
@@ -886,13 +885,13 @@ send_wakeup() {
         return 0
     fi
 
-    # 優先度1: Agent self-watch — nudge不要（エージェントが自分で気づく）
+    # Priority 1: Agent self-watch — no nudge needed (agent detects it itself)
     if agent_has_self_watch; then
         echo "[$(date)] [SKIP] Agent $AGENT_ID has active self-watch, no nudge needed" >&2
         return 0
     fi
 
-    # 優先度2: Agent busy — nudge送信するとEnterが消失するためスキップ
+    # Priority 2: Agent busy — skip because sending nudge can cause Enter to be lost
     # Claude Code: Stop hook catches unread at turn end. Skip nudge to avoid Enter loss.
     # Exception: shogun — ntfy must be delivered immediately regardless of busy state.
     if agent_is_busy && [[ "$AGENT_ID" != "shogun" ]]; then
@@ -913,7 +912,7 @@ send_wakeup() {
     # Shogun: deliver nudge via send-keys like other agents.
     # ntfy messages must reach Claude Code directly.
 
-    # 優先度3: tmux send-keys（テキストとEnterを分離 — Codex TUI対策）
+    # Priority 3: tmux send-keys (separate text and Enter — mitigation for Codex TUI)
     echo "[$(date)] [SEND-KEYS] Sending nudge to $PANE_TARGET for $AGENT_ID" >&2
 
     # Codex suggestion UI dismissal: typing any character dismisses the autocomplete
@@ -928,14 +927,14 @@ send_wakeup() {
         sleep 0.3
     fi
 
-    # 行クリア（残存テキスト除去）→ nudge送信 → Enter → 確認 → 最大2回リトライ
+    # Clear line (remove remaining text) -> send nudge -> Enter -> verify -> max 2 retries
     local max_retries=2
     local attempt=0
     while [ $attempt -le $max_retries ]; do
-        # C-u で行をクリア
+        # Clear line with C-u
         timeout 5 tmux send-keys -t "$PANE_TARGET" C-u 2>/dev/null || true
         sleep 0.3
-        # nudge 送信
+        # Send nudge
         if ! timeout 5 tmux send-keys -t "$PANE_TARGET" "$nudge" 2>/dev/null; then
             echo "[$(date)] WARNING: send-keys nudge failed for $AGENT_ID (attempt $((attempt+1)))" >&2
             attempt=$((attempt+1))
@@ -950,21 +949,21 @@ send_wakeup() {
             echo "[$(date)] Wake-up sent to $AGENT_ID (${unread_count} unread, attempt $((attempt+1)), cli=codex)" >&2
             return 0
         fi
-        # 送信確認: capture-pane でプロンプトにnudgeテキストが残っていないか確認
+        # Verify transmission: check with capture-pane if nudge text remains on the prompt
         local pane_content
         pane_content=$(timeout 3 tmux capture-pane -t "$PANE_TARGET" -p 2>/dev/null | tail -5 || echo "")
         if echo "$pane_content" | grep -qF "$nudge"; then
-            # nudgeテキストが残存 → 送信失敗 → C-u クリアしてリトライ
+            # Nudge text remains -> failed -> clear with C-u and retry
             echo "[$(date)] WARNING: nudge text still visible in pane, retrying (attempt $((attempt+1)))" >&2
             timeout 5 tmux send-keys -t "$PANE_TARGET" C-u 2>/dev/null || true
             sleep 0.3
             attempt=$((attempt+1))
             continue
         fi
-        # 送信成功
-        # NOTE: アイドルフラグは削除しない。nudge送信≠エージェント起動確認。
-        # フラグを消すと agent_is_busy()=true → 以降のnudge全スキップ → デッドロック。
-        # フラグはエージェントが実際に作業開始した時に自然消滅する（stop_hook設計と整合）。
+        # Transmission successful
+        # NOTE: Do not delete the idle flag. Sending nudge != agent startup confirmation.
+        # If the flag is cleared, agent_is_busy()=true -> all subsequent nudges skipped -> deadlock.
+        # The flag naturally disappears when the agent actually starts working (consistent with stop_hook design).
         echo "[$(date)] Wake-up sent to $AGENT_ID (${unread_count} unread, attempt $((attempt+1)))" >&2
         return 0
     done
@@ -988,16 +987,16 @@ send_wakeup_with_escape() {
         return 0
     fi
 
-    # Codex CLI: ESC は「中断」になりやすく、人間操作中の事故も多い。
-    # Phase 2 の Escape エスカレーションは無効化し、通常 nudge のみに落とす。
+    # Codex CLI: ESC is prone to triggering interrupts, and accidental triggers during human operations are common.
+    # Disable Phase 2 Escape escalation and fall back to normal nudge.
     if [[ "$effective_cli" == "codex" ]]; then
         echo "[$(date)] [SKIP] codex: suppressing Escape escalation for $AGENT_ID; sending plain nudge" >&2
         send_wakeup "$unread_count"
         return 0
     fi
 
-    # Claude Code: Stop hookがturn終了時にinbox未読を検出→自動処理する。
-    # Escape送信は処理中のturnを中断させるため有害。Phase 2は通常nudgeに落とす。
+    # Claude Code: Stop hook detects unread inbox messages at the end of a turn and processes them automatically.
+    # Sending Escape can interrupt a turn in progress and is harmful. Fall back to normal nudge for Phase 2.
     if [[ "$effective_cli" == "claude" ]]; then
         echo "[$(date)] [SKIP] claude: suppressing Escape escalation for $AGENT_ID (Stop hook handles delivery); sending plain nudge" >&2
         send_wakeup "$unread_count"
@@ -1122,11 +1121,11 @@ for s in data.get('specials', []):
         done <<< "$specials"
     fi
 
-    # /clear は Codex で /new へ変換される。再起動直後の取りこぼし防止として
-    # 追加 task_assigned を自動投入し、次サイクルで確実に wake-up 可能にする。
-    # 案B+待機: Karo がタスク YAML を cancelled に更新するまでの猶予を確保してから
-    # status チェックを行い、cancelled/idle の場合はスキップする。
-    # clear_sent（実際に送信）のみauto-recoveryを起動。busy時スキップは対象外。
+    # /clear is translated to /new in Codex. To prevent missing messages immediately after restart,
+    # an additional task_assigned is automatically enqueued to guarantee wake-up in the next cycle.
+    # Plan B + Wait: Allow time for Karo to update the task YAML to cancelled,
+    # then perform the status check and skip if it is cancelled/idle.
+    # Launch auto-recovery only when clear_sent (actually sent). Skips when busy are not covered.
     if [ "$clear_sent" -eq 1 ]; then
         # Wait for Karo to update task YAML status (cancellation race condition mitigation).
         # send_cli_command already slept 3s for /clear; add 5s more = ~8s total before check.
@@ -1243,7 +1242,7 @@ for s in data.get('specials', []):
                 local effective_cli
                 effective_cli=$(get_effective_cli_type)
                 if [[ "$effective_cli" == "codex" ]]; then
-                    # Codex /clear -> /new は会話を切ってしまうため、安全側に倒す。
+                    # Since Codex /clear -> /new terminates the conversation, play it safe.
                     echo "[$(date)] ESCALATION Phase 3: $AGENT_ID unresponsive for ${age}s, but cli=codex — skipping /clear." >&2
                     FIRST_UNREAD_SEEN=$now  # Reset timer (no destructive action)
                     send_wakeup "$normal_count"

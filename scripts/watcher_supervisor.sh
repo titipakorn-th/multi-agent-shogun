@@ -44,7 +44,16 @@ start_watcher_if_missing() {
     fi
 
     (
-        flock -n 9 || return 0
+        if command -v flock &>/dev/null; then
+            flock -n 9 || return 0
+        else
+            local lockdir="${lockfile}.d"
+            if ! mkdir "$lockdir" 2>/dev/null; then
+                return 0
+            fi
+            trap 'rmdir "$lockdir" 2>/dev/null || true' EXIT
+        fi
+
         if pgrep -Ef "scripts/inbox_watcher.sh ${agent} ${pane}( |$)" >/dev/null 2>&1; then
             return 0
         fi

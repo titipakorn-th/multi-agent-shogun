@@ -4,28 +4,27 @@ description: >
   Interactive wizard: guided questions with multiple-choice options about subscriptions,
   then outputs a ready-to-paste capability_tiers YAML + fixed agent model assignments.
   Trigger: "capability_tiers", "bloom config", "routing setup", "set up model routing",
-  "ルーティング設定", "capability_tiers設定", "モデル設定", "サブスク設定", "model routing"
+  "routing config", "capability_tiers config", "model config", "subscription config", "model routing"
 ---
 
 # /shogun-bloom-config — Bloom Routing Wizard
 
 ## Overview
 
-選択肢誘導型インタビューで2問に答えるだけで、最適な `capability_tiers` 設定を
-ready-to-paste 形式で生成する。
+Generates the optimal `capability_tiers` configuration in a ready-to-paste format by answering just two questions in a guided interview.
 
 **Output:**
-1. `capability_tiers` YAML → `config/settings.yaml` にそのまま貼り付け可
-2. `available_cost_groups` 宣言
-3. 固定エージェント推奨モデル（Karo / Gunshi）
-4. カバレッジギャップ警告（Bloom L6が対応不可の場合など）
+1. `capability_tiers` YAML → Can be pasted directly into `config/settings.yaml`
+2. `available_cost_groups` declaration
+3. Recommended models for fixed agents (Karo / Gunshi)
+4. Coverage gap warning (e.g., when Bloom L6 cannot be processed)
 
 ## When to Use
 
-- `config/settings.yaml` の初期セットアップ
-- サブスク追加・変更後の再設定
-- "capability_tiersってどう設定すればいい？"
-- `/shogun-model-list` でモデル一覧を確認した後
+- Initial setup of `config/settings.yaml`
+- Reconfiguration after adding/changing subscriptions
+- "How should capability_tiers be configured?"
+- After checking the model list with `/shogun-model-list`
 
 ---
 
@@ -38,17 +37,17 @@ ready-to-paste 形式で生成する。
 Call AskUserQuestion with the following:
 
 ```
-question: "Claudeのプランを教えてください。"
+question: "Please tell me your Claude plan."
 header: "Claude Plan"
 options:
-  - label: "Max 20x ($200/月)"
-    description: "Opus・Sonnet・Haiku全モデル利用可。20倍使用量。Spark Dual運用ならコレ (Recommended)"
-  - label: "Max 5x ($100/月)"
-    description: "同上、5倍使用量。コスト重視で十分な量なら。"
-  - label: "Pro ($20/月)"
-    description: "Opus・Sonnet・Haiku利用可。使用量は標準。個人利用に十分。"
-  - label: "Free / なし"
-    description: "SonnetとHaikuのみ（Opus不可）。L6タスクはギャップが発生する。"
+  - label: "Max 20x ($200/month)"
+    description: "All Opus, Sonnet, and Haiku models available. 20x usage limit. Recommended for Spark Dual operations (Recommended)"
+  - label: "Max 5x ($100/month)"
+    description: "Same as above, 5x usage limit. For cost-conscious users if the volume is sufficient."
+  - label: "Pro ($20/month)"
+    description: "Opus, Sonnet, and Haiku available. Standard usage limits. Sufficient for personal use."
+  - label: "Free / None"
+    description: "Sonnet and Haiku only (Opus unavailable). Gaps will occur for L6 tasks."
 ```
 
 ### Step 2: Q2 — ChatGPT plan (AskUserQuestion)
@@ -56,85 +55,85 @@ options:
 Call AskUserQuestion with the following:
 
 ```
-question: "ChatGPT（OpenAI）のプランを教えてください。"
+question: "Please tell me your ChatGPT (OpenAI) plan."
 header: "ChatGPT Plan"
 options:
-  - label: "なし（Claude onlyで運用）"
-    description: "Claude枠のみ。シンプル構成。足軽はHaiku4.5が主力。"
-  - label: "Plus ($20/月)"
-    description: "gpt-5.3-codex利用可（Spark不可）。L4まで補完できる。"
-  - label: "Pro ($200/月)"
-    description: "Spark(1000 tok/s, Terminal-Bench 58.4%) + gpt-5.3(77.3%)利用可。足軽7体の最強構成 (Recommended)"
+  - label: "None (Claude only operation)"
+    description: "Claude quota only. Simple configuration. Ashigaru primarily use Haiku 4.5."
+  - label: "Plus ($20/month)"
+    description: "gpt-5.3-codex available (Spark unavailable). Can cover up to L4."
+  - label: "Pro ($200/month)"
+    description: "Spark (1000 tok/s, Terminal-Bench 58.4%) + gpt-5.3 (77.3%) available. Strongest formation with 7 Ashigaru (Recommended)"
 ```
 
-### Step 2.5: Q3 — Rate limit preference (両方契約の場合のみ)
+### Step 2.5: Q3 — Rate limit preference (Only when both are subscribed)
 
-**Q1=Pro/Max かつ Q2=Plus または Pro の場合のみ聞く。**
-両方のサブスクが使える場合、同じBloomレベルをどちらのクォータで処理するか確認する。
+**Only ask when Q1=Pro/Max AND Q2=Plus or Pro.**
+If both subscriptions are available, confirm which quota should process the same Bloom level.
 
-#### Q3a: L3タスク（量産コード生成・テンプレート適用）の優先クォータ
+#### Q3a: Priority quota for L3 tasks (mass code generation & template application)
 
 Call AskUserQuestion with:
 
 ```
-question: "L1-L3タスク（量産・テンプレート・簡単な実装）はどちらのクォータを優先しますか？"
-header: "L3クォータ優先"
+question: "Which quota should be prioritized for L1-L3 tasks (mass production, templates, simple implementation)?"
+header: "L3 Quota Priority"
 options:
-  - label: "ChatGPT Pro (Spark / gpt-5.3) 優先 (Recommended)"
-    description: "Spark 1000 tok/s で爆速処理。Claude Max枠を温存してL5-L6に集中。"
-  - label: "Claude Max (Haiku 4.5) 優先"
-    description: "Claude枠を均等利用。ChatGPT Pro枠を節約してL4に余裕を持たせる。"
+  - label: "Prioritize ChatGPT Pro (Spark / gpt-5.3) (Recommended)"
+    description: "Lightning-fast processing with Spark at 1000 tok/s. Conserves Claude Max quota to focus on L5-L6."
+  - label: "Prioritize Claude Max (Haiku 4.5)"
+    description: "Uses Claude quota evenly. Saves ChatGPT Pro quota to leave room for L4."
 ```
 
-#### Q3b: L4タスク（分析・コードレビュー・デバッグ）の優先クォータ — Q2=Pro の場合のみ
+#### Q3b: Priority quota for L4 tasks (analysis, code review, debugging) — Only when Q2=Pro
 
 Call AskUserQuestion with:
 
 ```
-question: "L4タスク（分析・デバッグ・コードレビュー）はどちらのクォータを優先しますか？"
-header: "L4クォータ優先"
+question: "Which quota should be prioritized for L4 tasks (analysis, debugging, code review)?"
+header: "L4 Quota Priority"
 options:
-  - label: "ChatGPT Pro (gpt-5.3-codex) 優先 (Recommended)"
-    description: "Terminal-Bench 77.3%。Codex Pro枠を活用してClaude枠を温存。"
-  - label: "Claude Max (Sonnet 4.6) 優先"
-    description: "SWE-bench 79.6%。Claude品質でL4も処理。ChatGPT Pro枠をSparkに集中。"
+  - label: "Prioritize ChatGPT Pro (gpt-5.3-codex) (Recommended)"
+    description: "Terminal-Bench 77.3%. Utilizes Codex Pro quota and conserves Claude quota."
+  - label: "Prioritize Claude Max (Sonnet 4.6)"
+    description: "SWE-bench 79.6%. Processes L4 at Claude quality. Focuses ChatGPT Pro quota on Spark."
 ```
 
-これらの回答に応じて capability_tiers の max_bloom 値を調整する（下記パターンのカスタム節を参照）。
+Adjust the max_bloom value of capability_tiers based on these answers (refer to the custom sections of the patterns below).
 
 ### Step 3: Map answers to pattern
 
 | Claude | ChatGPT | Pattern |
 |--------|---------|---------|
-| なし/Free | なし | A-Free |
-| Pro/Max | なし | A |
-| なし/Free | Plus | B |
-| なし/Free | Pro | C |
+| None/Free | None | A-Free |
+| Pro/Max | None | A |
+| None/Free | Plus | B |
+| None/Free | Pro | C |
 | Pro/Max | Plus | D |
 | Pro/Max | Pro | **E (Full Power)** |
 
 ### Step 4: Output the matching pattern below
 
 Output ONLY the matching pattern. Show:
-1. 簡単な説明（なぜこの設定か）
-2. `capability_tiers` YAML（コピー可能なコードブロック）
+1. Simple explanation (why this configuration)
+2. `capability_tiers` YAML (copyable code block)
 3. `available_cost_groups`
-4. 固定エージェント推奨
-5. ギャップ警告（あれば）
-6. 次のステップ
+4. Recommended models for fixed agents (Karo / Gunshi)
+5. Gap warning (if any)
+6. Next steps
 
 ---
 
-## Pattern A-Free — Claude Free のみ
+## Pattern A-Free — Claude Free Only
 
-> Sonnet 4.6 と Haiku 4.5 が使えるが Opus 4.6 は不可。L6 タスクはL5品質で処理される。
+> Sonnet 4.6 and Haiku 4.5 can be used, but Opus 4.6 is unavailable. L6 tasks will be processed at L5 quality.
 
-### 固定エージェント
+### Fixed Agents
 
-| エージェント | 推奨モデル | 備考 |
+| Agent | Recommended Model | Notes |
 |------------|-----------|------|
-| Karo (家老) | `claude-sonnet-4-6` | Opusは使えないのでSonnet |
-| Gunshi (軍師) | `claude-sonnet-4-6` | 同上 |
+| Karo | `claude-sonnet-4-6` | Sonnet since Opus is unavailable |
+| Gunshi | `claude-sonnet-4-6` | Same as above |
 
 ### `config/settings.yaml` snippet
 
@@ -151,26 +150,26 @@ capability_tiers:
     cost_group: claude_max
 ```
 
-### カバレッジ
+### Coverage
 
-| Bloom | モデル | 備考 |
+| Bloom | Model | Notes |
 |-------|-------|------|
-| L1–L3 | Haiku 4.5 | 速い・安い |
-| L4–L5 | Sonnet 4.6 | 分析・設計評価 |
-| **L6** | ⚠️ **GAP** | Opus 4.6 不可。L5品質で代替処理される。 |
+| L1–L3 | Haiku 4.5 | Fast / Cheap |
+| L4–L5 | Sonnet 4.6 | Analysis & Design evaluation |
+| **L6** | ⚠️ **GAP** | Opus 4.6 unavailable. Substituted with L5 quality. |
 
 ---
 
-## Pattern A — Claude Pro/Max のみ ($20–$200/月)
+## Pattern A — Claude Pro/Max Only ($20–$200/month)
 
-> Claude Opusまで全モデル利用可。足軽はHaiku(L1-L3)→Sonnet(L4-L5)→Opus(L6)で自動ルーティング。
+> All models up to Claude Opus are available. Ashigaru are automatically routed: Haiku (L1-L3) → Sonnet (L4-L5) → Opus (L6).
 
-### 固定エージェント
+### Fixed Agents
 
-| エージェント | 推奨モデル | 備考 |
+| Agent | Recommended Model | Notes |
 |------------|-----------|------|
-| Karo (家老) | `claude-sonnet-4-6` | L4-L5オーケストレーション。Opusは過剰。 |
-| Gunshi (軍師) | `claude-opus-4-6` | L5-L6の深いQC・アーキテクチャ評価 |
+| Karo | `claude-sonnet-4-6` | L4-L5 Orchestration. Opus is overkill. |
+| Gunshi | `claude-opus-4-6` | L5-L6 deep QC & Architecture evaluation |
 
 ### `config/settings.yaml` snippet
 
@@ -180,38 +179,38 @@ available_cost_groups:
 
 capability_tiers:
   claude-haiku-4-5-20251001:
-    max_bloom: 3       # L1-L3: $1/$5/M, SWE-bench 73.3% — 量産タスク主力
+    max_bloom: 3       # L1-L3: $1/$5/M, SWE-bench 73.3% — Mainstay for mass-production tasks
     cost_group: claude_max
   claude-sonnet-4-6:
     max_bloom: 5       # L4-L5: $3/$15/M, SWE-bench 79.6%, 1M context
     cost_group: claude_max
   claude-opus-4-6:
-    max_bloom: 6       # L6: $5/$25/M, SWE-bench 80.8% — 真の創造タスクのみ
+    max_bloom: 6       # L6: $5/$25/M, SWE-bench 80.8% — Only for true creative tasks
     cost_group: claude_max
 ```
 
-### カバレッジ
+### Coverage
 
-| Bloom | モデル | 備考 |
+| Bloom | Model | Notes |
 |-------|-------|------|
-| L1–L3 | Haiku 4.5 | SWE-bench 73.3%、Sonnet 4.5比▲4pp、コスト1/3 |
-| L4–L5 | Sonnet 4.6 | SWE-bench 79.6%、数学+27pt (vs Sonnet 4.5) |
-| L6 | Opus 4.6 | SWE-bench 80.8%。Sonnetと1.2pp差。真のL6のみ推奨 |
+| L1–L3 | Haiku 4.5 | SWE-bench 73.3%, -4pp compared to Sonnet 4.5, 1/3 cost |
+| L4–L5 | Sonnet 4.6 | SWE-bench 79.6%, Math +27pt (vs Sonnet 4.5) |
+| L6 | Opus 4.6 | SWE-bench 80.8%. 1.2pp diff from Sonnet. Only recommended for true L6. |
 
 ---
 
-## Pattern B — ChatGPT Plus のみ ($20/月)
+## Pattern B — ChatGPT Plus Only ($20/month)
 
-> Spark は使えない。gpt-5.3-codex が主力。L6 ギャップあり。Claude なし構成はコスパが低い。
+> Spark is unavailable. gpt-5.3-codex is the mainstay. L6 Gap exists. Configuration without Claude has low cost-performance.
 
-### 固定エージェント
+### Fixed Agents
 
-> Claude サブスクなし → Karo/Gunshi も Codex モデル使用。L6 ギャップに注意。
+> No Claude subscription → Karo/Gunshi also use Codex models. Beware of the L6 gap.
 
-| エージェント | 推奨モデル |
+| Agent | Recommended Model |
 |------------|-----------|
-| Karo (家老) | `gpt-5.3-codex` |
-| Gunshi (軍師) | `gpt-5.1-codex-max` |
+| Karo | `gpt-5.3-codex` |
+| Gunshi | `gpt-5.1-codex-max` |
 
 ### `config/settings.yaml` snippet
 
@@ -221,37 +220,37 @@ available_cost_groups:
 
 capability_tiers:
   gpt-5-codex-mini:
-    max_bloom: 2       # L1-L2: 軽量タスク専用
+    max_bloom: 2       # L1-L2: Dedicated to lightweight tasks
     cost_group: chatgpt_plus
   gpt-5.3-codex:
     max_bloom: 4       # L3-L4: Terminal-Bench 77.3%
     cost_group: chatgpt_plus
   gpt-5.1-codex-max:
-    max_bloom: 5       # L5: 最高Codexモデル
+    max_bloom: 5       # L5: Highest Codex model
     cost_group: chatgpt_plus
 ```
 
-### カバレッジ
+### Coverage
 
-| Bloom | モデル | 備考 |
+| Bloom | Model | Notes |
 |-------|-------|------|
-| L1–L2 | codex-mini | 最小クォータ消費 |
+| L1–L2 | codex-mini | Minimal quota consumption |
 | L3–L4 | gpt-5.3-codex | |
 | L5 | codex-max | |
-| **L6** | ⚠️ **GAP** | Codex は新規創造設計タスクに不適。Claude Opus 推奨。 |
+| **L6** | ⚠️ **GAP** | Codex is unsuitable for new creative/design tasks. Claude Opus recommended. |
 
 ---
 
-## Pattern C — ChatGPT Pro のみ ($200/月)
+## Pattern C — ChatGPT Pro Only ($200/month)
 
-> Spark (1000 tok/s) 使用可。L6 ギャップは残る。Claude も加えると完全構成に。
+> Spark (1000 tok/s) available. L6 gap remains. Adding Claude achieves full configuration.
 
-### 固定エージェント
+### Fixed Agents
 
-| エージェント | 推奨モデル |
+| Agent | Recommended Model |
 |------------|-----------|
-| Karo (家老) | `gpt-5.3-codex` |
-| Gunshi (軍師) | `gpt-5.1-codex-max` |
+| Karo | `gpt-5.3-codex` |
+| Gunshi | `gpt-5.1-codex-max` |
 
 ### `config/settings.yaml` snippet
 
@@ -261,38 +260,37 @@ available_cost_groups:
 
 capability_tiers:
   gpt-5.3-codex-spark:
-    max_bloom: 3       # L1-L3: 1000+ tok/s — 足軽7体でも余裕のスループット
+    max_bloom: 3       # L1-L3: 1000+ tok/s — Comfortable throughput even for 7 Ashigaru
     cost_group: chatgpt_pro
   gpt-5.3-codex:
     max_bloom: 4       # L4: Terminal-Bench 77.3%, 400K+ context
     cost_group: chatgpt_pro
   gpt-5.1-codex-max:
-    max_bloom: 5       # L5: 最高Codex capability
+    max_bloom: 5       # L5: Highest Codex capability
     cost_group: chatgpt_pro
 ```
 
-### カバレッジ
+### Coverage
 
-| Bloom | モデル | 備考 |
+| Bloom | Model | Notes |
 |-------|-------|------|
-| L1–L3 | **Spark** | Cerebras製。Codex枠と独立クォータ。 |
+| L1–L3 | **Spark** | Made by Cerebras. Independent quota from Codex. |
 | L4 | gpt-5.3-codex | |
 | L5 | codex-max | |
-| **L6** | ⚠️ **GAP** | L6 は Claude Opus 4.6 必須。 |
+| **L6** | ⚠️ **GAP** | L6 requires Claude Opus 4.6. |
 
 ---
 
-## Pattern D — Claude Pro/Max + ChatGPT Plus ($40–$220/月)
+## Pattern D — Claude Pro/Max + ChatGPT Plus ($40–$220/month)
 
+> Claude handles high quality (L4+). Codex Plus covers L1-L4 mass production. Spark unavailable.
 
-> Claude が高品質担当 (L4+)。Codex Plus がL1-L4の量産をカバー。Spark 不可。
+### Fixed Agents
 
-### 固定エージェント
-
-| エージェント | 推奨モデル |
+| Agent | Recommended Model |
 |------------|-----------|
-| Karo (家老) | `claude-sonnet-4-6` |
-| Gunshi (軍師) | `claude-opus-4-6` |
+| Karo | `claude-sonnet-4-6` |
+| Gunshi | `claude-opus-4-6` |
 
 ### `config/settings.yaml` snippet
 
@@ -303,47 +301,47 @@ available_cost_groups:
 
 capability_tiers:
   gpt-5-codex-mini:
-    max_bloom: 2       # L1-L2: Claude枠節約。Codex Plusクォータを消費。
+    max_bloom: 2       # L1-L2: Conserves Claude quota. Consumes Codex Plus quota.
     cost_group: chatgpt_plus
   gpt-5.3-codex:
     max_bloom: 4       # L3-L4: Terminal-Bench 77.3%
     cost_group: chatgpt_plus
   claude-sonnet-4-6:
-    max_bloom: 5       # L5: Claude品質のアーキテクチャ評価
+    max_bloom: 5       # L5: Claude-quality architecture evaluation
     cost_group: claude_max
   claude-opus-4-6:
-    max_bloom: 6       # L6: 創造・戦略タスク
+    max_bloom: 6       # L6: Creative/Strategic tasks
     cost_group: claude_max
 ```
 
-### カバレッジ
+### Coverage
 
-| Bloom | モデル | 備考 |
+| Bloom | Model | Notes |
 |-------|-------|------|
-| L1–L2 | codex-mini | Codex Plus枠を消費してClaude Max節約 |
+| L1–L2 | codex-mini | Consumes Codex Plus quota, saving Claude Max |
 | L3–L4 | gpt-5.3-codex | |
-| L5 | Sonnet 4.6 | Claude品質に切り替わる |
+| L5 | Sonnet 4.6 | Switches to Claude quality |
 | L6 | Opus 4.6 | |
 
 ---
 
-## Pattern E — Claude Pro/Max + ChatGPT Pro ($220–$400/月) ⭐ Full Power
+## Pattern E — Claude Pro/Max + ChatGPT Pro ($220–$400/month) ⭐ Full Power
 
-> **最強構成**。Spark で L1-L3 を爆速処理、Claude で L4-L6 を高品質処理。
-> 月 $400（Claude Max 20x + ChatGPT Pro）で全 Bloom をフルカバー。
+> **Strongest formation**. Fast processing of L1-L3 via Spark, high quality processing of L4-L6 via Claude.
+> Full coverage of all Bloom levels at $400/month (Claude Max 20x + ChatGPT Pro).
 
-### 固定エージェント
+### Fixed Agents
 
-| エージェント | 推奨モデル | 理由 |
+| Agent | Recommended Model | Reason |
 |------------|-----------|------|
-| Karo (家老) | `claude-sonnet-4-6` | L4-L5オーケストレーション。SWE-bench 79.6% |
-| Gunshi (軍師) | `claude-opus-4-6` | L5-L6深いQC。SWE-bench 80.8% |
+| Karo | `claude-sonnet-4-6` | L4-L5 Orchestration. SWE-bench 79.6% |
+| Gunshi | `claude-opus-4-6` | L5-L6 deep QC. SWE-bench 80.8% |
 
-### Q3a×Q3b の回答別 config
+### config by Q3a x Q3b answers
 
-#### E-1: Spark優先 (L3) × Codex優先 (L4) ← **デフォルト推奨**
+#### E-1: Prioritize Spark (L3) x Prioritize Codex (L4) ← **Default Recommended**
 
-> Claude Max枠をL5-L6に集中。ChatGPT Pro枠でL1-L4を高速処理。
+> Focus Claude Max quota on L5-L6. High-speed processing of L1-L4 using ChatGPT Pro quota.
 
 ```yaml
 available_cost_groups:
@@ -352,13 +350,13 @@ available_cost_groups:
 
 capability_tiers:
   gpt-5.3-codex-spark:
-    max_bloom: 3       # L1-L3: 1000+ tok/s — ChatGPT Pro枠でL1-L3を高速処理
+    max_bloom: 3       # L1-L3: 1000+ tok/s — High-speed processing of L1-L3 with ChatGPT Pro quota
     cost_group: chatgpt_pro
   claude-haiku-4-5-20251001:
-    max_bloom: 3       # L1-L3: Claude枠フォールバック（Spark枠切れ時に自動切替）
+    max_bloom: 3       # L1-L3: Claude quota fallback (automatic switch when Spark quota is exhausted)
     cost_group: claude_max
   gpt-5.3-codex:
-    max_bloom: 4       # L4: Terminal-Bench 77.3% — Codex Pro枠をL4にも活用
+    max_bloom: 4       # L4: Terminal-Bench 77.3% — Also utilizes Codex Pro quota for L4
     cost_group: chatgpt_pro
   claude-sonnet-4-6:
     max_bloom: 5       # L5: SWE-bench 79.6%, 1M context
@@ -368,9 +366,9 @@ capability_tiers:
     cost_group: claude_max
 ```
 
-#### E-2: Spark優先 (L3) × Sonnet優先 (L4)
+#### E-2: Prioritize Spark (L3) x Prioritize Sonnet (L4)
 
-> L4もClaude品質で処理。ChatGPT Pro枠をSparkに集中させる。
+> L4 is also processed at Claude quality. Focuses ChatGPT Pro quota on Spark.
 
 ```yaml
 available_cost_groups:
@@ -379,22 +377,22 @@ available_cost_groups:
 
 capability_tiers:
   gpt-5.3-codex-spark:
-    max_bloom: 3       # L1-L3: 1000+ tok/s — ChatGPT Pro枠をSparkに集中
+    max_bloom: 3       # L1-L3: 1000+ tok/s — Focuses ChatGPT Pro quota on Spark
     cost_group: chatgpt_pro
   claude-haiku-4-5-20251001:
-    max_bloom: 3       # L1-L3: Claude枠フォールバック
+    max_bloom: 3       # L1-L3: Claude quota fallback
     cost_group: claude_max
   claude-sonnet-4-6:
-    max_bloom: 5       # L4-L5: SWE-bench 79.6% — L4もClaude品質
+    max_bloom: 5       # L4-L5: SWE-bench 79.6% — L4 also at Claude quality
     cost_group: claude_max
   claude-opus-4-6:
     max_bloom: 6       # L6: SWE-bench 80.8%
     cost_group: claude_max
 ```
 
-#### E-3: Haiku優先 (L3) × Codex優先 (L4)
+#### E-3: Prioritize Haiku (L3) x Prioritize Codex (L4)
 
-> L3はClaude枠で処理してChatGPT Pro枠をL4のgpt-5.3に温存する。
+> L3 is processed with Claude quota, conserving ChatGPT Pro quota for gpt-5.3 at L4.
 
 ```yaml
 available_cost_groups:
@@ -403,13 +401,13 @@ available_cost_groups:
 
 capability_tiers:
   claude-haiku-4-5-20251001:
-    max_bloom: 3       # L1-L3: SWE-bench 73.3% — Claude枠でL3を処理
+    max_bloom: 3       # L1-L3: SWE-bench 73.3% — Processes L3 with Claude quota
     cost_group: claude_max
   gpt-5.3-codex-spark:
-    max_bloom: 2       # L1-L2のみ: Sparkは補助的に使用（L3はHaikuへ）
+    max_bloom: 2       # L1-L2 only: Spark used auxiliary (L3 goes to Haiku)
     cost_group: chatgpt_pro
   gpt-5.3-codex:
-    max_bloom: 4       # L4: Terminal-Bench 77.3% — ChatGPT Pro枠をL4に集中
+    max_bloom: 4       # L4: Terminal-Bench 77.3% — Focuses ChatGPT Pro quota on L4
     cost_group: chatgpt_pro
   claude-sonnet-4-6:
     max_bloom: 5       # L5
@@ -419,9 +417,9 @@ capability_tiers:
     cost_group: claude_max
 ```
 
-#### E-4: Haiku優先 (L3) × Sonnet優先 (L4)
+#### E-4: Prioritize Haiku (L3) x Prioritize Sonnet (L4)
 
-> L1-L5を全てClaude枠で処理。ChatGPT Pro枠は節約（Spark補助的使用のみ）。
+> Processes L1-L5 entirely with Claude quota. ChatGPT Pro quota is saved (only auxiliary Spark usage).
 
 ```yaml
 available_cost_groups:
@@ -430,74 +428,74 @@ available_cost_groups:
 
 capability_tiers:
   gpt-5.3-codex-spark:
-    max_bloom: 2       # L1-L2補助: Sparkで超軽量タスクのみ処理
+    max_bloom: 2       # L1-L2 auxiliary: Processes only ultra-lightweight tasks with Spark
     cost_group: chatgpt_pro
   claude-haiku-4-5-20251001:
-    max_bloom: 3       # L1-L3: Claude枠で統一処理
+    max_bloom: 3       # L1-L3: Unified processing with Claude quota
     cost_group: claude_max
   claude-sonnet-4-6:
-    max_bloom: 5       # L4-L5: Claude品質でL4も処理
+    max_bloom: 5       # L4-L5: Processes L4 at Claude quality as well
     cost_group: claude_max
   claude-opus-4-6:
     max_bloom: 6       # L6
     cost_group: claude_max
 ```
 
-### カバレッジ（E-1基準）
+### Coverage (E-1 standard)
 
-| Bloom | モデル | 速度/品質 |
+| Bloom | Model | Speed/Quality |
 |-------|-------|----------|
-| L1–L3 | **Spark** → Haiku(フォールバック) | 1000 tok/s。枠切れ時に自動切替 |
-| L4 | gpt-5.3-codex | Codex Pro枠フル活用 |
-| L5 | Sonnet 4.6 | Claude品質。Opusとの差1.2ptで1/5価格 |
-| L6 | Opus 4.6 | 真の創造タスクのみ投入 |
+| L1–L3 | **Spark** → Haiku (Fallback) | 1000 tok/s. Automatic switch when quota is exhausted. |
+| L4 | gpt-5.3-codex | Full utilization of Codex Pro quota |
+| L5 | Sonnet 4.6 | Claude quality. 1.2pt diff from Opus at 1/5 the price |
+| L6 | Opus 4.6 | Only deployed for true creative tasks |
 
-> **コスト最適化のポイント**: Spark と gpt-5.3 は独立クォータ。両方を同時最大利用可能。
-> L5 は Opus でなく Sonnet 4.6 で十分（SWE-bench差1.2%、価格差約1.7倍: $3/$15 vs $5/$25/M）。
+> **Cost Optimization Point**: Spark and gpt-5.3 have independent quotas. Both can be utilized at maximum capacity simultaneously.
+> Sonnet 4.6 is sufficient instead of Opus for L5 (SWE-bench diff of 1.2%, price diff of approx 1.7x: $3/$15 vs $5/$25/M).
 
 ---
 
-## Step 5: 設定の適用手順
+## Step 5: Configuration Application Steps
 
-出力したYAMLの後に、以下の適用手順を必ず案内する:
+Be sure to provide the following application steps after outputting the YAML:
 
-**1. `config/settings.yaml` を開く**
+**1. Open `config/settings.yaml`**
 
 ```yaml
-# available_cost_groups と capability_tiers を貼り付け
+# Paste available_cost_groups and capability_tiers
 available_cost_groups:
-  - ...   ← ここに貼り付け
+  - ...   ← Paste here
 
 capability_tiers:
-  ...:    ← ここに貼り付け
+  ...:    ← Paste here
 ```
 
-**2. 固定エージェントのモデルを更新**
+**2. Update fixed agent models**
 
 ```yaml
 cli:
   agents:
     karo:
       type: claude
-      model: claude-sonnet-4-6     # ← Karo推奨モデルに変更
+      model: claude-sonnet-4-6     # ← Change to Karo recommended model
     gunshi:
       type: claude
-      model: opus                  # ← Gunshi推奨モデルに変更
-    ashigaru1:                     # ← 足軽はcapability_tiersに従って自動ルーティング
-      type: codex                  #    CLIの種類はサブスクに合わせて設定
+      model: opus                  # ← Change to Gunshi recommended model
+    ashigaru1:                     # ← Ashigaru are automatically routed according to capability_tiers
+      type: codex                  #    Configure the CLI type according to the subscription
       model: gpt-5.3-codex-spark
 ```
 
-**3. bloom_routing の有効化（オプション）**
+**3. Enable bloom_routing (optional)**
 
 ```yaml
-bloom_routing: "manual"   # "off"(無効) → "manual"(手動) → "auto"(全自動)
+bloom_routing: "manual"   # "off"(disabled) → "manual"(manual) → "auto"(fully automatic)
 ```
 
-**4. 設定の検証（ターミナルで）**
+**4. Verify configuration (in terminal)**
 
 ```bash
-# subscription coverage チェック（カバーできないBloomレベルを検出）
+# subscription coverage check (detects uncovered Bloom levels)
 source lib/cli_adapter.sh && validate_subscription_coverage
 ```
 
@@ -506,12 +504,12 @@ source lib/cli_adapter.sh && validate_subscription_coverage
 ## Quick Decision Tree
 
 ```
-Claude Pro以上を契約している?
-  Yes → 固定エージェント(Shogun/Karo/Gunshi)にClaudeが使える ✓
-  No  → Codexのみ。L6ギャップに注意 ⚠️
+Are you subscribed to Claude Pro or higher?
+  Yes → Claude is available for fixed agents (Shogun/Karo/Gunshi) ✓
+  No  → Codex only. Beware of L6 gap ⚠️
 
-ChatGPT Pro ($200) を契約している?
-  Yes → Spark (L1-L3, 1000 tok/s) + gpt-5.3 (L4) が使える ✓
-  Plus ($20) → gpt-5.3 (L3-L4) のみ。Spark不可。
-  なし → Claude Haikuが足軽のL1-L3を担当
+Are you subscribed to ChatGPT Pro ($200)?
+  Yes → Spark (L1-L3, 1000 tok/s) + gpt-5.3 (L4) can be used ✓
+  Plus ($20) → gpt-5.3 (L3-L4) only. Spark unavailable.
+  None → Claude Haiku handles L1-L3 for Ashigaru
 ```

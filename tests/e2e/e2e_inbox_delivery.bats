@@ -49,7 +49,7 @@ setup() {
 @test "E2E-002-A: inbox_write.sh creates message with correct fields" {
     # 1. Write a message to ashigaru1's inbox
     run bash "$E2E_QUEUE/scripts/inbox_write.sh" "ashigaru1" \
-        "テスト配信メッセージ" "task_assigned" "karo"
+        "test delivery message" "task_assigned" "karo"
     assert_success
 
     # 2. Verify YAML file exists and has correct structure
@@ -75,7 +75,7 @@ setup() {
 
     # 2. Write task_assigned to inbox
     bash "$E2E_QUEUE/scripts/inbox_write.sh" "ashigaru1" \
-        "タスクYAMLを読んで作業開始せよ。" "task_assigned" "karo"
+        "Read task YAML and start work." "task_assigned" "karo"
 
     # 3. Verify 1 unread message
     run assert_inbox_unread_count "$E2E_QUEUE/queue/inbox/ashigaru1.yaml" 1
@@ -102,11 +102,11 @@ setup() {
 @test "E2E-002-C: multiple inbox messages are all marked as read" {
     # 1. Write 3 messages to ashigaru1's inbox
     bash "$E2E_QUEUE/scripts/inbox_write.sh" "ashigaru1" \
-        "メッセージ1" "info" "system"
+        "message1" "info" "system"
     bash "$E2E_QUEUE/scripts/inbox_write.sh" "ashigaru1" \
-        "メッセージ2" "info" "system"
+        "message2" "info" "system"
     bash "$E2E_QUEUE/scripts/inbox_write.sh" "ashigaru1" \
-        "メッセージ3" "info" "system"
+        "message3" "info" "system"
 
     # 2. Verify 3 unread
     run assert_inbox_unread_count "$E2E_QUEUE/queue/inbox/ashigaru1.yaml" 3
@@ -132,9 +132,9 @@ setup() {
 @test "E2E-002-D: messages to different agents stay in separate inboxes" {
     # 1. Write to karo and ashigaru1
     bash "$E2E_QUEUE/scripts/inbox_write.sh" "karo" \
-        "家老向けメッセージ" "cmd_new" "shogun"
+        "message for Karo" "cmd_new" "shogun"
     bash "$E2E_QUEUE/scripts/inbox_write.sh" "ashigaru1" \
-        "足軽1向けメッセージ" "task_assigned" "karo"
+        "message for Ashigaru 1" "task_assigned" "karo"
 
     # 2. Each inbox should have exactly 1 unread
     run assert_inbox_unread_count "$E2E_QUEUE/queue/inbox/karo.yaml" 1
@@ -158,7 +158,7 @@ setup() {
 
     # 2. Trigger processing
     bash "$E2E_QUEUE/scripts/inbox_write.sh" "ashigaru1" \
-        "タスクYAMLを読んで作業開始せよ。" "task_assigned" "karo"
+        "Read task YAML and start work." "task_assigned" "karo"
 
     local ashigaru1_pane
     ashigaru1_pane=$(pane_target 1)

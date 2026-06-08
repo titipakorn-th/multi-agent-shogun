@@ -1,14 +1,14 @@
 #!/usr/bin/env bats
-# test_switch_cli.bats — switch_cli.sh ユニットテスト
-# shogun-model-switch Skill テスト
+# test_switch_cli.bats — switch_cli.sh Unit Test
+# shogun-model-switch Skill Test
 
-# --- セットアップ ---
+# --- Setup ---
 
 setup() {
     TEST_TMP="$(mktemp -d)"
     PROJECT_ROOT="$(cd "$(dirname "$BATS_TEST_FILENAME")/../.." && pwd)"
 
-    # テスト用settings.yaml
+    # settings.yaml for testing
     cat > "${TEST_TMP}/settings.yaml" << 'YAML'
 cli:
   default: claude
@@ -38,7 +38,7 @@ cli:
       thinking: true
 YAML
 
-    # cli_adapter.sh をロード（テスト用settings使用）
+    # Load cli_adapter.sh (using test settings)
     export CLI_ADAPTER_SETTINGS="${TEST_TMP}/settings.yaml"
     source "${PROJECT_ROOT}/lib/cli_adapter.sh"
 }
@@ -48,12 +48,12 @@ teardown() {
 }
 
 # =============================================================================
-# resolve_pane テスト (switch_cli.sh 内の関数を直接テスト)
+# resolve_pane test (directly tests functions inside switch_cli.sh)
 # =============================================================================
 
-# resolve_pane は tmux に依存するため、関数定義のみ source して文字列生成テスト
+# Since resolve_pane depends on tmux, source only function definitions to test string generation
 load_resolve_pane() {
-    # switch_cli.sh から resolve_pane のみ抽出（tmux コマンドはモック化）
+    # Extract only resolve_pane from switch_cli.sh (mock tmux commands)
     eval '
     resolve_pane() {
         local agent_id="$1"
@@ -121,14 +121,14 @@ load_resolve_pane() {
 }
 
 # =============================================================================
-# settings.yaml 更新テスト（Python部分）
+# settings.yaml update test (Python part)
 # =============================================================================
 
-@test "update_settings: type変更でYAMLが正しく更新される" {
-    # テスト用settings
+@test "update_settings: YAML is updated correctly on type change" {
+    # settings for testing
     cp "${TEST_TMP}/settings.yaml" "${TEST_TMP}/settings_update.yaml"
 
-    # Python直接実行でtype更新
+    # update type via direct Python execution
     "${PROJECT_ROOT}/.venv/bin/python3" << PYEOF
 import yaml
 
@@ -143,7 +143,7 @@ with open(path, 'w') as f:
     yaml.dump(data, f, default_flow_style=False, allow_unicode=True)
 PYEOF
 
-    # 更新結果を検証
+    # Verify update results
     export CLI_ADAPTER_SETTINGS="${TEST_TMP}/settings_update.yaml"
     source "${PROJECT_ROOT}/lib/cli_adapter.sh"
 
@@ -154,7 +154,7 @@ PYEOF
     [ "$result" = "gpt-5.3-codex-spark" ]
 }
 
-@test "update_settings: model変更後にbuild_cli_commandが反映" {
+@test "update_settings: build_cli_command reflects changes after model change" {
     cp "${TEST_TMP}/settings.yaml" "${TEST_TMP}/settings_update2.yaml"
 
     "${PROJECT_ROOT}/.venv/bin/python3" << PYEOF
@@ -178,7 +178,7 @@ PYEOF
     [[ "$result" == *"--dangerously-skip-permissions"* ]]
 }
 
-@test "update_settings: thinking:false後のbuild_cli_commandにMAX_THINKING_TOKENS=0" {
+@test "update_settings: MAX_THINKING_TOKENS=0 in build_cli_command after thinking:false" {
     cp "${TEST_TMP}/settings.yaml" "${TEST_TMP}/settings_update3.yaml"
 
     "${PROJECT_ROOT}/.venv/bin/python3" << PYEOF
@@ -202,10 +202,10 @@ PYEOF
 }
 
 # =============================================================================
-# switch_cli.sh 引数パーステスト（--help, バリデーション）
+# switch_cli.sh argument parse test (--help, validation)
 # =============================================================================
 
-@test "switch_cli.sh --help → usage表示 + exit 1" {
+@test "switch_cli.sh --help -> display usage + exit 1" {
     run bash "${PROJECT_ROOT}/scripts/switch_cli.sh" --help
     [ "$status" -eq 1 ]
     [[ "$output" == *"Usage"* ]]
@@ -214,24 +214,24 @@ PYEOF
     [[ "$output" == *"--effort"* ]]
 }
 
-@test "switch_cli.sh -h → usage表示 + exit 1" {
+@test "switch_cli.sh -h -> display usage + exit 1" {
     run bash "${PROJECT_ROOT}/scripts/switch_cli.sh" -h
     [ "$status" -eq 1 ]
     [[ "$output" == *"Usage"* ]]
 }
 
-@test "switch_cli.sh 引数なし → usage表示 + exit 1" {
+@test "switch_cli.sh no arguments -> display usage + exit 1" {
     run bash "${PROJECT_ROOT}/scripts/switch_cli.sh"
     [ "$status" -eq 1 ]
     [[ "$output" == *"Usage"* ]]
 }
 
-@test "switch_cli.sh 不正type → エラー" {
+@test "switch_cli.sh invalid type -> error" {
     run bash "${PROJECT_ROOT}/scripts/switch_cli.sh" ashigaru1 --type invalid_cli
     [ "$status" -ne 0 ]
 }
 
-@test "switch_cli.sh 不正effort → エラー" {
+@test "switch_cli.sh invalid effort -> error" {
     run bash "${PROJECT_ROOT}/scripts/switch_cli.sh" ashigaru1 --effort turbo
     [ "$status" -ne 0 ]
     [[ "$output" == *"Invalid effort"* ]]
@@ -251,22 +251,22 @@ PYEOF
     [ "$?" -eq 0 ]
 }
 
-@test "switch_cli.sh provider-qualified model without --type on non-opencode agent → エラー" {
+@test "switch_cli.sh provider-qualified model without --type on non-opencode agent -> error" {
     run bash "${PROJECT_ROOT}/scripts/switch_cli.sh" ashigaru1 --model openai/gpt-5.4-mini
     [ "$status" -ne 0 ]
     [[ "$output" == *"provider-qualified model IDs are ambiguous without --type"* ]]
 }
 
 # =============================================================================
-# get_model_display_name 統合テスト（switch_cli.sh が依存する表示名）
+# get_model_display_name integration test (display name that switch_cli.sh depends on)
 # =============================================================================
 
-@test "display_name: 切替前後で表示名が正しく変わる" {
-    # 元: Sonnet+T
+@test "display_name: display name changes correctly before and after switch" {
+    # original: Sonnet+T
     result=$(get_model_display_name "ashigaru1")
     [ "$result" = "Sonnet+T" ]
 
-    # settings更新をシミュレート: Opus+T に
+    # simulate settings update: to Opus+T
     cat > "${TEST_TMP}/settings_switched.yaml" << 'YAML'
 cli:
   default: claude
@@ -283,12 +283,12 @@ YAML
     [ "$result" = "Opus+T" ]
 }
 
-@test "display_name: Codex → Claude切替で表示名更新" {
-    # ashigaru3はCodex Spark
+@test "display_name: update display name on Codex -> Claude switch" {
+    # ashigaru3 is Codex Spark
     result=$(get_model_display_name "ashigaru3")
     [ "$result" = "Spark" ]
 
-    # Claude Sonnet+T に切替
+    # switch to Claude Sonnet+T
     cat > "${TEST_TMP}/settings_codex_to_claude.yaml" << 'YAML'
 cli:
   default: claude
@@ -305,12 +305,12 @@ YAML
     [ "$result" = "Sonnet+T" ]
 }
 
-@test "display_name: thinking:false で +T が消える" {
-    # ashigaru2は thinking:false
+@test "display_name: +T disappears when thinking:false" {
+    # ashigaru2 is thinking:false
     result=$(get_model_display_name "ashigaru2")
     [ "$result" = "Sonnet" ]
 
-    # ashigaru5は thinking:true
+    # ashigaru5 is thinking:true
     result=$(get_model_display_name "ashigaru5")
     [ "$result" = "Opus+T" ]
 }

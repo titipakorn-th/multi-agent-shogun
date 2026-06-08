@@ -1,18 +1,18 @@
 #!/usr/bin/env bats
 # test_idle_flag.bats — idle flag file system unit tests
 #
-# Tests for cmd_222: フラグファイル方式 idle/busy検知
+# Tests for cmd_222: flag file method idle/busy detection
 #
-# テスト構成:
-#   T-001: unread=0時にフラグファイルが作成される (stop_hook exit 0後)
-#   T-002: unread>0時にフラグファイルが削除される (stop_hook block後)
-#   T-003: agent_is_busy() フラグなし時にtrue (return 0) — claude CLI
-#   T-004: agent_is_busy() フラグあり時にfalse (return 1) — claude CLI
-#   T-005: agent_is_busy() 非Claude CLI時にpane解析フォールバック
-#   T-006: stop_hook_active=True時にもフラグが作成される (C-001修正)
-#   T-007: /clear cooldown (LAST_CLEAR_TS) がフラグより優先される (return 0)
-#   T-008: nudge送信後にフラグが削除される
-#   T-009: shutsujin時 (rm -f /tmp/shogun_idle_*) で全フラグがクリアされる
+# Test configuration:
+#   T-001: flag file is created when unread=0 (after stop_hook exit 0)
+#   T-002: flag file is deleted when unread>0 (after stop_hook block)
+#   T-003: agent_is_busy() true when no flag (return 0) — claude CLI
+#   T-004: agent_is_busy() false when flag exists (return 1) — claude CLI
+#   T-005: agent_is_busy() fallback to pane analysis on non-Claude CLI
+#   T-006: flag is also created when stop_hook_active=True (C-001 fix)
+#   T-007: /clear cooldown (LAST_CLEAR_TS) takes priority over flag (return 0)
+#   T-008: flag is deleted after nudge is sent
+#   T-009: all flags cleared on shutsujin (rm -f /tmp/shogun_idle_*)
 
 SCRIPT_DIR="$(cd "$(dirname "$BATS_TEST_FILENAME")/../.." && pwd)"
 HOOK_SCRIPT="$SCRIPT_DIR/scripts/stop_hook_inbox.sh"
@@ -113,7 +113,7 @@ run_hook() {
     run bash "$HOOK_SCRIPT" <<< "$json"
 }
 
-# ─── T-001: unread=0時にフラグ作成 ───
+# ─── T-001: Create flag when unread=0 ───
 
 @test "T-001: stop_hook creates idle flag when unread=0" {
     # Empty inbox (no unread)
@@ -134,7 +134,7 @@ YAML
     [ -f "$IDLE_FLAG_DIR/shogun_idle_test_idle_agent" ]
 }
 
-# ─── T-002: unread>0時にフラグ保持（v4.0.1 rm -f廃止） ───
+# ─── T-002: Keep flag when unread>0 (v4.0.1 rm -f deprecated) ───
 
 @test "T-002: stop_hook preserves idle flag when unread>0" {
     # Pre-create the flag (agent was idle)
@@ -153,12 +153,12 @@ YAML
 
     run_hook '{"stop_hook_active": false, "last_assistant_message": ""}'
     # Status is non-zero (blocked) — that's expected for unread
-    # v4.0.1: Flag must NOT be removed (rm -f廃止). Flag persists so
+    # v4.0.1: Flag must NOT be removed (rm -f deprecated). Flag persists so
     # watcher can detect idle and send nudge without deadlock.
     [ -f "$IDLE_FLAG_DIR/shogun_idle_test_idle_agent" ]
 }
 
-# ─── T-003: agent_is_busy() フラグなし時にtrue (busy) ───
+# ─── T-003: agent_is_busy() true when no flag (busy) ───
 
 @test "T-003: agent_is_busy returns 0 (busy) when no flag file — claude CLI" {
     # Ensure no flag file
@@ -173,7 +173,7 @@ YAML
     [ "$status" -eq 0 ]  # 0 = busy
 }
 
-# ─── T-004: agent_is_busy() フラグあり時にfalse (idle) ───
+# ─── T-004: agent_is_busy() false when flag exists (idle) ───
 
 @test "T-004: agent_is_busy returns 1 (idle) when flag file exists — claude CLI" {
     # Create idle flag
@@ -188,7 +188,7 @@ YAML
     [ "$status" -eq 1 ]  # 1 = idle
 }
 
-# ─── T-005: 非Claude CLI時にpane解析フォールバック ───
+# ─── T-005: Fallback to pane analysis on non-Claude CLI ───
 
 @test "T-005: agent_is_busy uses pane fallback for non-claude CLI" {
     # Create idle flag (would return idle for claude, but codex ignores it)
@@ -205,7 +205,7 @@ YAML
     [ "$status" -eq 0 ]  # 0 = busy (from pane detection)
 }
 
-# ─── T-006: stop_hook_active=True時にもフラグ作成 (C-001修正) ───
+# ─── T-006: Create flag even when stop_hook_active=True (C-001 fix) ───
 
 @test "T-006: stop_hook creates idle flag even when stop_hook_active=True" {
     # Empty inbox
@@ -220,7 +220,7 @@ YAML
     [ -f "$IDLE_FLAG_DIR/shogun_idle_test_idle_agent" ]
 }
 
-# ─── T-007: /clear cooldown (LAST_CLEAR_TS) がフラグより優先 ───
+# ─── T-007: /clear cooldown (LAST_CLEAR_TS) takes priority over flag ───
 
 @test "T-007: /clear cooldown overrides idle flag (returns busy)" {
     # Create idle flag
@@ -236,7 +236,7 @@ YAML
     [ "$status" -eq 0 ]  # 0 = busy (cooldown overrides idle flag)
 }
 
-# ─── T-008: nudge送信後もフラグ保持 (v4.0.1 cc234ed設計) ───
+# ─── T-008: Keep flag even after nudge (v4.0.1 cc234ed design) ───
 
 @test "T-008: send_wakeup preserves idle flag after sending nudge (v4.0.1)" {
     # Create idle flag (agent was idle)
@@ -258,7 +258,7 @@ YAML
     [ -f "$IDLE_FLAG_DIR/shogun_idle_test_idle_agent" ]
 }
 
-# ─── T-009: shutsujin時に全フラグクリア ───
+# ─── T-009: Clear all flags on shutsujin ───
 
 @test "T-009: rm -f flag_dir/shogun_idle_* clears all idle flags" {
     # Create multiple idle flags (simulate multiple agents)

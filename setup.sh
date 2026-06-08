@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 # ═══════════════════════════════════════════════════════════════════════════════
-# setup.sh - 互換性のためのラッパースクリプト
+# setup.sh - Wrapper script for compatibility
 # ═══════════════════════════════════════════════════════════════════════════════
-# このスクリプトは shutsujin_departure.sh に統合されました。
-# 互換性のため、全ての引数を shutsujin_departure.sh に転送します。
+# This script has been merged into shutsujin_departure.sh.
+# For compatibility, all arguments are forwarded to shutsujin_departure.sh.
 #
-# 推奨: 直接 ./shutsujin_departure.sh を使用してください。
+# Recommendation: Use ./shutsujin_departure.sh directly.
 # ═══════════════════════════════════════════════════════════════════════════════
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

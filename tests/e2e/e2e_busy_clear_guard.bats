@@ -1,6 +1,6 @@
 #!/usr/bin/env bats
 # ═══════════════════════════════════════════════════════════════
-# E2E-009: busy中/clear抑制テスト
+# E2E-009: Suppress /clear test while busy
 # ═══════════════════════════════════════════════════════════════
 # Verifies inbox_watcher behavior when clear_command arrives while
 # an agent is working:

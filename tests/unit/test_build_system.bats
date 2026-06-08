@@ -1,32 +1,32 @@
 #!/usr/bin/env bats
-# test_build_system.bats — ビルドシステム（build_instructions.sh）ユニットテスト
-# Phase 2+3 品質テスト基盤
+# test_build_system.bats — Build System (build_instructions.sh) Unit Test
+# Phase 2+3 Quality Test Infrastructure
 #
-# テスト構成:
-#   - ビルド実行テスト: スクリプト正常終了、ディレクトリ生成
-#   - ファイル生成テスト: claude/codex/copilot/opencode各ロールの生成確認
-#   - 内容検証テスト: 空でないこと、ロール名・CLI固有セクション含有
-#   - AGENTS.md / copilot-instructions.md 生成テスト
-#   - 冪等性テスト: 2回ビルドで差分なし
+# Test configuration:
+#   - Build execution test: script finishes normally, directory created
+#   - File generation test: verify generation of claude/codex/copilot/opencode roles
+#   - Content validation test: not empty, contains role name & CLI specific sections
+#   - AGENTS.md / copilot-instructions.md generation tests
+#   - Idempotency test: no difference on 2 builds
 #
-# Phase 2+3未実装テストについて:
-#   copilot/opencode生成、AGENTS.md、copilot-instructions.md のテストは
-#   build_instructions.shが拡張されるまでFAILする（受入基準）。
-#   SKIP は使用しない（SKIP=0ルール遵守）。
+# About Phase 2+3 unimplemented tests:
+#   Tests for copilot/opencode generation, AGENTS.md, copilot-instructions.md
+#   will FAIL until build_instructions.sh is extended (acceptance criteria).
+#   Do not use SKIP (comply with SKIP=0 rule).
 
-# --- セットアップ ---
+# --- Setup ---
 
 setup_file() {
     export PROJECT_ROOT="$(cd "$(dirname "$BATS_TEST_FILENAME")/../.." && pwd)"
     export BUILD_SCRIPT="$PROJECT_ROOT/scripts/build_instructions.sh"
     export OUTPUT_DIR="$PROJECT_ROOT/instructions/generated"
 
-    # パーツディレクトリの存在確認（前提条件）
+    # Verify parts directory existence (prerequisite)
     [ -d "$PROJECT_ROOT/instructions/roles" ] || return 1
     [ -d "$PROJECT_ROOT/instructions/common" ] || return 1
     [ -d "$PROJECT_ROOT/instructions/cli_specific" ] || return 1
 
-    # ビルド実行（全テストの前に1回のみ）
+    # Execute build (only once before all tests)
     bash "$BUILD_SCRIPT" > /dev/null 2>&1 || true
 }
 
@@ -37,7 +37,7 @@ setup() {
 }
 
 # =============================================================================
-# ビルド実行テスト
+# Build execution test
 # =============================================================================
 
 @test "build: build_instructions.sh exits with status 0" {
@@ -56,7 +56,7 @@ setup() {
 }
 
 # =============================================================================
-# ファイル生成テスト — Claude
+# File generation test — Claude
 # =============================================================================
 
 @test "claude: shogun.md generated" {
@@ -72,7 +72,7 @@ setup() {
 }
 
 # =============================================================================
-# ファイル生成テスト — Codex / OpenCode
+# File generation test — Codex / OpenCode
 # =============================================================================
 
 @test "codex: codex-shogun.md generated" {
@@ -138,7 +138,7 @@ setup() {
 }
 
 # =============================================================================
-# ファイル生成テスト — Copilot (Phase 2+3 受入基準)
+# File generation test — Copilot (Phase 2+3 Acceptance Criteria)
 # =============================================================================
 
 @test "copilot: copilot-shogun.md generated [Phase 2+3]" {
@@ -154,7 +154,7 @@ setup() {
 }
 
 # =============================================================================
-# 内容検証テスト — 空でないこと
+# Content validation test — not empty
 # =============================================================================
 
 @test "content: shogun.md is not empty" {
@@ -202,59 +202,59 @@ setup() {
 }
 
 # =============================================================================
-# 内容検証テスト — ロール名含有
+# Content validation test — contains role name
 # =============================================================================
 
 @test "content: shogun.md contains shogun role reference" {
-    grep -qi "shogun\|将軍" "$OUTPUT_DIR/shogun.md"
+    grep -qi "shogun\\|Shogun" "$OUTPUT_DIR/shogun.md"
 }
 
 @test "content: karo.md contains karo role reference" {
-    grep -qi "karo\|家老" "$OUTPUT_DIR/karo.md"
+    grep -qi "karo\\|Karo" "$OUTPUT_DIR/karo.md"
 }
 
 @test "content: ashigaru.md contains ashigaru role reference" {
-    grep -qi "ashigaru\|足軽" "$OUTPUT_DIR/ashigaru.md"
+    grep -qi "ashigaru\\|Ashigaru" "$OUTPUT_DIR/ashigaru.md"
 }
 
 @test "content: codex-shogun.md contains shogun role reference" {
-    grep -qi "shogun\|将軍" "$OUTPUT_DIR/codex-shogun.md"
+    grep -qi "shogun\\|Shogun" "$OUTPUT_DIR/codex-shogun.md"
 }
 
 @test "content: codex-karo.md contains karo role reference" {
-    grep -qi "karo\|家老" "$OUTPUT_DIR/codex-karo.md"
+    grep -qi "karo\\|Karo" "$OUTPUT_DIR/codex-karo.md"
 }
 
 @test "content: codex-ashigaru.md contains ashigaru role reference" {
-    grep -qi "ashigaru\|足軽" "$OUTPUT_DIR/codex-ashigaru.md"
+    grep -qi "ashigaru\\|Ashigaru" "$OUTPUT_DIR/codex-ashigaru.md"
 }
 
 @test "content: opencode-shogun.md contains shogun role reference" {
-    grep -qi "shogun\|将軍" "$OUTPUT_DIR/opencode-shogun.md"
+    grep -qi "shogun\\|Shogun" "$OUTPUT_DIR/opencode-shogun.md"
 }
 
 @test "content: opencode-karo.md contains karo role reference" {
-    grep -qi "karo\|家老" "$OUTPUT_DIR/opencode-karo.md"
+    grep -qi "karo\\|Karo" "$OUTPUT_DIR/opencode-karo.md"
 }
 
 @test "content: opencode-ashigaru.md contains ashigaru role reference" {
-    grep -qi "ashigaru\|足軽" "$OUTPUT_DIR/opencode-ashigaru.md"
+    grep -qi "ashigaru\\|Ashigaru" "$OUTPUT_DIR/opencode-ashigaru.md"
 }
 
 @test "content: opencode-gunshi.md contains gunshi role reference" {
-    grep -qi "gunshi\|軍師" "$OUTPUT_DIR/opencode-gunshi.md"
+    grep -qi "gunshi\\|Gunshi" "$OUTPUT_DIR/opencode-gunshi.md"
 }
 
 @test "content: antigravity-shogun.md contains shogun role reference" {
-    grep -qi "shogun\|将軍" "$OUTPUT_DIR/antigravity-shogun.md"
+    grep -qi "shogun\\|Shogun" "$OUTPUT_DIR/antigravity-shogun.md"
 }
 
 # =============================================================================
-# 内容検証テスト — CLI固有セクション
+# Content validation test — CLI specific section
 # =============================================================================
 
 @test "content: claude files contain Claude-specific tools" {
-    # Claude Code固有ツール: Read, Write, Edit, Bash等
+    # Claude Code specific tools: Read, Write, Edit, Bash etc.
     grep -qi "claude\|Read\|Write\|Edit\|Bash" "$OUTPUT_DIR/shogun.md"
 }
 
@@ -275,7 +275,7 @@ setup() {
 }
 
 # =============================================================================
-# AGENTS.md 生成テスト (Phase 2+3 受入基準)
+# AGENTS.md generation test (Phase 2+3 Acceptance Criteria)
 # =============================================================================
 
 @test "agents: AGENTS.md generated [Phase 2+3]" {
@@ -448,7 +448,7 @@ PYEOF
 }
 
 # =============================================================================
-# copilot-instructions.md 生成テスト (Phase 2+3 受入基準)
+# copilot-instructions.md generation test (Phase 2+3 Acceptance Criteria)
 # =============================================================================
 
 @test "copilot-inst: .github/copilot-instructions.md generated [Phase 2+3]" {
@@ -461,18 +461,18 @@ PYEOF
 }
 
 # =============================================================================
-# 冪等性テスト
+# Idempotency test
 # =============================================================================
 
 # =============================================================================
-# Codex /clear → /new 変換テスト
+# Codex /clear -> /new conversion test
 # =============================================================================
-# Codex CLIは/clearでセッション終了するため、AGENTS.mdおよびcodex-*.mdで
-# /clearが命令として残存していないことを検証する。
-# 比較表や変換説明の文脈での/clear言及はOK。
+# Because Codex CLI ends session on /clear, verify in AGENTS.md and codex-*.md
+# that /clear does not remain as a command.
+# Mention of /clear in comparison tables or conversion explanations is OK.
 
 @test "codex-clear: AGENTS.md has no /clear Recovery section" {
-    # /clear Recoveryは/new Recoveryに変換されるべき
+    # /clear Recovery should be converted to /new Recovery
     run grep -c "## /clear Recovery" "$PROJECT_ROOT/AGENTS.md"
     [ "$output" = "0" ]
 }
@@ -487,13 +487,13 @@ PYEOF
 }
 
 @test "codex-clear: AGENTS.md has no 'sends \`/clear\` + Enter via send-keys' (unconverted)" {
-    # 変換済みは「sends /new + Enter」になっているべき
+    # Converted should be "sends /new + Enter"
     run grep -c 'sends `/clear` + Enter via send-keys$' "$PROJECT_ROOT/AGENTS.md"
     [ "$output" = "0" ]
 }
 
 @test "codex-clear: AGENTS.md has no 'delivers \`/clear\` to the agent' (unconverted)" {
-    # 変換済みは「delivers /new to the agent」になっているべき
+    # Converted should be "delivers /new to the agent"
     run grep -c 'delivers `/clear` to the agent →' "$PROJECT_ROOT/AGENTS.md"
     [ "$output" = "0" ]
 }
@@ -504,19 +504,19 @@ PYEOF
 }
 
 @test "codex-clear: codex-ashigaru.md has no bare '/clear' in escalation table" {
-    # 比較表(codex_tools.md由来)以外で/clearが命令として現れないこと
-    # エスカレーション行に「/clear sent」があればNG
+    # /clear must not appear as a command except in the comparison table (from codex_tools.md)
+    # NG if "/clear sent" is in the escalation line
     run grep -c '`/clear` sent (max once' "$OUTPUT_DIR/codex-ashigaru.md"
     [ "$output" = "0" ]
 }
 
 @test "codex-clear: codex-ashigaru.md protocol uses CLI-neutral context reset" {
-    # protocol.mdのclear_command行がCLI中立表現になっていること
+    # clear_command line in protocol.md is in CLI-neutral expression
     grep -q "context reset command via send-keys" "$OUTPUT_DIR/codex-ashigaru.md"
 }
 
 @test "codex-clear: codex-karo.md has no bare '/clear' in redo protocol" {
-    # Redo Protocolで「delivers /clear to the agent →」がそのまま残っていないこと
+    # In Redo Protocol, "delivers /clear to the agent ->" must not remain as is
     run grep -c 'delivers `/clear` to the agent →' "$OUTPUT_DIR/codex-karo.md"
     [ "$output" = "0" ]
 }
@@ -530,7 +530,7 @@ PYEOF
 }
 
 # =============================================================================
-# 冪等性テスト
+# Idempotency test
 # =============================================================================
 
 @test "idempotent: second build produces identical output" {

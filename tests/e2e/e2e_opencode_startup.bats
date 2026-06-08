@@ -66,7 +66,7 @@ dump_watcher_log() {
 
     # 3. Send task_assigned message via inbox_write
     bash "$E2E_QUEUE/scripts/inbox_write.sh" "ashigaru1" \
-        "タスクYAMLを読んで作業開始せよ。" "task_assigned" "karo"
+        "Read task YAML and start work." "task_assigned" "karo"
 
     # 4. Start inbox_watcher with OpenCode CLI type
     local watcher_pid log_file

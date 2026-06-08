@@ -1,104 +1,107 @@
 ---
 name: shogun-readme-sync
-description: README.md（英語）とREADME_ja.md（日本語）の同期を確認・実行するスキル。README変更時に両言語版を必ず同時更新するために使用。「README更新」「README同期」「readme sync」で起動。
+description: |
+  Checks and executes synchronization between README.md (English) and README_ja.md (Japanese).
+  Used to ensure both language versions are updated simultaneously when the README is modified.
+  Triggered by: "README update", "README sync", "readme sync".
 ---
 
-# /shogun-readme-sync - README日英同期
+# /shogun-readme-sync - README English/Japanese Sync
 
 ## Overview
 
-README.md（英語）とREADME_ja.md（日本語）の差分を検出し、不足セクションの追加・番号ズレの修正を行う。
+Detects differences between README.md (English) and README_ja.md (Japanese), adding missing sections and correcting numbered sequence offsets.
 
-README変更時のワークフロー:
-1. 差分検出（どちらが新しいか自動判定）
-2. 不足セクションのリストアップ
-3. 翻訳・追記の実行
-4. セクション番号の整合性チェック
+Workflow when modifying README:
+1. Difference detection (automatically determines which version is newer)
+2. Listing missing sections
+3. Executing translation and additions
+4. Consistency check of section numbers
 
 ## When to Use
 
-- READMEを編集した後（機能追加、セクション追加、構成変更）
-- 「README更新」「README同期」「readme sync」と言われた時
-- 新機能をREADMEに書いた後に「日本語版も」と言われた時
-- PR作成前のREADME整合性チェック
+- After editing the README (adding features, sections, changing structure)
+- When asked to "update README", "sync README", or "readme sync"
+- When asked to update the Japanese version after writing new features in the English README
+- Consistency check of README before creating a PR
 
 ## Instructions
 
-### Step 1: 差分検出
+### Step 1: Difference Detection
 
-両ファイルを読み込み、以下の観点で差分を検出する:
+Read both files and detect differences based on the following aspects:
 
 ```bash
-# 両ファイルを読む
+# Read both files
 Read README.md
 Read README_ja.md
 ```
 
-**チェック項目:**
+**Checklist Items:**
 
-| 項目 | 確認方法 |
+| Item | Verification Method |
 |------|----------|
-| セクション数 | `###` ヘッダーの数が一致するか |
-| セクション番号 | 番号付きセクション（`### ... 1.`, `### ... 2.`等）の連番が正しいか |
-| ファイル構成 | File Structure / ファイル構成セクション内のファイル一覧が一致するか |
-| バージョンセクション | `What's New` / `新機能` セクションが両方に存在するか |
-| 折りたたみ内容 | `<details>` ブロックの有無が一致するか |
+| Section Count | Do the number of `###` headers match? |
+| Section Numbers | Are the serial numbers for numbered sections (e.g. `### ... 1.`, `### ... 2.`) correct? |
+| File Structure | Do the file lists in the File Structure sections match? |
+| Version Section | Do the `What's New` / `Shin-kinou` sections exist in both? |
+| Collapse Content | Do the existences of `<details>` blocks match? |
 
-### Step 2: 差分レポート
+### Step 2: Difference Report
 
-検出した差分を報告する:
+Report the detected differences:
 
 ```
-README同期チェック結果:
+README Sync Check Results:
 
-EN → JA で不足:
-- セクション「Agent Status Check」が日本語版にない
-- ファイル構成に lib/agent_status.sh が未掲載
-- v3.3.2セクションがない
+Missing from EN → JA:
+- Section "Agent Status Check" is missing from the Japanese version
+- lib/agent_status.sh is not listed in the File Structure
+- v3.3.2 section is missing
 
-JA → EN で不足:
-- （なし）
+Missing from JA → EN:
+- (None)
 
-セクション番号ズレ:
-- JA: スクリーンショットが5番だがENでは6番
+Section Number Discrepancy:
+- JA: Screenshot is number 5, but EN is number 6
 ```
 
-### Step 3: 同期実行
+### Step 3: Execution of Synchronization
 
-差分を修正する。翻訳のルール:
+Correct the differences. Translation rules:
 
-| EN | JA |
+| EN | JA (in README_ja.md) |
 |----|-----|
-| Agent Status Check | エージェント稼働確認 |
-| Screenshot Integration | スクリーンショット連携 |
-| Context Management | コンテキスト管理 |
-| Phone Notifications | スマホ通知 |
-| Pane Border Task Display | ペインボーダータスク表示 |
-| Shout Mode | シャウトモード（戦国エコー） |
-| Event-Driven Communication | イベント駆動通信 |
-| Parallel Execution | 並列実行 |
-| Non-Blocking Workflow | ノンブロッキングワークフロー |
-| Cross-Session Memory | セッション間記憶 |
-| Bottom-Up Skill Discovery | ボトムアップスキル発見 |
+| Agent Status Check | Eejento Kadou Kakunin |
+| Screenshot Integration | Sukuriinshotto Renkei |
+| Context Management | Kontekisuto Kanri |
+| Phone Notifications | Sumaho Tsuuchi |
+| Pane Border Task Display | Pein Boodaa Tasuku Hyouji |
+| Shout Mode | Shauto Moodo (Sengoku Echo) |
+| Event-Driven Communication | Ibento Kudou Tsuushin |
+| Parallel Execution | Heiretsu Jikkou |
+| Non-Blocking Workflow | Non Burokkingu Waakufuroo |
+| Cross-Session Memory | Sesshon-kan Kioku |
+| Bottom-Up Skill Discovery | Botomu Appu Sukiru Hakken |
 
-**翻訳方針:**
-- 技術用語はそのまま（tmux, YAML, CLI, MCP, inotifywait等）
-- コードブロック内のコマンドは翻訳しない
-- 出力例は日本語版に合わせる（「稼働中」「待機中」等）
-- 絵文字はENと同じものを使う
+**Translation Policy:**
+- Keep technical terms as is (tmux, YAML, CLI, MCP, inotifywait, etc.)
+- Do not translate commands inside code blocks
+- Align output examples with the Japanese version (e.g., "Running" / "Idle" equivalents)
+- Use the same emojis as the EN version
 
-### Step 4: 整合性最終チェック
+### Step 4: Final Consistency Check
 
-修正後、以下を確認:
-1. 両ファイルのセクション数が一致
-2. 番号付きセクションの連番が正しい
-3. ファイル構成セクションのエントリが一致
-4. バージョンセクションが両方に存在
+After correction, verify the following:
+1. Section counts in both files match
+2. Serial numbers for numbered sections are correct
+3. Entries in the file structure section match
+4. Version sections exist in both
 
 ## Guidelines
 
-- **ENが正**: 新機能は基本的にENに先に書かれる。JA側を追従させる
-- **JA独自表現は維持**: 日本語版の「戦国エコー」等の独自表現はそのまま残す
-- **一方通行にしない**: ENにしかない変更もJAにしかない変更も両方検出する
-- **セクション番号は自動繰り上げ**: 中間にセクションを挿入した場合、後続の番号を全て繰り上げる
-- **コードブロック内は触らない**: bash/yaml/markdownのコードブロック内テキストは翻訳対象外
+- **EN is Authoritative**: New features are basically written in English first. Have the Japanese version follow it.
+- **Preserve Japanese Custom Expressions**: Keep unique Japanese expressions like "Sengoku Echo" intact.
+- **Do Not Make It One-Way**: Detect changes from EN to JA as well as JA to EN.
+- **Automatic Section Renumbering**: If a section is inserted in the middle, increment all subsequent numbers.
+- **Do Not Modify Inside Code Blocks**: Do not translate text inside code blocks of bash/yaml/markdown.

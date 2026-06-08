@@ -1,36 +1,35 @@
-#!/usr/bin/env bash
 # ═══════════════════════════════════════════════════════════════
-# switch_cli.sh — エージェントのCLIセッションを安全に切り替える
+# switch_cli.sh — Safely switch agent CLI sessions
 #
 # Usage:
 #   bash scripts/switch_cli.sh <agent_id> [--type <cli_type>] [--model <model_name>] [--effort <level>] [--variant <variant>]
 #
 # Examples:
-#   # settings.yaml の現在値で再起動（CLI種別/モデル変更なし）
+#   # Restart with current settings.yaml values (no CLI type or model change)
 #   bash scripts/switch_cli.sh ashigaru3
 #
-#   # Codex Spark → Claude Sonnet に切替
+#   # Switch from Codex Spark to Claude Sonnet
 #   bash scripts/switch_cli.sh ashigaru3 --type claude --model claude-sonnet-4-6
 #
-#   # OpenCode で provider/model を直接指定（role 定義は --agent、モデル変更は再起動で反映）
+#   # Directly specify provider/model in OpenCode (role definition is --agent, model change takes effect on restart)
 #   bash scripts/switch_cli.sh ashigaru3 --type opencode --model openai/gpt-5.4-mini
 #
 #   # OpenCode provider-specific reasoning variant
 #   bash scripts/switch_cli.sh ashigaru3 --type opencode --model openrouter/minimax/minimax-m2.5 --variant xhigh
 #
-#   # 同一CLI内でモデルとClaude effortを変更（Sonnet → Opus/max）
+#   # Change model and Claude effort within the same CLI (Sonnet -> Opus/max)
 #   bash scripts/switch_cli.sh ashigaru3 --model claude-opus-4-8 --effort max
 #
-#   # 全足軽を一括切替
+#   # Bulk switch all Ashigaru
 #   for i in $(seq 1 7); do bash scripts/switch_cli.sh ashigaru$i --type claude --model claude-sonnet-4-6; done
 #
 # Flow:
-#   1. (Optional) settings.yaml を更新
-#   2. 現在のCLIに /exit を送信
-#   3. シェルプロンプトの復帰を待機
-#   4. build_cli_command() で新CLIコマンドを構築
-#   5. tmux send-keys で新CLIを起動
-#   6. tmux pane metadata を更新（@agent_cli, @model_name）
+#   1. (Optional) Update settings.yaml
+#   2. Send /exit to the current CLI
+#   3. Wait for shell prompt to return
+#   4. Construct the new CLI command using build_cli_command()
+#   5. Launch the new CLI using tmux send-keys
+#   6. Update tmux pane metadata (@agent_cli, @model_name)
 # ═══════════════════════════════════════════════════════════════
 
 set -euo pipefail
@@ -40,11 +39,11 @@ PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 SETTINGS_FILE="${PROJECT_ROOT}/config/settings.yaml"
 LOG_FILE="${PROJECT_ROOT}/logs/switch_cli.log"
 
-# cli_adapter.sh をロード
+# Load cli_adapter.sh
 source "${PROJECT_ROOT}/lib/cli_adapter.sh"
 source "${PROJECT_ROOT}/lib/agent_registry.sh"
 
-# ─── ログ ───
+# ─── Log ───
 log() {
     local msg="[$(date '+%Y-%m-%d %H:%M:%S')] [switch_cli] $*"
     echo "$msg" >&2
@@ -67,13 +66,13 @@ usage() {
     exit 1
 }
 
-# ─── Agent ID → tmux pane 解決 ───
-# @agent_id メタデータから動的にペインを検索する（ペイン番号のズレに対応）
-# フォールバック: メタデータが見つからない場合は従来の固定マッピングを使用
+# ─── Resolve Agent ID to tmux pane ───
+# Search panes dynamically from @agent_id metadata (handles shifted pane indices)
+# Fallback: If metadata is not found, use traditional fixed mapping
 resolve_pane() {
     local agent_id="$1"
 
-    # Phase 1: @agent_id メタデータから動的検索
+    # Phase 1: Dynamic search from @agent_id metadata
     local pane_count
     pane_count=$(tmux list-panes -t "multiagent:agents" 2>/dev/null | wc -l)
     if [[ "$pane_count" -gt 0 ]]; then
@@ -88,7 +87,7 @@ resolve_pane() {
         log "WARN: @agent_id=$agent_id not found in any pane. Falling back to fixed mapping."
     fi
 
-    # Phase 2: フォールバック（settings.yaml の編成順から解決）
+    # Phase 2: Fallback (resolve based on settings.yaml ordering)
     local pane_base
     pane_base=$(tmux show-options -t multiagent -v @pane_base 2>/dev/null || echo "0")
 
@@ -100,7 +99,7 @@ resolve_pane() {
     return 1
 }
 
-# ─── settings.yaml 更新 (Python使用) ───
+# ─── Update settings.yaml (using Python) ───
 update_settings_yaml() {
     local agent_id="$1"
     local new_type="${2:-}"
@@ -138,7 +137,7 @@ if not isinstance(agent_cfg, dict):
     agents[agent_id] = agent_cfg
 
 timestamp = datetime.datetime.now().strftime('%Y-%m-%d')
-comment = f"# {timestamp}: switch_cli.sh による切替"
+comment = f"# {timestamp}: Switched via switch_cli.sh"
 
 if new_type:
     agent_cfg['type'] = new_type
@@ -151,9 +150,9 @@ if new_effort:
 
 data['cli']['agents'][agent_id] = agent_cfg
 
-# コメント保持のため、対象エージェント行だけsedで置換する方が安全だが
-# 完全性のためyaml.dumpを使用。コメントは失われる。
-# → 代わりにsed的なアプローチ: 対象ブロックだけ書き換える
+# To keep comments, it is safer to use sed for replacing the target agent line, but
+# yaml.dump is used for completeness. Comments will be lost.
+# -> Instead, a sed-like approach is used: rewrite only the target block
 
 # Simple approach: read lines, find agent block, replace
 lines = content.split('\n')
@@ -242,9 +241,9 @@ print("OK")
 PYEOF
 }
 
-# ─── OpenCode runtime agent frontmatter 同期 ───
-# OpenCode TUI は `opencode run` と違って --variant を受け付けない。
-# provider固有variantは git-ignored の .opencode/agents/<agent>-runtime.md に同期する。
+# ─── Sync OpenCode runtime agent frontmatter ───
+# OpenCode TUI does not accept --variant, unlike 'opencode run'.
+# Provider-specific variants are synced to git-ignored .opencode/agents/<agent>-runtime.md.
 sync_opencode_agent_frontmatter() {
     local agent_id="$1"
     local model="${2:-}"
@@ -313,13 +312,13 @@ dest.write_text(f"---\n{frontmatter_text}\n---{body}", encoding="utf-8")
 PYEOF
 }
 
-# ─── 現在のCLI種別を取得（tmux metadata） ───
+# ─── Get current CLI type (tmux metadata) ───
 get_current_pane_cli() {
     local pane="$1"
     tmux show-options -p -t "$pane" -v @agent_cli 2>/dev/null | tr -d '[:space:]' || echo "claude"
 }
 
-# ─── /exit送信 ───
+# ─── Send /exit ───
 send_exit() {
     local pane="$1"
     local current_cli="$2"
@@ -362,7 +361,7 @@ send_exit() {
     esac
 }
 
-# ─── シェルプロンプト待ち（最大15秒） ───
+# ─── Wait for shell prompt (max 15s) ───
 wait_for_shell_prompt() {
     local pane="$1"
     local max_wait=15
@@ -377,29 +376,29 @@ wait_for_shell_prompt() {
         local last_lines
         last_lines=$(tmux capture-pane -t "$pane" -p 2>/dev/null | grep -v '^$' | tail -3)
 
-        # シェルプロンプトの検出パターン
-        # PS1にはカスタムプロンプト（shutsujin由来）や標準的な$/%が含まれる
+        # Shell prompt detection patterns
+        # PS1 contains a custom prompt (from shutsujin) or standard $/%
         if echo "$last_lines" | grep -qE '[\$%#❯►] *$'; then
             log "Shell prompt detected after ${waited}s"
             return 0
         fi
 
-        # "exit" / "Bye" 等のCLI終了メッセージを検出
+        # Detect CLI exit messages like "exit" / "Bye"
         if echo "$last_lines" | grep -qiE '(bye|goodbye|exiting|exit)'; then
-            sleep 1  # 終了メッセージの後、プロンプトが出るまで少し待つ
+            sleep 1  # Wait a bit after exit message before prompt appears
             log "CLI exit message detected after ${waited}s"
             return 0
         fi
     done
 
     log "WARN: Shell prompt not detected after ${max_wait}s. Proceeding anyway."
-    return 0  # タイムアウトしても続行（最悪でもコマンドが送られるだけ）
+    return 0  # Proceed even on timeout (worst case is command gets sent anyway)
 }
 
-# ─── モデル表示名の正規化（cli_adapter.sh の get_model_display_name を使用） ───
-# get_model_display_name は cli_adapter.sh から source 済み
+# ─── Normalize model display name (using get_model_display_name from cli_adapter.sh) ───
+# get_model_display_name is already sourced from cli_adapter.sh
 
-# ─── tmux pane metadata 更新 ───
+# ─── Update tmux pane metadata ───
 update_pane_metadata() {
     local pane="$1"
     local new_cli_type="$2"
@@ -413,15 +412,15 @@ update_pane_metadata() {
 }
 
 # ═══════════════════════════════════════════════════════════════
-# メイン処理
+# Main logic
 # ═══════════════════════════════════════════════════════════════
 
-# 引数パース
+# Parse arguments
 if [ $# -lt 1 ]; then
     usage
 fi
 
-# --help が第1引数の場合
+# If --help is the first argument
 if [[ "$1" == "--help" || "$1" == "-h" ]]; then
     usage
 fi
@@ -462,7 +461,7 @@ while [ $# -gt 0 ]; do
     esac
 done
 
-# バリデーション
+# Validation
 if [[ -n "$NEW_TYPE" ]] && ! _cli_adapter_is_valid_cli "$NEW_TYPE"; then
     log "ERROR: Invalid CLI type: ${NEW_TYPE}. Allowed: ${CLI_ADAPTER_ALLOWED_CLIS}"
     exit 1
@@ -476,14 +475,14 @@ if [[ -n "$NEW_EFFORT" && ! "$NEW_EFFORT" =~ ^(low|medium|high|xhigh|max)$ ]]; t
     exit 1
 fi
 
-# Step 0: pane解決
+# Step 0: Resolve pane
 PANE_TARGET=$(resolve_pane "$AGENT_ID")
 if [ -z "$PANE_TARGET" ]; then
     exit 1
 fi
 log "=== Starting CLI switch for ${AGENT_ID} (pane: ${PANE_TARGET}) ==="
 
-# Step 0.5: --model指定時に--type未指定なら、CLI種別を安全に補完する
+# Step 0.5: If --model is specified but --type is not, safely infer CLI type
 if [[ -n "$NEW_MODEL" && -z "$NEW_TYPE" ]]; then
     case "$NEW_MODEL" in
         gpt-5.3-codex*|gpt-5-codex*)
@@ -506,12 +505,12 @@ if [[ -n "$NEW_MODEL" && -z "$NEW_TYPE" ]]; then
     esac
 fi
 
-# Step 1: settings.yaml 更新（--type/--model/--variant 指定時のみ）
+# Step 1: Update settings.yaml (only when --type/--model/--variant is specified)
 if [[ -n "$NEW_TYPE" || -n "$NEW_MODEL" || -n "$NEW_VARIANT" || -n "$NEW_EFFORT" ]]; then
     update_settings_yaml "$AGENT_ID" "$NEW_TYPE" "$NEW_MODEL" "$NEW_VARIANT" "$NEW_EFFORT"
 fi
 
-# Step 2: 切替後のCLI情報を取得（settings.yaml反映後）
+# Step 2: Retrieve CLI info after switching (after settings.yaml updates)
 TARGET_CLI_TYPE=$(get_cli_type "$AGENT_ID")
 TARGET_MODEL=$(get_agent_model "$AGENT_ID")
 TARGET_EFFORT=$(get_agent_effort "$AGENT_ID")
@@ -523,21 +522,21 @@ TARGET_CMD=$(build_cli_command "$AGENT_ID")
 
 log "Target: cli=${TARGET_CLI_TYPE}, model=${TARGET_MODEL}, effort=${TARGET_EFFORT:-<unset>}, cmd=${TARGET_CMD}"
 
-# Step 3: 現在のCLIを /exit で終了
+# Step 3: Exit current CLI using /exit
 CURRENT_CLI=$(get_current_pane_cli "$PANE_TARGET")
 log "Current CLI: ${CURRENT_CLI}"
 send_exit "$PANE_TARGET" "$CURRENT_CLI"
 
-# Step 4: シェルプロンプトを待つ
+# Step 4: Wait for shell prompt
 wait_for_shell_prompt "$PANE_TARGET"
 
-# Step 5: 新しいCLIコマンドを送信
+# Step 5: Send the new CLI command
 log "Launching new CLI: ${TARGET_CMD}"
 tmux send-keys -t "$PANE_TARGET" "$TARGET_CMD" 2>/dev/null || true
 sleep 0.3
 tmux send-keys -t "$PANE_TARGET" Enter 2>/dev/null || true
 
-# Step 6: tmux pane metadata 更新
+# Step 6: Update tmux pane metadata
 DISPLAY_NAME=$(get_model_display_name "$AGENT_ID")
 update_pane_metadata "$PANE_TARGET" "$TARGET_CLI_TYPE" "$DISPLAY_NAME"
 

@@ -63,10 +63,10 @@ fun SettingsScreen(settingsViewModel: SettingsViewModel = viewModel()) {
             .onSuccess { importedPath ->
                 keyPath = importedPath
                 saved = false
-                Toast.makeText(context, "秘密鍵をアプリ領域へコピーしたでござる", Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, "Private key has been copied to application directory", Toast.LENGTH_SHORT).show()
             }
             .onFailure { error ->
-                Toast.makeText(context, "秘密鍵取込失敗: ${error.message}", Toast.LENGTH_LONG).show()
+                Toast.makeText(context, "Failed to import private key: ${error.message}", Toast.LENGTH_LONG).show()
             }
     }
 
@@ -84,7 +84,7 @@ fun SettingsScreen(settingsViewModel: SettingsViewModel = viewModel()) {
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         Text(
-            "SSH設定",
+            "SSH Settings",
             style = MaterialTheme.typography.titleLarge,
             color = Kinpaku,
             modifier = Modifier.clickable {
@@ -99,7 +99,7 @@ fun SettingsScreen(settingsViewModel: SettingsViewModel = viewModel()) {
         OutlinedTextField(
             value = host,
             onValueChange = { host = it },
-            label = { Text("SSHホスト") },
+            label = { Text("SSH Host") },
             modifier = Modifier.fillMaxWidth(),
             singleLine = true
         )
@@ -107,7 +107,7 @@ fun SettingsScreen(settingsViewModel: SettingsViewModel = viewModel()) {
         OutlinedTextField(
             value = port,
             onValueChange = { port = it },
-            label = { Text("SSHポート") },
+            label = { Text("SSH Port") },
             modifier = Modifier.fillMaxWidth(),
             singleLine = true,
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
@@ -116,7 +116,7 @@ fun SettingsScreen(settingsViewModel: SettingsViewModel = viewModel()) {
         OutlinedTextField(
             value = user,
             onValueChange = { user = it },
-            label = { Text("SSHユーザー") },
+            label = { Text("SSH User") },
             modifier = Modifier.fillMaxWidth(),
             singleLine = true
         )
@@ -132,7 +132,7 @@ fun SettingsScreen(settingsViewModel: SettingsViewModel = viewModel()) {
                     keyPath = it
                     saved = false
                 },
-                label = { Text("SSH秘密鍵パス") },
+                label = { Text("SSH Private Key Path") },
                 modifier = Modifier.weight(1f),
                 singleLine = true
             )
@@ -142,14 +142,14 @@ fun SettingsScreen(settingsViewModel: SettingsViewModel = viewModel()) {
                 modifier = Modifier.defaultMinSize(minHeight = 56.dp),
                 shape = RoundedCornerShape(4.dp)
             ) {
-                Text("ファイルを選択")
+                Text("Select File")
             }
         }
 
         OutlinedTextField(
             value = password,
             onValueChange = { password = it },
-            label = { Text("SSHパスワード（鍵なし時に使用）") },
+            label = { Text("SSH Password (Used when no key)") },
             modifier = Modifier.fillMaxWidth(),
             singleLine = true,
             visualTransformation = PasswordVisualTransformation()
@@ -157,12 +157,12 @@ fun SettingsScreen(settingsViewModel: SettingsViewModel = viewModel()) {
 
         Divider()
 
-        Text("プロジェクト設定", style = MaterialTheme.typography.titleMedium, color = Kinpaku)
+        Text("Project Settings", style = MaterialTheme.typography.titleMedium, color = Kinpaku)
 
         OutlinedTextField(
             value = projectPath,
             onValueChange = { projectPath = it },
-            label = { Text("プロジェクトパス（サーバー側）") },
+            label = { Text("Project Path (Server side)") },
             placeholder = { Text("/path/to/multi-agent-shogun") },
             modifier = Modifier.fillMaxWidth(),
             singleLine = true
@@ -170,12 +170,12 @@ fun SettingsScreen(settingsViewModel: SettingsViewModel = viewModel()) {
 
         Divider()
 
-        Text("セッション設定", style = MaterialTheme.typography.titleMedium, color = Kinpaku)
+        Text("Session Settings", style = MaterialTheme.typography.titleMedium, color = Kinpaku)
 
         OutlinedTextField(
             value = shogunSession,
             onValueChange = { shogunSession = it },
-            label = { Text("将軍セッション名") },
+            label = { Text("Shogun Session Name") },
             modifier = Modifier.fillMaxWidth(),
             singleLine = true
         )
@@ -183,7 +183,7 @@ fun SettingsScreen(settingsViewModel: SettingsViewModel = viewModel()) {
         OutlinedTextField(
             value = agentsSession,
             onValueChange = { agentsSession = it },
-            label = { Text("エージェントセッション名") },
+            label = { Text("Agent Session Name") },
             modifier = Modifier.fillMaxWidth(),
             singleLine = true
         )
@@ -215,12 +215,12 @@ fun SettingsScreen(settingsViewModel: SettingsViewModel = viewModel()) {
             ),
             shape = RoundedCornerShape(4.dp)
         ) {
-            Text("保存")
+            Text("Save")
         }
 
         if (saved) {
             Text(
-                text = "設定を保存しました",
+                text = "Settings saved",
                 color = MaterialTheme.colorScheme.primary
             )
         }
@@ -242,7 +242,7 @@ private fun copySshKeyToAppStorage(context: Context, uri: Uri): String {
     val sanitizedName = (displayName ?: "ssh_key.pem").replace(Regex("[^A-Za-z0-9._-]"), "_")
     val keyDir = File(context.filesDir, "ssh_keys")
     if (!keyDir.exists() && !keyDir.mkdirs()) {
-        error("鍵保存先を作成できませぬ")
+        error("Unable to create key storage destination")
     }
     val targetFile = File(keyDir, "${System.currentTimeMillis()}_$sanitizedName")
 
@@ -250,7 +250,7 @@ private fun copySshKeyToAppStorage(context: Context, uri: Uri): String {
         targetFile.outputStream().use { output ->
             input.copyTo(output)
         }
-    } ?: error("鍵ファイルを開けませぬ")
+    } ?: error("Unable to open key file")
 
     return targetFile.absolutePath
 }
@@ -278,7 +278,7 @@ fun DebugLogDialog(onDismiss: () -> Unit) {
                     val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
                     val clip = ClipData.newPlainText("debug_log", entries.joinToString("\n"))
                     clipboard.setPrimaryClip(clip)
-                    Toast.makeText(context, "ログをコピーしました", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, "Copied log to clipboard", Toast.LENGTH_SHORT).show()
                 }) {
                     Text("Copy All", color = Kinpaku)
                 }

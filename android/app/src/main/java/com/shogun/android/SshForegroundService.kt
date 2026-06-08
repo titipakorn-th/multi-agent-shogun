@@ -36,10 +36,10 @@ class SshForegroundService : Service() {
     private fun createNotificationChannel() {
         val channel = NotificationChannel(
             CHANNEL_ID,
-            "SSH接続",
+            "SSH Connection",
             NotificationManager.IMPORTANCE_LOW
         ).apply {
-            description = "将軍セッションのSSH接続を維持します"
+            description = "Maintains SSH connection of the Shogun session"
         }
         getSystemService(NotificationManager::class.java).createNotificationChannel(channel)
     }
@@ -51,8 +51,8 @@ class SshForegroundService : Service() {
             PendingIntent.FLAG_IMMUTABLE
         )
         return Notification.Builder(this, CHANNEL_ID)
-            .setContentTitle("将軍アプリ")
-            .setContentText("将軍セッション接続中")
+            .setContentTitle("Shogun App")
+            .setContentText("Shogun session connected")
             .setSmallIcon(android.R.drawable.ic_menu_send)
             .setContentIntent(pendingIntent)
             .setOngoing(true)

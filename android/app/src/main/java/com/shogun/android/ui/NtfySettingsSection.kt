@@ -24,7 +24,7 @@ fun NtfySettingsSection(viewModel: SettingsViewModel) {
 
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text(
-            "通知設定",
+            "Notification Settings",
             style = MaterialTheme.typography.titleMedium,
             color = Kinpaku,
             fontWeight = FontWeight.Bold
@@ -36,7 +36,7 @@ fun NtfySettingsSection(viewModel: SettingsViewModel) {
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            Text("通知を有効にする", color = Zouge)
+            Text("Enable Notifications", color = Zouge)
             Switch(
                 checked = notificationEnabled,
                 onCheckedChange = { viewModel.setNotificationEnabled(it) },
@@ -53,7 +53,7 @@ fun NtfySettingsSection(viewModel: SettingsViewModel) {
         OutlinedTextField(
             value = ntfyTopic,
             onValueChange = { viewModel.setNtfyTopic(it) },
-            label = { Text("ntfyトピック", color = TextTertiary) },
+            label = { Text("ntfy Topic", color = TextTertiary) },
             modifier = Modifier.fillMaxWidth(),
             singleLine = true,
             colors = OutlinedTextFieldDefaults.colors(
@@ -67,43 +67,43 @@ fun NtfySettingsSection(viewModel: SettingsViewModel) {
         )
 
         Text(
-            "カテゴリ別通知（マスタースイッチON時のみ有効）",
+            "Category Notifications (Only active when master switch is ON)",
             style = MaterialTheme.typography.bodySmall,
             color = TextTertiary
         )
 
         NtfyCategoryToggle(
-            label = "✅ タスク完了",
+            label = "✅ Task Completed",
             checked = notifyCmdComplete,
             onCheckedChange = { viewModel.setNotifyCmdComplete(it) },
             enabled = notificationEnabled
         )
         NtfyCategoryToggle(
-            label = "❌ タスク失敗",
+            label = "❌ Task Failed",
             checked = notifyCmdFailure,
             onCheckedChange = { viewModel.setNotifyCmdFailure(it) },
             enabled = notificationEnabled
         )
         NtfyCategoryToggle(
-            label = "🚨 要対応",
+            label = "🚨 Action Required",
             checked = notifyActionRequired,
             onCheckedChange = { viewModel.setNotifyActionRequired(it) },
             enabled = notificationEnabled
         )
         NtfyCategoryToggle(
-            label = "📊 ダッシュボード更新",
+            label = "📊 Dashboard Updated",
             checked = notifyDashboardUpdate,
             onCheckedChange = { viewModel.setNotifyDashboardUpdate(it) },
             enabled = notificationEnabled
         )
         NtfyCategoryToggle(
-            label = "🔥 ストリーク更新",
+            label = "🔥 Streak Updated",
             checked = notifyStreakUpdate,
             onCheckedChange = { viewModel.setNotifyStreakUpdate(it) },
             enabled = notificationEnabled
         )
         NtfyCategoryToggle(
-            label = "💬 エージェント応答",
+            label = "💬 Agent Response",
             checked = notifyAgentResponse,
             onCheckedChange = { viewModel.setNotifyAgentResponse(it) },
             enabled = notificationEnabled

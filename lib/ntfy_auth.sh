@@ -1,76 +1,76 @@
 #!/usr/bin/env bash
-# ntfy_auth.sh — ntfy認証ヘルパーライブラリ
-# FR-066: ntfy認証対応
+# lib/ntfy_auth.sh — Shared library for ntfy authentication
+# FR-066: ntfy authentication support
 #
-# 提供関数:
-#   ntfy_get_auth_args [auth_env_file]  → curl認証フラグを出力
-#   ntfy_validate_topic [topic]         → 0=OK, 1=弱いトピック名
+# Provided functions:
+#   ntfy_get_auth_args [auth_env_file]  → output curl authentication flags
+#   ntfy_validate_topic [topic]         → 0=OK, 1=weak topic name
 #
-# 認証方式:
-#   - token: Bearer token (自己ホスト ntfy用)
-#   - basic: ユーザー名+パスワード (自己ホスト ntfy用)
-#   - none: 認証なし (公開ntfy.sh、後方互換)
+# Authentication methods:
+#   - token: Bearer token (for self-hosted ntfy)
+#   - basic: Username + Password (for self-hosted ntfy)
+#   - none: No authentication (public ntfy.sh, backward compatibility)
 #
-# 設定ファイル: config/ntfy_auth.env (git非追跡)
+# Config file: config/ntfy_auth.env (git ignored)
 
 # --- ntfy_get_auth_args ---
-# curl用の認証引数を標準出力に返す
-# 引数: [auth_env_file] — 認証設定ファイルのパス（省略時はconfig/ntfy_auth.env）
-# 出力: curl引数文字列 (例: "-H" "Authorization: Bearer tk_xxx")
-#        認証設定なしの場合は空文字列（後方互換）
+# Returns authentication arguments for curl to stdout
+# Arguments: [auth_env_file] — path to authentication config file (defaults to config/ntfy_auth.env)
+# Output: curl argument strings (e.g. "-H" "Authorization: Bearer tk_xxx")
+#         Empty string if no auth configuration is found (backward compatibility)
 ntfy_get_auth_args() {
     local auth_file="${1:-}"
 
-    # auth_fileが未指定の場合、スクリプト位置からの相対パスで解決
+    # If auth_file is not specified, resolve relative path from script directory
     if [ -z "$auth_file" ]; then
         local script_dir
         script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." 2>/dev/null && pwd)" || true
         auth_file="${script_dir}/config/ntfy_auth.env"
     fi
 
-    # 環境変数を読み込み（ファイルが存在する場合のみ）
+    # Load environment variables (only if file exists)
     if [ -f "$auth_file" ]; then
         # shellcheck disable=SC1090
         source "$auth_file"
     fi
 
-    # Bearer token認証（優先）
+    # Bearer token auth (preferred)
     if [ -n "${NTFY_TOKEN:-}" ]; then
         printf '%s\n' "-H" "Authorization: Bearer ${NTFY_TOKEN}"
         return 0
     fi
 
-    # Basic認証（フォールバック）
+    # Basic auth (fallback)
     if [ -n "${NTFY_USER:-}" ] && [ -n "${NTFY_PASS:-}" ]; then
         printf '%s\n' "-u" "${NTFY_USER}:${NTFY_PASS}"
         return 0
     fi
 
-    # 認証なし（後方互換: 公開ntfy.shではこちら）
+    # No authentication (backward compatibility: public ntfy.sh)
     return 0
 }
 
 # --- ntfy_validate_topic ---
-# トピック名のセキュリティ強度を検証
-# 引数: topic — トピック名
-# 戻り値: 0=OK(十分な長さ+ランダム性), 1=弱い(短すぎる or 推測可能)
-# 標準エラー: 警告メッセージ
+# Validates the security strength of the topic name
+# Arguments: topic — topic name
+# Returns: 0=OK (sufficient length and randomness), 1=weak (too short or predictable)
+# Stderr: Warning message
 ntfy_validate_topic() {
     local topic="${1:-}"
 
-    # 空チェック
+    # Empty check
     if [ -z "$topic" ]; then
         echo "ERROR: ntfy topic is empty" >&2
         return 1
     fi
 
-    # 長さチェック（8文字未満は危険）
+    # Length check (less than 8 characters is weak)
     if [ "${#topic}" -lt 8 ]; then
         echo "WARNING: ntfy topic '$topic' is too short (${#topic} chars). Recommend 12+ chars for security." >&2
         return 1
     fi
 
-    # 一般的な弱いトピック名チェック
+    # Common weak topic names check
     local weak_topics="test mytopic notifications alerts messages my-topic default ntfy"
     local lower_topic
     lower_topic=$(echo "$topic" | tr '[:upper:]' '[:lower:]')

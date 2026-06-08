@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# SayTask通知 — ntfy.sh経由でスマホにプッシュ通知
-# FR-066: ntfy認証対応 (Bearer token / Basic auth)
+# SayTask Notification — Send push notification to smartphone via ntfy.sh
+# FR-066: ntfy authentication support (Bearer token / Basic auth)
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SETTINGS="$SCRIPT_DIR/config/settings.yaml"
 
-# ntfy_auth.sh読み込み
+# Load ntfy_auth.sh
 # shellcheck source=../lib/ntfy_auth.sh
 source "$SCRIPT_DIR/lib/ntfy_auth.sh"
 
@@ -15,7 +15,7 @@ if [ -z "$TOPIC" ]; then
   exit 1
 fi
 
-# 認証引数を取得（設定がなければ空 = 後方互換）
+# Get auth args (empty if no settings = backward compatibility)
 AUTH_ARGS=()
 while IFS= read -r line; do
     [ -n "$line" ] && AUTH_ARGS+=("$line")

@@ -85,8 +85,7 @@ seed_yaml() {
     seed_yaml "$root/queue/reports/ashigaru1_cmd_test_report.yaml" $'parent_cmd: cmd_test\nstatus: done\n'
     seed_yaml "$root/queue/reports/ashigaru1_report.yaml" $'parent_cmd: cmd_ignored\nstatus: done\n'
 
-    touch -d "2 days ago" "$root/queue/reports/ashigaru1_cmd_test_report.yaml"
-    touch -d "2 days ago" "$root/queue/reports/ashigaru1_report.yaml"
+    python3 -c "import os, time; p1 = '$root/queue/reports/ashigaru1_cmd_test_report.yaml'; p2 = '$root/queue/reports/ashigaru1_report.yaml'; t = time.time() - 172800; os.utime(p1, (t, t)); os.utime(p2, (t, t))"
 
     run run_slim_yaml "$root" karo
     assert_success
@@ -109,8 +108,7 @@ seed_yaml() {
     seed_yaml "$root/queue/reports/ashigaru1_cmd_test_report.yaml" $'parent_cmd: cmd_test\nstatus: done\n'
     seed_yaml "$root/queue/reports/ashigaru1_report.yaml" $'parent_cmd: cmd_ignored\nstatus: done\n'
 
-    touch -d "2 days ago" "$root/queue/reports/ashigaru1_cmd_test_report.yaml"
-    touch -d "2 days ago" "$root/queue/reports/ashigaru1_report.yaml"
+    python3 -c "import os, time; p1 = '$root/queue/reports/ashigaru1_cmd_test_report.yaml'; p2 = '$root/queue/reports/ashigaru1_report.yaml'; t = time.time() - 172800; os.utime(p1, (t, t)); os.utime(p2, (t, t))"
 
     run run_slim_yaml "$root" karo
     assert_success
@@ -132,7 +130,7 @@ seed_yaml() {
 
     seed_yaml "$root/queue/shogun_to_karo.yaml" $'commands:\n  - id: cmd_test\n    status: done\n'
     seed_yaml "$root/queue/reports/ashigaru1_report.yaml" $'parent_cmd: cmd_done\nstatus: done\n'
-    touch -d "2 days ago" "$root/queue/reports/ashigaru1_report.yaml"
+    python3 -c "import os, time; p = '$root/queue/reports/ashigaru1_report.yaml'; t = time.time() - 172800; os.utime(p, (t, t))"
 
     run run_slim_yaml "$root" karo
     assert_success

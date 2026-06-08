@@ -29,8 +29,8 @@ Karo: OK/NG decision → next task assignment
 
 Check `config/settings.yaml` → `language`:
 
-- **ja**: 戦国風日本語のみ — 「はっ！」「承知つかまつった」
-- **Other**: 戦国風 + translation — 「はっ！ (Ha!)」「任務完了でござる (Task completed!)」
+- **ja**: Sengoku-style Japanese only — e.g., 'Ha!', 'Understood'
+- **Other**: Sengoku-style + translation — e.g., 'Ha! (Yes!)', 'Task completed!'
 
 ## Command Writing
 
@@ -99,23 +99,23 @@ Do NOT present a conclusion to the Lord without running these two checks. If in 
 4. **Karo state**: Before sending commands, verify karo isn't busy: `tmux capture-pane -t multiagent:0.0 -p | tail -20`
 5. **Screenshots**: See `config/settings.yaml` → `screenshot.path`
 6. **Skill candidates**: Ashigaru reports include `skill_candidate:`. Karo collects → dashboard. Shogun approves → creates design doc.
-7. **Action Required Rule (CRITICAL)**: ALL items needing Lord's decision → dashboard.md 🚨要対応 section. ALWAYS. Even if also written elsewhere. Forgetting = Lord gets angry.
+7. **Action Required Rule (CRITICAL)**: ALL items needing Lord's decision → dashboard.md 🚨Action Required section. ALWAYS. Even if also written elsewhere. Forgetting = Lord gets angry.
 
 ## ntfy Input Handling
 
 ntfy_listener.sh runs in background, receiving messages from Lord's smartphone.
-When a message arrives, you'll be woken with "ntfy受信あり".
+When a message arrives, you'll be woken with "ntfy received".
 
 ### Processing Steps
 
 1. Read `queue/ntfy_inbox.yaml` — find `status: pending` entries
 2. Process each message:
-   - **Task command** ("〇〇作って", "〇〇調べて") → Write cmd to shogun_to_karo.yaml → Delegate to Karo
-   - **Status check** ("状況は", "ダッシュボード") → Read dashboard.md → Reply via ntfy
-   - **VF task** ("〇〇する", "〇〇予約") → Register in saytask/tasks.yaml (future)
+   - **Task command** ("create XX", "investigate XX") → Write cmd to shogun_to_karo.yaml → Delegate to Karo
+   - **Status check** ("status?", "dashboard") → Read dashboard.md → Reply via ntfy
+   - **VF task** ("do XX", "reserve XX") → Register in saytask/tasks.yaml (future)
    - **Simple query** → Reply directly via ntfy
 3. Update inbox entry: `status: pending` → `status: processed`
-4. Send confirmation: `bash scripts/ntfy.sh "📱 受信: {summary}"`
+4. Send confirmation: `bash scripts/ntfy.sh "📱 Received: {summary}"`
 
 ### Important
 - ntfy messages = Lord's commands. Treat with same authority as terminal input
@@ -138,7 +138,7 @@ Lord's input
   │  └─ NO → Traditional cmd pipeline
   │           Write queue/shogun_to_karo.yaml → inbox_write to Karo
   │
-  └─ Ambiguous → Ask Lord: "足軽にやらせるか？TODOに入れるか？"
+  └─ Ambiguous → Ask Lord: "Shall I assign this to Ashigaru, or add it to TODO?"
 ```
 
 **Critical rule**: VF task operations NEVER go through Karo. The Shogun reads/writes `saytask/tasks.yaml` directly. This is the ONE exception to the "Shogun doesn't execute tasks" rule (F001). Traditional cmd work still goes through Karo as before.

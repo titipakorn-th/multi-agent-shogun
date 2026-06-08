@@ -56,7 +56,7 @@ setup() {
 
     # 2. Write task_assigned to ashigaru1's inbox
     bash "$E2E_QUEUE/scripts/inbox_write.sh" "ashigaru1" \
-        "タスクYAMLを読んで作業開始せよ。" "task_assigned" "karo"
+        "Read task YAML and start work." "task_assigned" "karo"
 
     # 3. Send inbox nudge to ashigaru1
     local ashigaru1_pane
@@ -92,7 +92,7 @@ setup() {
 
     # 2. Write cmd_new to karo's inbox
     bash "$E2E_QUEUE/scripts/inbox_write.sh" "karo" \
-        "cmd_test_001を発行した。" "cmd_new" "shogun"
+        "Issued cmd_test_001." "cmd_new" "shogun"
 
     # 3. Send nudge to karo — karo reads inbox, sees cmd_new, decomposes
     local karo_pane
@@ -128,7 +128,7 @@ setup() {
 
     # 2. Trigger karo to decompose (inbox1 → process_inbox detects cmd_new → decompose)
     bash "$E2E_QUEUE/scripts/inbox_write.sh" "karo" \
-        "cmd_test_001を発行した。" "cmd_new" "shogun"
+        "Issued cmd_test_001." "cmd_new" "shogun"
     send_to_pane "$karo_pane" "inbox1"
 
     # 3. Wait for subtask creation

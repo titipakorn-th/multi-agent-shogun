@@ -17,7 +17,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 # ─── Defaults ───
-LANG_MODE="ja"
+LANG_MODE="en"
 SESSION_NAME=""
 MANUAL_PANES=""
 STANDALONE=false
@@ -34,7 +34,7 @@ while [[ $# -gt 0 ]]; do
             echo "Options:"
             echo "  --session NAME   Tmux session to scan (default: auto-detect)"
             echo "  --panes N,N,N    Comma-separated pane indices to check"
-            echo "  --lang en|ja     Output language (default: ja)"
+            echo "  --lang en|ja     Output language (default: en)"
             echo ""
             echo "Without options, reads config/settings.yaml for agent definitions."
             exit 0
@@ -57,9 +57,9 @@ state_label() {
         esac
     else
         case $rc in
-            0) echo "稼働中" ;;
-            1) echo "待機中" ;;
-            2) echo "不在" ;;
+            0) echo "Busy" ;;
+            1) echo "Idle" ;;
+            2) echo "Absent" ;;
         esac
     fi
 }
@@ -114,7 +114,7 @@ if $STANDALONE; then
         printf "%-30s %-10s %s\n" "Pane" "State" "Agent ID"
         printf "%-30s %-10s %s\n" "------------------------------" "----------" "----------"
     else
-        printf "%-30s %-10s %s\n" "Pane" "状態" "Agent ID"
+        printf "%-30s %-10s %s\n" "Pane" "State" "Agent ID"
         printf "%-30s %-10s %s\n" "------------------------------" "----------" "----------"
     fi
 

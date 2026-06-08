@@ -109,7 +109,7 @@ process_task() {
             report_target="shogun"
         fi
         SCRIPT_DIR="$MOCK_PROJECT_ROOT" bash "$inbox_write_script" "$report_target" \
-            "${MOCK_AGENT_ID}号、任務完了。報告YAML確認されたし。" \
+            "${MOCK_AGENT_ID} finished task. Please confirm the report YAML." \
             "report_received" "$MOCK_AGENT_ID" 2>/dev/null || true
     fi
 
@@ -231,7 +231,7 @@ EOF
     fi
     if [ -f "$inbox_write_script" ]; then
         bash "$inbox_write_script" "ashigaru1" \
-            "タスクYAMLを読んで作業開始せよ。" "task_assigned" "karo" 2>/dev/null || true
+            "Read task YAML and start work." "task_assigned" "karo" 2>/dev/null || true
         echo "[mock/karo] Sent task_assigned to ashigaru1"
     fi
 

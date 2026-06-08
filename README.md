@@ -13,7 +13,7 @@ Run 10 AI coding agents in parallel — **Claude Code, OpenAI Codex, GitHub Copi
 [![v5.1.0 Karo Traffic Control](https://img.shields.io/badge/v5.1.0-Karo%20Traffic%20Control-ff6600?style=flat-square&logo=data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxNiIgaGVpZ2h0PSIxNiI+PHRleHQgeD0iMCIgeT0iMTIiIGZvbnQtc2l6ZT0iMTIiPuKalTwvdGV4dD48L3N2Zz4=)](https://github.com/yohey-w/multi-agent-shogun/releases/tag/v5.1.0)
 [![Shell](https://img.shields.io/badge/Shell%2FBash-100%25-green)]()
 
-[English](README.md) | [日本語](README_ja.md)
+[English](README.md)
 
 </div>
 
@@ -67,7 +67,7 @@ You watch the dashboard. That's it.
 - Real-time progress on a dashboard
 
 ```
-        You (上様 / The Lord)
+        You (Lord)
              │
              ▼  Give orders
       ┌─────────────┐
@@ -81,7 +81,7 @@ You watch the dashboard. That's it.
     ┌─┬─┬─┬─┴─┬─┬─┬─┬────────┐
     │1│2│3│4│5│6│7│ GUNSHI │  ← 7 workers + 1 strategist
     └─┴─┴─┴─┴─┴─┴─┴────────┘
-       ASHIGARU      軍師
+       ASHIGARU      GUNSHI
 ```
 
 ---
@@ -806,10 +806,10 @@ bash scripts/agent_status.sh --session mysession --lang en
 ```
 Agent      CLI     Pane      Task ID                                    Status     Inbox
 ---------- ------- --------- ------------------------------------------ ---------- -----
-karo       claude  待機中    ---                                        ---        0
-ashigaru1  codex   稼働中    subtask_042a_research                      assigned   0
-ashigaru2  codex   待機中    subtask_042b_review                        done       0
-gunshi     claude  稼働中    subtask_042c_analysis                      assigned   0
+karo       claude  idle      ---                                        ---        0
+ashigaru1  codex   busy      subtask_042a_research                      assigned   0
+ashigaru2  codex   idle      subtask_042b_review                        done       0
+gunshi     claude  busy      subtask_042c_analysis                      assigned   0
 ```
 
 **Standalone mode output** (no project config needed):
@@ -947,7 +947,7 @@ Two-way communication between your phone and the Shogun — no SSH, no Tailscale
 
 | Direction | How it works |
 |-----------|-------------|
-| **Phone → Shogun** | Send a message from the ntfy app → `ntfy_listener.sh` receives it via streaming → auto-ACK reply (`📱受信: {your message}`) sent back to your phone → Shogun processes automatically |
+| **Phone → Shogun** | Send a message from the ntfy app → `ntfy_listener.sh` receives it via streaming → auto-ACK reply (`📱Received: {your message}`) sent back to your phone → Shogun processes automatically |
 | **Karo → Phone (direct)** | When Karo updates `dashboard.md`, it sends push notifications directly via `scripts/ntfy.sh` — **Shogun is bypassed** (Shogun is for human interaction, not progress reporting) |
 
 ```
@@ -1084,8 +1084,8 @@ When an Ashigaru completes a task, it shouts a personalized battle cry in the tm
 ```
 ┌ ashigaru1 (Sonnet) ──────────┬ ashigaru2 (Sonnet) ──────────┐
 │                               │                               │
-│  ⚔️ 足軽1号、先陣切った！     │  🔥 足軽2号、二番槍の意地！   │
-│  八刃一志！                   │  八刃一志！                   │
+│  ⚔️ Ashigaru 1 took the lead!     │  🔥 Ashigaru 2 shows second-spear pride!   │
+│  Hachiba Isshi!                   │  Hachiba Isshi!                   │
 │  ❯                            │  ❯                            │
 └───────────────────────────────┴───────────────────────────────┘
 ```
@@ -1099,7 +1099,7 @@ The Karo writes an `echo_message` field in each task YAML. After completing all 
 task:
   task_id: subtask_001
   description: "Create comparison table"
-  echo_message: "🔥 足軽1号、先陣を切って参る！八刃一志！"
+  echo_message: "🔥 Ashigaru 1, taking the lead! Hachiba Isshi!"
 ```
 
 **Shout mode is the default.** To disable (saves API tokens on the echo call):
@@ -1909,7 +1909,7 @@ Even if you're not comfortable with keyboard shortcuts, you can switch, scroll, 
 <summary><b>What was in v3.4 — Bloom→Agent Routing, E2E Tests, Stop Hook</b></summary>
 
 - **Bloom → Agent routing** — Replaced dynamic model switching with agent-level routing. L1–L3 tasks go to Ashigaru, L4–L6 tasks go to Gunshi. No more mid-session `/model opus` promotions
-- **Gunshi (軍師) as first-class agent** — Strategic advisor on pane 8. Handles deep analysis, design review, architecture evaluation, and complex QC
+- **Gunshi as first-class agent** — Strategic advisor on pane 8. Handles deep analysis, design review, architecture evaluation, and complex QC
 - **E2E test suite (19 tests, 7 scenarios)** — Mock CLI framework simulates agent behavior in isolated tmux sessions
 - **Stop hook inbox delivery** — Claude Code agents automatically check inbox at turn end via `.claude/settings.json` Stop hook. Eliminates the `send-keys` interruption problem
 - **Model defaults updated** — Karo: Opus → Sonnet. Gunshi: Opus (deep reasoning). Ashigaru: Sonnet (uniform tier)

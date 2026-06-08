@@ -54,9 +54,9 @@ setup() {
 
     # 2. Send task_assigned to both inboxes
     bash "$E2E_QUEUE/scripts/inbox_write.sh" "ashigaru1" \
-        "タスクYAMLを読んで作業開始せよ。" "task_assigned" "karo"
+        "Read task YAML and start work." "task_assigned" "karo"
     bash "$E2E_QUEUE/scripts/inbox_write.sh" "ashigaru2" \
-        "タスクYAMLを読んで作業開始せよ。" "task_assigned" "karo"
+        "Read task YAML and start work." "task_assigned" "karo"
 
     # 3. Nudge both simultaneously
     local ashigaru1_pane ashigaru2_pane
@@ -95,9 +95,9 @@ setup() {
        "$E2E_QUEUE/queue/tasks/ashigaru2.yaml"
 
     bash "$E2E_QUEUE/scripts/inbox_write.sh" "ashigaru1" \
-        "タスクYAMLを読んで作業開始せよ。" "task_assigned" "karo"
+        "Read task YAML and start work." "task_assigned" "karo"
     bash "$E2E_QUEUE/scripts/inbox_write.sh" "ashigaru2" \
-        "タスクYAMLを読んで作業開始せよ。" "task_assigned" "karo"
+        "Read task YAML and start work." "task_assigned" "karo"
 
     local ashigaru1_pane ashigaru2_pane
     ashigaru1_pane=$(pane_target 1)

@@ -1,9 +1,9 @@
 ---
 name: shogun-model-switch
 description: |
-  エージェントのCLI/モデルをライブ切替するスキル。settings.yaml更新→/exit→新CLI起動→
-  pane metadata更新を一発で実行。Thinking有無も制御。
-  「モデル切替」「Sonnetにして」「Opusに変えて」「足軽全員切替」「Thinking切って」で起動。
+  Live-switch agent CLI and models. Automates settings.yaml update → /exit → starting new CLI →
+  pane metadata update in one shot. Also controls Thinking ON/OFF.
+  Triggered by: "switch model", "change to Sonnet", "change to Opus", "switch all Ashigaru", "disable Thinking".
 argument-hint: "[agent-name target-model e.g. ashigaru1 sonnet]"
 allowed-tools: Bash(bash scripts/switch_cli.sh *), Read, Edit
 ---
@@ -12,16 +12,16 @@ allowed-tools: Bash(bash scripts/switch_cli.sh *), Read, Edit
 
 ## Overview
 
-稼働中のエージェントのCLI種別・モデル・Thinking設定をライブで切り替える。
-`settings.yaml` → `build_cli_command()` → `/exit` → 新CLI起動 → pane metadata更新 を一貫実行。
+Live-switches CLI type, model, and Thinking settings of active agents.
+Executes a seamless pipeline: `settings.yaml` update → `build_cli_command()` → `/exit` → start new CLI → pane metadata update.
 
 ## When to Use
 
-- 「ashigaru3をOpusにして」「足軽全員Sonnetに切替」
-- 「モデル切替」「モデル変えて」「CLI変えて」
-- 「Thinking切って」「Thinking有効にして」
-- 「CodexからClaudeに戻して」「Sparkにして」
-- タスクの性質に応じてモデルを切り替えたいとき
+- "Change ashigaru3 to Opus", "Switch all Ashigaru to Sonnet"
+- "Switch model", "Change model", "Change CLI"
+- "Disable Thinking", "Enable Thinking"
+- "Restore to Claude from Codex", "Switch to Spark"
+- When you want to switch models depending on the nature of the task
 
 ## Architecture
 
@@ -43,7 +43,7 @@ settings.yaml (source of truth)
 
 ## Display Name Mapping
 
-| model (settings.yaml) | 表示名 | +Thinking |
+| model (settings.yaml) | Display Name | +Thinking |
 |---|---|---|
 | claude-sonnet-4-6 | Sonnet | Sonnet+T |
 | claude-opus-4-6 | Opus | Opus+T |
@@ -53,44 +53,44 @@ settings.yaml (source of truth)
 
 ## Instructions
 
-### 単体切替
+### Individual Switch
 
 ```bash
-# settings.yaml の現在値で再起動（CLIリセットしたいだけのとき）
+# Restart with current settings.yaml value (when only resetting the CLI)
 bash scripts/switch_cli.sh ashigaru3
 
-# モデル変更（settings.yaml も自動更新）
+# Change model (settings.yaml automatically updated)
 bash scripts/switch_cli.sh ashigaru3 --model claude-opus-4-6
 
-# CLI種別ごと変更（Codex → Claude）
+# Change CLI type as well (Codex → Claude)
 bash scripts/switch_cli.sh ashigaru3 --type claude --model claude-sonnet-4-6
 
 # Claude → Codex Spark
 bash scripts/switch_cli.sh ashigaru5 --type codex --model gpt-5.3-codex-spark
 ```
 
-### 一括切替
+### Bulk Switch
 
 ```bash
-# 全足軽をSonnetに
+# Switch all Ashigaru to Sonnet
 for i in $(seq 1 7); do
     bash scripts/switch_cli.sh ashigaru$i --type claude --model claude-sonnet-4-6
 done
 
-# 全足軽をSparkに
+# Switch all Ashigaru to Spark
 for i in $(seq 1 7); do
     bash scripts/switch_cli.sh ashigaru$i --type codex --model gpt-5.3-codex-spark
 done
 
-# 全エージェント（家老・軍師含む）を再起動
+# Restart all agents (including Karo & Gunshi)
 for agent in karo ashigaru1 ashigaru2 ashigaru3 ashigaru4 ashigaru5 ashigaru6 ashigaru7 gunshi; do
     bash scripts/switch_cli.sh "$agent"
 done
 ```
 
-### Thinking 制御
+### Thinking Control
 
-settings.yaml の `thinking` フィールドを編集してから switch_cli.sh を実行:
+Edit the `thinking` field in `settings.yaml` first, then run `switch_cli.sh`:
 
 ```yaml
 # config/settings.yaml
@@ -99,55 +99,55 @@ cli:
     ashigaru3:
       type: claude
       model: claude-opus-4-6
-      thinking: false  # ← MAX_THINKING_TOKENS=0 で起動
+      thinking: false  # ← Starts with MAX_THINKING_TOKENS=0
 ```
 
 ```bash
-# settings.yaml 編集後に再起動
+# Restart after editing settings.yaml
 bash scripts/switch_cli.sh ashigaru3
 ```
 
-Thinking ON/OFF の切替手順:
-1. `config/settings.yaml` の対象エージェントの `thinking:` を `true` / `false` に変更
-2. `bash scripts/switch_cli.sh <agent_id>` で再起動
-3. pane border に `+T` の有無が反映される
+Steps for switching Thinking ON/OFF:
+1. Change the targeted agent's `thinking:` to `true`/`false` in `config/settings.yaml`
+2. Restart via `bash scripts/switch_cli.sh <agent_id>`
+3. The presence/absence of `+T` is reflected in the pane border
 
-### inbox 経由（家老からの切替）
+### Via Inbox (Switching from Karo)
 
 ```bash
-# 家老が足軽のCLIを切り替える場合
+# When Karo switches an Ashigaru's CLI
 bash scripts/inbox_write.sh ashigaru3 "--type claude --model claude-opus-4-6" cli_restart karo
 ```
 
-inbox_watcher が `cli_restart` type を検知し、switch_cli.sh を自動実行する。
+`inbox_watcher` detects the `cli_restart` type and automatically executes `switch_cli.sh`.
 
 ## What switch_cli.sh Does (internal)
 
-1. **settings.yaml 更新**（`--type`/`--model` 指定時のみ）
-2. **現在のCLI種別を検出**（tmux pane metadata `@agent_cli`）
-3. **CLI別の exit コマンドを送信**
+1. Updates `settings.yaml` (only when `--type`/`--model` is specified)
+2. Detects the current CLI type (using tmux pane metadata `@agent_cli`)
+3. Sends the appropriate exit command per CLI type
    - Claude: `/exit` + Enter
    - Codex: Escape → Ctrl-C → `/exit` + Enter
    - Copilot/Kimi: Ctrl-C → `/exit` + Enter
-4. **シェルプロンプト復帰を待機**（最大15秒、1秒ごとにキャプチャ）
-5. **`build_cli_command()` で新コマンド構築**
-   - thinking: false → `MAX_THINKING_TOKENS=0` prefix 付与
-6. **tmux send-keys で新CLI起動**（テキストとEnterを分離送信）
-7. **pane metadata 更新**: `@agent_cli`, `@model_name`
+4. Waits for returning to the shell prompt (max 15 seconds, captured every second)
+5. Builds the new command via `build_cli_command()`
+   - thinking: false → Appends `MAX_THINKING_TOKENS=0` prefix
+6. Starts the new CLI via `tmux send-keys` (sending text and Enter separately)
+7. Updates pane metadata: `@agent_cli`, `@model_name`
 
 ## Files
 
-| ファイル | 役割 |
+| File | Role |
 |---|---|
-| `scripts/switch_cli.sh` | メインスクリプト |
+| `scripts/switch_cli.sh` | Main script |
 | `lib/cli_adapter.sh` | `build_cli_command()`, `get_model_display_name()` |
-| `config/settings.yaml` | エージェント設定（type, model, thinking） |
-| `scripts/inbox_watcher.sh` | `cli_restart` type ハンドリング |
-| `logs/switch_cli.log` | 実行ログ |
+| `config/settings.yaml` | Agent configuration (type, model, thinking) |
+| `scripts/inbox_watcher.sh` | `cli_restart` type handling |
+| `logs/switch_cli.log` | Execution log |
 
 ## Constraints
 
-- **将軍(shogun)ペインには送信しない**: switch_cli.sh は multiagent セッションのペインのみ対象
-- **実行中のエージェントに注意**: タスク実行中に切り替えるとデータ消失の可能性あり。idle確認してから実行
-- **Codex → Claude 切替時**: Codex の /exit が不安定な場合がある。Escape + Ctrl-C で確実に終了させる
-- **inbox_watcher との連携**: cli_restart 後、inbox_watcher の CLI_TYPE 変数も自動更新される
+- **Do not send to the Shogun pane**: `switch_cli.sh` only targets panes in the `multiagent` session.
+- **Beware of running agents**: Switching while a task is running can cause data loss. Execute after confirming they are idle.
+- **Codex → Claude transition**: Codex's `/exit` might be unstable. Ensure termination with Escape + Ctrl-C.
+- **Integration with inbox_watcher**: After a `cli_restart`, `inbox_watcher`'s `CLI_TYPE` variable is automatically updated.

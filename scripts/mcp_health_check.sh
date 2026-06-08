@@ -13,7 +13,7 @@ checked=0
 
 echo "[${TIMESTAMP}] MCP Health Check Start" | tee -a "$LOG_FILE"
 
-# multiagent:agents セッションの全ペインを走査
+# Iterate through all panes in the multiagent:agents session
 if ! tmux has-session -t multiagent 2>/dev/null; then
     echo "[${TIMESTAMP}] SKIP: multiagent session not found" | tee -a "$LOG_FILE"
     exit 0

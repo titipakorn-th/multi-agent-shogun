@@ -5,17 +5,17 @@
 #   __STOP_HOOK_SCRIPT_DIR → points to test temp directory
 #   __STOP_HOOK_AGENT_ID   → mocks tmux agent detection
 #
-# テスト構成:
+# Test configuration:
 #   T-HOOK-001: stop_hook_active=true → exit 0
-#   T-HOOK-002: agent不明 → exit 0
+#   T-HOOK-002: unknown agent -> exit 0
 #   T-HOOK-003: agent_id=shogun → exit 0
-#   T-HOOK-004: 完了メッセージ → inbox_writeが呼ばれる (report_completed)
-#   T-HOOK-005: エラーメッセージ → inbox_writeが呼ばれる (error_report)
-#   T-HOOK-006: 中立メッセージ → inbox_write呼ばれない
-#   T-HOOK-007: last_assistant_message空 → inbox_write呼ばれない
-#   T-HOOK-008: inbox未読あり → block JSON出力
-#   T-HOOK-009: inbox未読なし + 完了メッセージ → exit 0 + 通知あり
-#   T-HOOK-010: inbox未読あり + 完了メッセージ → block + 通知あり
+#   T-HOOK-004: completion message -> inbox_write is called (report_completed)
+#   T-HOOK-005: error message -> inbox_write is called (error_report)
+#   T-HOOK-006: neutral message -> inbox_write is not called
+#   T-HOOK-007: empty last_assistant_message -> inbox_write is not called
+#   T-HOOK-008: inbox has unread -> block JSON output
+#   T-HOOK-009: inbox has no unread + completion message -> exit 0 + notification
+#   T-HOOK-010: inbox has unread + completion message -> block + notification
 
 SCRIPT_DIR="$(cd "$(dirname "$BATS_TEST_FILENAME")/../.." && pwd)"
 HOOK_SCRIPT="$SCRIPT_DIR/scripts/stop_hook_inbox.sh"
@@ -55,7 +55,7 @@ run_hook_no_agent() {
 }
 
 @test "T-HOOK-001: stop_hook_active=true skips all processing" {
-    run_hook '{"stop_hook_active": true, "last_assistant_message": "任務完了"}'
+    run_hook '{"stop_hook_active": true, "last_assistant_message": "Task completed"}'
     [ "$status" -eq 0 ]
     [ -z "$output" ]
 }
@@ -67,13 +67,13 @@ run_hook_no_agent() {
 }
 
 @test "T-HOOK-003: shogun agent always exits 0" {
-    run_hook '{"stop_hook_active": false, "last_assistant_message": "任務完了"}' "shogun"
+    run_hook '{"stop_hook_active": false, "last_assistant_message": "Task completed"}' "shogun"
     [ "$status" -eq 0 ]
     [ -z "$output" ]
 }
 
 @test "T-HOOK-004: completion message triggers inbox_write to karo" {
-    run_hook '{"stop_hook_active": false, "last_assistant_message": "任務完了でござる。report YAML更新済み。"}'
+    run_hook '{"stop_hook_active": false, "last_assistant_message": "Task completed. report YAML updated."}'
     [ "$status" -eq 0 ]
     [ -f "$TEST_TMP/inbox_write_calls.log" ]
     grep -q "karo" "$TEST_TMP/inbox_write_calls.log"
@@ -82,7 +82,7 @@ run_hook_no_agent() {
 }
 
 @test "T-HOOK-005: error message triggers inbox_write to karo" {
-    run_hook '{"stop_hook_active": false, "last_assistant_message": "ファイルが見つからない。エラーで中断する。"}'
+    run_hook '{"stop_hook_active": false, "last_assistant_message": "File not found. Interrupted due to error."}'
     [ "$status" -eq 0 ]
     [ -f "$TEST_TMP/inbox_write_calls.log" ]
     grep -q "karo" "$TEST_TMP/inbox_write_calls.log"
@@ -90,7 +90,7 @@ run_hook_no_agent() {
 }
 
 @test "T-HOOK-006: neutral message does not trigger inbox_write" {
-    run_hook '{"stop_hook_active": false, "last_assistant_message": "待機する。次の指示を待つ。"}'
+    run_hook '{"stop_hook_active": false, "last_assistant_message": "Waiting. Awaiting next instructions."}'
     [ "$status" -eq 0 ]
     [ ! -f "$TEST_TMP/inbox_write_calls.log" ]
 }
@@ -107,7 +107,7 @@ messages:
   - id: msg_001
     from: karo
     type: task_assigned
-    content: "新タスクだ"
+    content: "This is a new task"
     read: false
 YAML
     run_hook '{"stop_hook_active": false, "last_assistant_message": ""}'
@@ -122,10 +122,10 @@ messages:
   - id: msg_001
     from: karo
     type: task_assigned
-    content: "古いメッセージ"
+    content: "Old message"
     read: true
 YAML
-    run_hook '{"stop_hook_active": false, "last_assistant_message": "タスク完了した。report YAML updated。"}'
+    run_hook '{"stop_hook_active": false, "last_assistant_message": "Task completed. report YAML updated."}'
     [ "$status" -eq 0 ]
     [ -z "$output" ] || ! echo "$output" | grep -q '"block"'
     [ -f "$TEST_TMP/inbox_write_calls.log" ]
@@ -138,10 +138,10 @@ messages:
   - id: msg_001
     from: karo
     type: task_assigned
-    content: "次のタスク"
+    content: "Next task"
     read: false
 YAML
-    run_hook '{"stop_hook_active": false, "last_assistant_message": "任務完了でござる。"}'
+    run_hook '{"stop_hook_active": false, "last_assistant_message": "Task completed."}'
     [ "$status" -eq 0 ]
     echo "$output" | grep -q '"block"'
     [ -f "$TEST_TMP/inbox_write_calls.log" ]

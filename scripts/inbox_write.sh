@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# inbox_write.sh — メールボックスへのメッセージ書き込み（排他ロック付き）
+# inbox_write.sh — Write message to mailbox (with exclusive lock)
 # Usage: bash scripts/inbox_write.sh <target_agent> <content> <type> <from>
-# Example: bash scripts/inbox_write.sh karo "足軽5号、任務完了" report_received ashigaru5
+# Example: bash scripts/inbox_write.sh karo "Ashigaru 5, mission complete" report_received ashigaru5
 
 set -e
 
@@ -27,7 +27,7 @@ if [ "$FROM" = "$TARGET" ]; then
 fi
 
 # Initialize inbox if not exists
-# dangling symlink recovery: queue/inbox が壊れたシンボリックリンクならリンク先を再生成
+# dangling symlink recovery: if queue/inbox is a broken symlink, re-generate the link destination
 _inbox_parent="$(dirname "$INBOX")"
 if [ -L "$_inbox_parent" ] && [ ! -d "$_inbox_parent" ]; then
     mkdir -p "$(readlink "$_inbox_parent")"
