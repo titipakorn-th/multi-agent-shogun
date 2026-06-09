@@ -136,3 +136,26 @@ roles:
       - queue/tasks/gunshi.yaml
       - queue/reports/gunshi_report.yaml
       - dashboard.md
+
+  telegram:
+    question: deny
+    read_deny:
+      - queue/inbox/*
+      - queue/tasks/*
+      - queue/reports/*
+      - queue/shogun_to_karo_archive.yaml
+      - saytask/*
+    read_allow:
+      - queue/inbox/telegram.yaml
+      - queue/shogun_to_karo.yaml
+      - queue/ntfy_inbox.yaml
+      - dashboard.md
+      - context/*
+    edit_deny:
+      - queue/tasks/*
+      - queue/reports/*
+      - queue/shogun_to_karo.yaml
+      - queue/shogun_to_karo_archive.yaml
+      - queue/ntfy_inbox.yaml
+      - dashboard.md
+      - saytask/*

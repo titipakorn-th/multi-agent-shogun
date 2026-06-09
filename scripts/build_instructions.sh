@@ -124,41 +124,49 @@ build_instruction_file "claude" "shogun" "shogun.md"
 build_instruction_file "claude" "karo" "karo.md"
 build_instruction_file "claude" "ashigaru" "ashigaru.md"
 build_instruction_file "claude" "gunshi" "gunshi.md"
+build_instruction_file "claude" "telegram" "telegram.md"
 
 # Build Codex instruction files
 build_instruction_file "codex" "shogun" "codex-shogun.md"
 build_instruction_file "codex" "karo" "codex-karo.md"
 build_instruction_file "codex" "ashigaru" "codex-ashigaru.md"
 build_instruction_file "codex" "gunshi" "codex-gunshi.md"
+build_instruction_file "codex" "telegram" "codex-telegram.md"
 
 # Build Copilot instruction files
 build_instruction_file "copilot" "shogun" "copilot-shogun.md"
 build_instruction_file "copilot" "karo" "copilot-karo.md"
 build_instruction_file "copilot" "ashigaru" "copilot-ashigaru.md"
 build_instruction_file "copilot" "gunshi" "copilot-gunshi.md"
+build_instruction_file "copilot" "telegram" "copilot-telegram.md"
 
 # Build Kimi K2 instruction files
 build_instruction_file "kimi" "shogun" "kimi-shogun.md"
 build_instruction_file "kimi" "karo" "kimi-karo.md"
 build_instruction_file "kimi" "ashigaru" "kimi-ashigaru.md"
 build_instruction_file "kimi" "gunshi" "kimi-gunshi.md"
+build_instruction_file "kimi" "telegram" "kimi-telegram.md"
 
 # Build OpenCode instruction files
 build_instruction_file "opencode" "shogun" "opencode-shogun.md"
 build_instruction_file "opencode" "karo" "opencode-karo.md"
 build_instruction_file "opencode" "ashigaru" "opencode-ashigaru.md"
 build_instruction_file "opencode" "gunshi" "opencode-gunshi.md"
+build_instruction_file "opencode" "telegram" "opencode-telegram.md"
 
 # Build Cursor Agent instruction files
 build_instruction_file "cursor" "shogun" "cursor-shogun.md"
 build_instruction_file "cursor" "karo" "cursor-karo.md"
 build_instruction_file "cursor" "ashigaru" "cursor-ashigaru.md"
 build_instruction_file "cursor" "gunshi" "cursor-gunshi.md"
+build_instruction_file "cursor" "telegram" "cursor-telegram.md"
+
 # Build Antigravity instruction files
 build_instruction_file "antigravity" "shogun" "antigravity-shogun.md"
 build_instruction_file "antigravity" "karo" "antigravity-karo.md"
 build_instruction_file "antigravity" "ashigaru" "antigravity-ashigaru.md"
 build_instruction_file "antigravity" "gunshi" "antigravity-gunshi.md"
+build_instruction_file "antigravity" "telegram" "antigravity-telegram.md"
 
 # ============================================================
 # AGENTS.md generation (Codex auto-load file)
@@ -330,7 +338,7 @@ generate_opencode_agents() {
     # derive generated file names from git-ignored config/settings.yaml or
     # runtime queue/tasks state.
     local agent_ids
-    agent_ids="shogun karo gunshi ashigaru1 ashigaru2 ashigaru3 ashigaru4 ashigaru5 ashigaru6 ashigaru7"
+    agent_ids="shogun karo gunshi ashigaru1 ashigaru2 ashigaru3 ashigaru4 ashigaru5 ashigaru6 ashigaru7 telegram"
 
     for agent_id in $agent_ids; do
         # Determine role (all ashigaru share the same role template)
@@ -352,6 +360,9 @@ generate_opencode_agents() {
             gunshi)
                 role_title="Gunshi — strategic analysis and quality control"
                 ;;
+            telegram)
+                role_title="Telegram — handling side queries and utility commands"
+                ;;
             ashigaru*)
                 local ashigaru_number="${agent_id#ashigaru}"
                 role_title="Ashigaru ${ashigaru_number} — front-line execution"
@@ -369,7 +380,7 @@ agent_id = sys.argv[2]
 def role_for_agent(agent_id: str) -> str:
     if agent_id.startswith('ashigaru'):
         return 'ashigaru'
-    if agent_id in {'shogun', 'karo', 'gunshi'}:
+    if agent_id in {'shogun', 'karo', 'gunshi', 'telegram'}:
         return agent_id
     return ''
 
@@ -469,6 +480,8 @@ def default_model_for(agent: str) -> str:
         return "sonnet"
     if agent == "gunshi":
         return "opus"
+    if agent == "telegram":
+        return "haiku"
     return "sonnet"
 
 if not settings_path.exists():

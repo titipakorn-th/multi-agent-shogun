@@ -355,6 +355,7 @@ get_instruction_file() {
         karo)      role="karo" ;;
         gunshi)    role="gunshi" ;;
         ashigaru*) role="ashigaru" ;;
+        telegram)  role="telegram" ;;
         *)
             echo "" >&2
             return 1
