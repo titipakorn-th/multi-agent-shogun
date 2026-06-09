@@ -988,9 +988,32 @@ fi
 if [ "$TELEGRAM_CONFIGURED" = true ]; then
     pkill -f "telegram_listener.py" 2>/dev/null || true
     [ ! -f ./queue/ntfy_inbox.yaml ] && echo "inbox:" > ./queue/ntfy_inbox.yaml
-    nohup "$SCRIPT_DIR/.venv/bin/python3" "$SCRIPT_DIR/scripts/telegram_listener.py" &>/dev/null &
-    disown
-    log_info "📱 Started Telegram input listener (polling updates)"
+    
+    # Split shogun:main to create the telegram listener pane (takes 25% height)
+    tmux split-window -v -p 25 -t shogun:main
+    
+    PANE_BASE=$(tmux show-options -gv pane-base-index 2>/dev/null || echo 0)
+    TELEGRAM_PANE="shogun:main.$((PANE_BASE + 1))"
+    
+    tmux select-pane -t "$TELEGRAM_PANE" -T "Telegram Listener"
+    tmux set-option -p -t "$TELEGRAM_PANE" @agent_id "telegram"
+    
+    # Set CLI type and model display name dynamically from settings.yaml
+    _telegram_cli_type=$(get_cli_type "telegram" 2>/dev/null || echo "claude")
+    _telegram_display=$(get_model_display_name "telegram" 2>/dev/null || echo "Haiku")
+    tmux set-option -p -t "$TELEGRAM_PANE" @agent_cli "$_telegram_cli_type"
+    tmux set-option -p -t "$TELEGRAM_PANE" @model_name "$_telegram_display" 2>/dev/null || true
+    
+    tmux send-keys -t "$TELEGRAM_PANE" "cd \"$SCRIPT_DIR\" && \"$SCRIPT_DIR/.venv/bin/python3\" \"$SCRIPT_DIR/scripts/telegram_listener.py\"" Enter
+    
+    # Switch active pane back to Shogun main pane
+    tmux select-pane -t "shogun:main.${PANE_BASE}"
+    
+    # Enable borders on shogun session so we see agent pane names clearly
+    tmux set-option -t shogun -w pane-border-status top
+    tmux set-option -t shogun -w pane-border-format '#{?pane_active,#[reverse],}#[bold]#{@agent_id}#[default] #{?@model_name,(#{@model_name}),}'
+    
+    log_info "📱 Started Telegram input listener in shogun:main pane $((PANE_BASE + 1))"
 else
     NTFY_TOPIC=$(grep 'ntfy_topic:' ./config/settings.yaml 2>/dev/null | awk '{print $2}' | tr -d '"')
     if [ -n "$NTFY_TOPIC" ]; then

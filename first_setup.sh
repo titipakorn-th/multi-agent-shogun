@@ -645,6 +645,14 @@ skill:
 logging:
   level: info  # debug | info | warn | error
   path: "$SCRIPT_DIR/logs/"
+
+# CLI settings
+cli:
+  default: claude
+  agents:
+    telegram:
+      type: claude
+      model: haiku
 EOF
     log_success "Created settings.yaml"
 else
