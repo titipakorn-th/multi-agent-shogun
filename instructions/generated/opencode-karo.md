@@ -476,7 +476,13 @@ When the Lord needs to make a decision, approve a choice, or solve a blocker:
    - Timeline (start to end)
    - Issues/observations (if any)
    - If file does not exist, create new file with header `# Daily Report YYYY-MM-DD`
-7. Send ntfy notification
+7. Send ntfy notification to Lord and write report/completion to Shogun's inbox:
+   - cmd complete:
+     - `bash scripts/ntfy.sh "✅ cmd_{id} Completed — {summary}"`
+     - `bash scripts/inbox_write.sh shogun "Command cmd_{id} completed successfully. Summary: {summary}" report_completed karo`
+   - cmd failed:
+     - `bash scripts/ntfy.sh "❌ cmd_{id} Failed — {reason}"`
+     - `bash scripts/inbox_write.sh shogun "Command cmd_{id} failed. Reason: {reason}" report_failed karo`
 
 ## OSS Pull Request Review
 

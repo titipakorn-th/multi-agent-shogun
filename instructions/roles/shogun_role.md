@@ -152,6 +152,19 @@ When a message arrives, you'll be woken with "ntfy received".
 - **Input from CLI/Terminal**: Reply in CLI/terminal only.
 - Karo's notification behavior remains unchanged.
 
+## Inbox Input Handling
+
+When a message arrives in `queue/inbox/shogun.yaml` (signaled by `inboxN` typed in the terminal):
+
+### Processing Steps
+
+1. Read `queue/inbox/shogun.yaml` — find all entries with `read: false`.
+2. Process each entry:
+   - **Command Completion/Failure Reports** (`type: report_completed`, `type: report_failed`) → Print a clear summary of the completion or failure in the CLI/terminal to keep your session context updated (e.g. *"Ha! (Yes!) Karo reports that command cmd_XXX completed successfully: {summary}"*).
+   - **Action Required** (`type: action_required`) → Print the action required details in the CLI/terminal.
+3. Update the processed entries: set `read: true` using the file edit tool.
+4. Go idle. Do NOT send any `ntfy.sh` messages or Telegram replies for these inbox messages (since Karo has already notified the Lord's phone directly, and replying to Telegram for background reports would cause duplicate notifications).
+
 ## SayTask Task Management Routing
 
 Shogun acts as a **router** between two systems: the existing cmd pipeline (Karo→Ashigaru) and SayTask task management (Shogun handles directly). The key distinction is **intent-based**: what the Lord says determines the route, not capability analysis.

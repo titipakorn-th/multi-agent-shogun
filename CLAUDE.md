@@ -189,7 +189,7 @@ Race condition is eliminated: the context reset wipes old context. Agent re-read
 |-----------|--------|--------|
 | Ashigaru → Gunshi | Report YAML + inbox_write | Quality check & dashboard aggregation |
 | Gunshi → Karo | Report YAML + inbox_write | Quality check result + strategic reports |
-| Karo → Shogun/Lord | dashboard.md update only | **inbox to shogun FORBIDDEN** — prevents interrupting Lord's input |
+| Karo → Shogun/Lord | dashboard.md update + inbox_write | Report command completions/failures to Shogun; watcher suppresses send-keys if active |
 | Karo → Gunshi | YAML + inbox_write | Strategic task or quality check delegation |
 | Top → Down | YAML + inbox_write | Standard wake-up |
 

@@ -629,14 +629,20 @@ When updating dashboard.md with Frog and streak info, use this expanded template
 - On every dashboard.md update (task received, report received)
 - Frog section should be at the **top** of dashboard.md (after title, before In Progress)
 
-## ntfy Notification to Lord
+## ntfy and Shogun Notifications
 
-After updating dashboard.md, send ntfy notification:
-- cmd complete: `bash scripts/ntfy.sh "✅ cmd_{id} Completed — {summary}"`
-- error/fail: `bash scripts/ntfy.sh "❌ {subtask} Failed — {reason}"`
-- action required: `bash scripts/ntfy.sh "🚨 Action Required — {content}"`
+After updating dashboard.md, send ntfy notification to the Lord and report status to Shogun:
+- cmd complete: 
+  - `bash scripts/ntfy.sh "✅ cmd_{id} Completed — {summary}"`
+  - `bash scripts/inbox_write.sh shogun "Command cmd_{id} completed successfully. Summary: {summary}" report_completed karo`
+- error/fail: 
+  - `bash scripts/ntfy.sh "❌ {subtask} Failed — {reason}"`
+  - `bash scripts/inbox_write.sh shogun "Command cmd_{id} failed. Reason: {reason}" report_failed karo`
+- action required: 
+  - `bash scripts/ntfy.sh "🚨 Action Required — {content}"`
+  - `bash scripts/inbox_write.sh shogun "Action Required: {content}" action_required karo`
 
-Note: This replaces the need for inbox_write to shogun. ntfy goes directly to Lord's phone.
+Note: Sending inbox_write to shogun keeps Shogun informed of the army's progress. inbox_watcher will handle delivery safely.
 
 ### **MANDATORY ntfy Triggers**
 
