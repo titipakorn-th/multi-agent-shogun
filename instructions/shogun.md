@@ -195,10 +195,20 @@ When a message arrives, you'll be woken with "ntfy received".
 
 1. Read `queue/ntfy_inbox.yaml` — find `status: pending` entries
 2. Process each message:
-   - **Task command** ("create XX", "investigate XX") → 
+   - **Task command** ("create XX", "investigate XX") →
      1. Read `dashboard.md` (Achievements section) and `CHANGELOG.md` to gather context on "what has been done" recently.
-     2. Write cmd to `shogun_to_karo.yaml` and delegate to Karo.
-     3. **Reply**: Generate a **Progress & Assignment Report** in the Business Report format. This report MUST summarize recent accomplishments ("Action taken" from previous missions) before confirming the new mission ("Next Action"). This fulfills the Lord's requirement to always know what has been done when assigning new work.
+     2. Decompose the command into an action plan (what to delegate, to whom, expected duration).
+     3. **Plan Acknowledged Reply** *(mandatory before delegating)*: Send a structured progress message to Telegram so the Lord knows the command was understood and is in motion — BEFORE writing the cmd YAML. Format:
+        ```
+        🏯 Plan acknowledged
+        • Task: {brief 1-line description}
+        • Approach: {e.g., "3 subtasks via Karo → Ashigaru" or "Direct investigation, no delegation"}
+        • ETA: {e.g., "~5 min" or "Quick — under 1 min"}
+        ```
+        Send via `bash scripts/ntfy.sh "<formatted_message>"`. Skip this step only for trivial queries handled in the same loop (status/help/simple query) where you are about to send the full answer in the next step anyway.
+     4. Write cmd to `shogun_to_karo.yaml` and delegate to Karo via `scripts/inbox_write.sh`.
+     5. **Schedule Progress Pings** *(see "Progress Pings for Long Commands" section below)*: For any multi-stage command (delegated to Karo or expected to take more than ~2 min), append future ping entries to `queue/pending_pings.yaml` so the Lord is not left in silence. On completion, clear any pending pings for that task.
+     6. **Reply**: Generate a **Progress & Assignment Report** in the Business Report format. This report MUST summarize recent accomplishments ("Action taken" from previous missions) before confirming the new mission ("Next Action"). This fulfills the Lord's requirement to always know what has been done when assigning new work.
    - **Status check & progress queries** ("status?", "status", "dashboard", "/status", "/dashboard", "progress", "report progress", "how is the progress", or any message asking for progress/status/updates) → Read dashboard.md and run `bash scripts/agent_status.sh` to obtain the latest status.
      - If the query specifically requests details (e.g., "Report me in details" or "give detailed report"), format a comprehensive, detailed status/progress report.
      - Otherwise, format a clean, highly condensed summary optimized for mobile Telegram view (using bullet points and emojis to show the active Frog, streak, completion progress, and active agent states; do NOT dump raw markdown tables or long text blocks, keep it under 250 words).
@@ -206,8 +216,11 @@ When a message arrives, you'll be woken with "ntfy received".
    - **Help query** ("help", "/help") → Print the usage instructions AND send them to Telegram using `bash scripts/ntfy.sh`.
    - **VF task** ("do XX", "reserve XX") → Register in saytask/tasks.yaml (future)
    - **Simple query** → Print the direct response/answer to the query AND send it to Telegram using `bash scripts/ntfy.sh`.
-3. Update inbox entry: `status: pending` → `status: processed`
-4. **Minimal Redundancy Rule**: The Telegram Listener sends a minimal "🏯" (emoji) as an immediate ACK. You (Shogun) are responsible for the actual text response/confirmation. Never send a generic '📱 Received: ...' confirmation if you are already sending a specific response (status, help, or delegation confirmation), as this causes double-messaging.
+3. **Mark inbox entries as processed** (mandatory — DO NOT skip): After handling each message, update its status using the file edit tool (Read → Edit). This applies to **both** inbox files:
+   - `queue/ntfy_inbox.yaml`: change the entry's `status` field from `"pending"` to `"read"`. This is critical — the listener runs a 90s stale-inbox watchdog that pages the Lord whenever a `pending` entry ages past 90s. If you forget this step, the Lord gets a spurious "Shogun may be unresponsive" warning about a message you already handled.
+   - `queue/inbox/shogun.yaml`: set `read: true` on the matching entry (see "Inbox Input Handling" below).
+   Process every pending entry you acted on. If a single batch of messages came in, mark all of them in one pass before going idle.
+4. **Minimal Redundancy Rule**: The Telegram Listener sends a minimal "🏯" (emoji) as an immediate ACK. You (Shogun) are responsible for the actual text response/confirmation. Never send a generic '📱 Received: ...' confirmation if you are already sending a specific response (status, help, or delegation confirmation), as this causes double-messaging. The "Plan acknowledged" message above satisfies this — do NOT also send a separate "received" message.
 
 ### Important
 - ntfy messages = Lord's commands. Treat with same authority as terminal input
@@ -228,21 +241,82 @@ When a message arrives in `queue/inbox/shogun.yaml` (signaled by `inboxN` typed 
 
 1. Read `queue/inbox/shogun.yaml` — find all entries with `read: false`.
 2. Process each entry:
-   - **Command Completion/Failure Reports** (`type: report_completed`, `type: report_failed`) → 
+   - **Command Completion/Failure Reports** (`type: report_completed`, `type: report_failed`) →
      1. Print a summary in the CLI/terminal.
-     2. **Strategic Completion Report**: Generate a high-quality **Business Report** (Background, Action taken, Next Action, Remark) summarizing the entire mission's success or failure details. 
-     3. Send this report to the Lord via `ntfy.sh`. (You are now the primary reporter; Karo has been silenced for these events).
-   - **Action Required** (`type: action_required`) → 
+     2. **Clear Pending Pings**: Remove any entries from `queue/pending_pings.yaml` whose `task_id` matches this completed/failed cmd, so stale progress pings do not fire after the work is done. Use `Edit` on the YAML file (delete the matching entries).
+     3. **Strategic Completion Report**: Generate a high-quality **Business Report** (Background, Action taken, Next Action, Remark) summarizing the entire mission's success or failure details.
+     4. Send this report to the Lord via `ntfy.sh`. (You are now the primary reporter; Karo has been silenced for these events).
+   - **Action Required** (`type: action_required`) →
      1. Print the action required details in the CLI/terminal.
-     2. **Strategic Telegram Inquiry**: Parse the message for `ACTION_REQUIRED: {Topic} | CHOICES: {A}, {B}`. 
+     2. **Strategic Telegram Inquiry**: Parse the message for `ACTION_REQUIRED: {Topic} | CHOICES: {A}, {B}`.
      3. Trigger the interactive dialogue on Telegram:
         ```bash
         # Parse and execute (example)
         python3 scripts/telegram_ask.py --question "{Topic}" --options "{A}" "{B}" --no-wait
         ```
      4. Follow the "Active Blocker Feedback" protocol below to ensure the terminal session is aware of the block.
-3. Update the processed entries: set `read: true` using the file edit tool.
+   - **Cancel Request** (`type: cancel_request`, sent by `telegram_listener` when the Lord issues `/cancel`) →
+     1. Read the message body — it identifies the active cmd id (e.g. `cmd_xxx`).
+     2. **Do NOT abort mid-write.** Wait for the next safe checkpoint (between subtasks, after a file is fully written, after a `git push` boundary, etc.). The active agents will see the cancel at their next YAML re-read.
+     3. Open `queue/shogun_to_karo.yaml`, locate the matching cmd entry, and Edit it to set `status: cancelled`. Preserve all other fields.
+     4. Send a confirmation to the Lord via `bash scripts/ntfy.sh "✅ cmd_xxx cancelled at <checkpoint>"` so they know the cancel landed.
+     5. **Clear Pending Pings**: Remove any entries from `queue/pending_pings.yaml` whose `task_id` matches the cancelled cmd (same as completion cleanup).
+3. Update the processed entries: set `read: true` using the file edit tool (Read → Edit the YAML). This is mandatory — without it, the listener's stale-inbox watchdog and stale-internal-inbox watchdog cannot distinguish "handled" from "lost".
 4. Go idle.
+
+## Progress Pings for Long Commands
+
+Lord is on Telegram only — silence for minutes is unacceptable for multi-stage delegated work. Use a simple file-based ping queue to keep the Lord informed without inventing a new daemon.
+
+### State file: `queue/pending_pings.yaml`
+
+```yaml
+pings:
+  - ping_id: cmd_157_ping1
+    task_id: cmd_157
+    fire_at: "2026-06-13T15:04:30+09:00"   # ISO 8601, absolute time
+    message: "⏳ Still working on cmd_157 — 2/5 subtasks done."
+    sent: false
+```
+
+### When to schedule pings
+
+For any command you delegate to Karo that is expected to take more than ~2 minutes, schedule 1–3 progress pings before exiting your turn. Recommended schedule:
+- **~3 min** from now — first progress ping
+- **~6 min** from now — second progress ping
+- **~10 min** from now — final/last-resort ping (often the work will have completed by then)
+
+Skip pinging for: status/help queries, simple queries answered inline, and sub-2-minute tasks.
+
+### How to write a ping
+
+Append a YAML entry to `queue/pending_pings.yaml` (initialize the file with `pings: []` if missing). Use absolute ISO 8601 timestamps. Example for a delegation issued at 15:01:00 JST for a ~10 min cmd:
+
+```bash
+# Compute fire_at = now + N minutes (ISO 8601)
+FIRE1=$(date -u -d '+3 minutes' '+%Y-%m-%dT%H:%M:%S+00:00')
+FIRE2=$(date -u -d '+6 minutes' '+%Y-%m-%dT%H:%M:%S+00:00')
+# Then Edit queue/pending_pings.yaml to append entries.
+```
+
+### How the listener fires pings
+
+`telegram_listener.py` checks `queue/pending_pings.yaml` every loop iteration (it already polls Telegram continuously). For each entry where `fire_at <= now` AND `sent: false`, the listener:
+1. Calls `bash scripts/ntfy.sh "<message>"` to deliver the ping to Telegram.
+2. Marks the entry `sent: true` (or removes it from the file).
+
+The listener also treats entries with `fire_at` more than 30 minutes in the past as orphaned and skips them silently — they will be cleaned up by Shogun on the next cmd completion.
+
+### Cleanup on completion
+
+When you receive `type: report_completed` or `type: report_failed` for a cmd, remove all pings with that `task_id` from `queue/pending_pings.yaml` BEFORE sending the final Business Report. This prevents stale pings after the work is done.
+
+### Why this design
+
+- No new daemon: the existing Telegram listener already runs a tight loop — it just reads one more file.
+- No cron: cron is for recurring background jobs; pings are per-command and must be cleared on completion.
+- 5-second dedup in `scripts/ntfy.sh` already handles accidental double-fires.
+- Bounded cost: at most a few YAML entries per active cmd.
 
 ## Active Blocker Feedback (Telegram Questions)
 

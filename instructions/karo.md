@@ -580,6 +580,121 @@ To prevent double-messaging and meaningless noise:
 2. **Shogun**: The Shogun is the **primary strategic reporter**. It sends high-level "Business Reports" (Progress, Assignment, Completion) to the Lord's phone.
 3. **Karo (You)**: You are the **internal coordinator**. You report completions and failures **only to the Shogun** via `inbox_write.sh`. 
 4. **Exception**: You may only use `ntfy.sh` for the "Action Required" fallback if Telegram is not configured, or for specific "MANDATORY ntfy Triggers" (e.g., v1.0.0 release) where a one-liner is essential.
+5. **Exception — Strategic Reporting Fallback**: If Shogun is unresponsive for a completion/failure report, you MAY send a one-liner fallback via `ntfy.sh` (see "Strategic Reporting Fallback" below). This is a safety net to ensure the Lord is never silently left without information.
+
+## Strategic Reporting Fallback (Shogun Unresponsive)
+
+The Lord is on Telegram only. Shogun is the **primary** strategic reporter (sends the polished Business Report), but if Shogun is mid-task or unresponsive, the Lord must still be informed of completions and failures. This is a **bounded safety net** — not a replacement for Shogun's reporting.
+
+### When to Trigger
+
+You have reported a `report_completed` or `report_failed` to Shogun via `inbox_write.sh`, AND:
+- `pending_strategic_reports.yaml` contains an entry for that report that is **older than 2 minutes**, AND
+- Shogun has **not** sent a Telegram/ntfy message acknowledging or following up on that report in the same window.
+
+This check is performed on Karo's next idle cycle (after step 12, before going idle). No separate polling daemon is introduced.
+
+### Tracking File
+
+`queue/pending_strategic_reports.yaml`
+
+```yaml
+# Karo's safety-net log for Shogun's strategic reports.
+# Karo writes here when reporting to Shogun; removes when fallback fires
+# or when Shogun's polished report is confirmed.
+pending_reports:
+  - report_id: cmd_048_2026-02-13T07:42:00
+    parent_cmd: cmd_048
+    kind: completed           # completed | failed
+    summary: "Built batched command dispatcher. 5 subtasks done."
+    sent_at: "2026-02-13T07:42:00"
+    fallback_sent: false
+```
+
+**Field meanings**:
+- `report_id`: unique key — `{parent_cmd}_{ISO8601 timestamp}` is sufficient.
+- `parent_cmd`: cmd identifier (e.g., `cmd_048`) so dedup by parent_cmd is possible.
+- `kind`: `completed` or `failed` — shapes the fallback message tone.
+- `summary`: one-line business summary (≤ 120 chars). This is what gets sent on fallback.
+- `sent_at`: ISO 8601 timestamp of the original inbox_write to Shogun.
+- `fallback_sent`: `false` initially. Set to `true` after Karo sends the fallback ntfy.
+
+### Procedure (3 Steps)
+
+```
+STEP 1: When reporting to Shogun, also write to pending_strategic_reports.yaml
+  → Always do this in the same logical step as the inbox_write to Shogun.
+  → The pending file is the dedup mechanism.
+
+STEP 2: On every idle cycle (after step 12), scan the pending file
+  for entries where:
+    sent_at < now - 2 minutes
+    AND fallback_sent == false
+  For each such entry:
+    a) Best-effort check: did Shogun produce a Telegram/ntfy message about it?
+       (Cheap heuristic: see "Confirmation Heuristic" below.)
+    b) If NO confirmation:
+       - Send fallback: bash scripts/ntfy.sh "📊 (fallback) cmd_XXX: {summary}"
+       - Mark fallback_sent: true in the pending file
+       - Log to dashboard.md under a new "Fallback Notifications Sent" subsection
+         (keep last 10 entries, prune older).
+
+STEP 3: Periodic cleanup
+  On every idle cycle, also remove entries where:
+    fallback_sent == true AND sent_at < now - 10 minutes
+  Rationale: Shogun's polished report window has passed. Keep the file small.
+```
+
+### Confirmation Heuristic (Cheap Check, Not Failsafe)
+
+A precise "did Shogun send Telegram X" check is out of scope. Use this cheap heuristic instead:
+
+- If `dashboard.md` was updated by Shogun after the report's `sent_at` AND the update mentions `cmd_XXX` → assume Shogun handled it (drop the entry silently).
+- Otherwise → assume Shogun is unresponsive → fire fallback.
+
+This is intentionally fuzzy. False positives (Karo fires when Shogun is fine) are tolerable because the fallback is one-line, "fallback" tagged, and dedup-safe within ntfy.sh's 5s window — and the polished report from Shogun (if it later arrives) carries different content, so the Lord will see both and understand the order.
+
+### Give-Up Timeout
+
+If a `fallback_sent: true` entry sits in the pending file for **10 minutes** total, remove it. This bounds the log size. By that point, Shogun either:
+- Already sent the polished report (and the Lord saw it after the fallback), or
+- Is genuinely stuck (separate problem — escalate to dashboard 🚨 as "Shogun unresponsive > 10 min").
+
+### What to Send (Message Format)
+
+```
+📊 (fallback) cmd_XXX: {one-line summary}
+```
+
+For failures, prefix with `❌` instead of `📊`:
+```
+❌ (fallback) cmd_XXX: {one-line reason summary}
+```
+
+Constraints:
+- **One line, ≤ 200 chars** (Lord's phone screen is small).
+- Always include the `(fallback)` tag so the Lord knows this is the raw signal, not the polished report.
+- Never include secrets, file paths deeper than `subtask_XXX`, or implementation details.
+- Different content from Shogun's eventual polished report → ntfy.sh 5s dedup will not block it.
+
+### Why This Does Not Violate the Minimal Redundancy Rule
+
+The Rule says "you report only to Shogun." This fallback is a **bounded exception**:
+- Fires only after 2 minutes of confirmed unresponsiveness (not on every report).
+- Tagged `(fallback)` so the Lord can distinguish from Shogun's polished reports.
+- One-line, dedup-safe, gives up after 10 minutes.
+- The polished report from Shogun (when it eventually arrives) supplements, not replaces, the fallback. The Lord sees both in chronological order and understands.
+
+This is the same exception pattern as "MANDATORY ntfy Triggers" (e.g., v1.0.0 release) — a one-liner is essential and the situation is bounded.
+
+### Failure Modes to Watch
+
+| Failure | Symptom | Mitigation |
+|---------|---------|------------|
+| Karo crashes between step 1 and step 2 | Entry never gets fallback | Resume via YAML scan on next Karo boot; idle cycle will catch it |
+| Shogun IS responding, but via dashboard.md only (not ntfy) | Karo fires fallback unnecessarily | Cheap heuristic catches dashboard updates; tolerable double-message |
+| Multiple Karo instances (shouldn't happen) | Double fallback | Single Karo per session — design assumption |
+| ntfy.sh down | Fallback silently fails | Lord sees nothing; existing behavior — out of scope for this fix |
 
 ### ntfy Not Configured
 
@@ -638,8 +753,10 @@ After updating dashboard.md, report status to Shogun. **Do NOT send direct ntfy.
 
 - cmd complete: 
   - `bash scripts/inbox_write.sh shogun "Command cmd_{id} completed successfully. Summary: {summary}" report_completed karo`
+  - **Also write a tracking entry** to `queue/pending_strategic_reports.yaml` (see "Strategic Reporting Fallback" below). This enables the 2-min fallback if Shogun is unresponsive.
 - error/fail: 
   - `bash scripts/inbox_write.sh shogun "Command cmd_{id} failed. Reason: {reason}" report_failed karo`
+  - **Also write a tracking entry** to `queue/pending_strategic_reports.yaml` with `kind: failed`.
 - action required: 
   - **Check Telegram first**: Follow the "Action Needed Notification" protocol (Step 11) to ask via Telegram asynchronously.
   - **Fallback (No Telegram)**: `bash scripts/ntfy.sh "🚨 Action Required — {content}"` AND `bash scripts/inbox_write.sh shogun "Action Required: {content}" action_required karo`
