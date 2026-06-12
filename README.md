@@ -282,79 +282,10 @@ cd /mnt/c/tools/multi-agent-shogun
 ./shutsujin_departure.sh
 ```
 
-### 📱 Mobile Access — Dedicated Android App (Recommended)
-
-<p align="center">
-  <img src="android/screenshots/01_shogun_terminal.png" alt="Shogun Terminal" width="200">
-  <img src="android/screenshots/02_agents_grid.png" alt="Agents Grid" width="200">
-  <img src="android/screenshots/03_dashboard.png" alt="Dashboard" width="200">
-</p>
-
-Monitor and command 10 AI agents from your phone with the dedicated Android companion app.
-
-| Feature | Description |
-|---------|-------------|
-| **Shogun Terminal** | SSH terminal + voice input + special key bar (C-c, C-b, Tab, etc.) |
-| **Agents Grid** | 9-pane simultaneous monitoring. Tap to expand fullscreen + send commands |
-| **Dashboard** | Renders dashboard.md with full table text selection/copy |
-| **Rate Limit** | Tap the FAB on the Agents tab to check Claude Max 5h/7d usage with progress bars |
-| **Voice Input** | Japanese continuous recognition via Google Speech API — higher accuracy than phone keyboard voice |
-| **Screenshot Share** | Share images via Android share menu → SFTP transfer to server |
-
-> **Note:** Android only for now. No iOS version — the developer doesn't own an iPhone. If there's demand, please open an [Issue](https://github.com/yohey-w/multi-agent-shogun/issues). PRs welcome!
-
-#### Setup
-
-**Prerequisites:**
-- Shogun system running on WSL2 (or Linux server)
-- SSH server started (`sudo service ssh start`)
-- Phone and server on same network (LAN or [Tailscale](https://tailscale.com/))
-
-**Steps:**
-
-1. **Install APK**
-   1. Download [`android/release/multi-agent-shogun.apk`](android/release/multi-agent-shogun.apk) on your phone (open the file on GitHub → "Download raw file")
-   2. Tap the download notification → "Install"
-   3. If "Unknown sources" warning appears → "Settings" → enable "Allow from this source" for your browser → go back → "Install"
-   4. Done → "Open"
-
-2. **Configure SSH** (Settings tab)
-
-   | Field | Example | Description |
-   |-------|---------|-------------|
-   | SSH Host | `100.xxx.xxx.xxx` | Server IP (e.g., Tailscale IP) |
-   | SSH Port | `22` | Usually 22 |
-   | SSH User | `your_username` | SSH login username |
-   | SSH Key Path | `/data/data/.../id_ed25519` | Private key path on phone (*1) |
-   | SSH Password | `****` | Use if no key available |
-   | Project Path | `/mnt/c/tools/multi-agent-shogun` | Server-side project directory |
-   | Shogun Session | `shogun` | tmux session name for Shogun |
-   | Agent Session | `multiagent` | tmux session name for agents |
-
-   *1 Transfer your private key to the phone, or use password authentication
-
-3. **Save → Switch to Shogun tab** → auto-connects
-
-**Using Tailscale (connect from anywhere):**
-
-```bash
-# Server-side (WSL2)
-curl -fsSL https://tailscale.com/install.sh | sh
-sudo tailscaled &
-sudo tailscale up --authkey tskey-auth-XXXXXXXXXXXX
-sudo service ssh start
-```
-
-Install the Tailscale app on your phone, log in with the same account, and use the displayed Tailscale IP as the SSH Host in the app.
-
-**With ntfy notifications:**
-
-See [ntfy setup section](#-8-phone-notifications-ntfy) for push notifications from Karo on task completion.
-
 <details>
-<summary>📟 <b>Termux Method (without the Android app)</b> (click to expand)</summary>
+<summary>📟 <b>Termux Method (SSH from phone)</b> (click to expand)</summary>
 
-SSH via Termux also works. More limited than the dedicated app, but requires no APK sideloading.
+SSH via Termux works on Android phones — no app to sideload, just terminal-over-SSH.
 
 **Requirements (all free):**
 
@@ -1890,7 +1821,6 @@ Even if you're not comfortable with keyboard shortcuts, you can switch, scroll, 
 - **Ashigaru execute** — implementation, shell execution, deploy steps, and test commands are delegated to Ashigaru by default
 - **E2E responsibility clarified** — Karo reviews the E2E plan, checks prerequisites, and makes the final pass/fail judgment; direct execution is now an explicit exception that must be justified in reports
 - **Generated instructions refreshed** — Claude, Codex, Copilot, Kimi, and OpenCode instruction outputs were rebuilt from the updated role definitions
-- **Android local caches ignored** — `.android-user/`, `.gradle-user/`, and `.toolchain/` are now ignored under `android/`
 
 ## What's New in v5.0.0 — OpenCode First-Class Support
 

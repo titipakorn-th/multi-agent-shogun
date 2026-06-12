@@ -31,6 +31,7 @@
 !instructions/karo.md
 !instructions/ashigaru.md
 !instructions/gunshi.md
+!instructions/telegram.md
 
 # Multi-CLI: CLI-specific tool descriptions
 !instructions/cli_specific/
@@ -122,6 +123,9 @@ scripts/seo_qc.sh
 !scripts/telegram_ask.py
 !scripts/telegram_listener.py
 !scripts/mcp_health_check.sh
+!scripts/listener_watchdog.sh
+!scripts/smoke_test.py
+!scripts/LISTENER_SUPERVISION.md
 
 
 # SayTask (sample template only, not actual data)
@@ -220,10 +224,6 @@ tests/specs/osato_lms_*
 !.github/FUNDING.yml
 !.github/workflows/
 !.github/workflows/*.yml
-
-# Android companion app
-!android/
-!android/**
 
 # reports/ (empty placeholder only — content is intentionally local-only)
 !reports/
