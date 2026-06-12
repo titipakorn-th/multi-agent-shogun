@@ -86,12 +86,15 @@ class TestTelegramListener(unittest.TestCase):
 
 
 class TestBuildProgressSummary(unittest.TestCase):
-    """Tests for the priority-2 'Awaiting Shogun' state when ntfy_inbox.yaml
-    contains a pending entry."""
+    """Tests for the priority-2 'Awaiting Shogun' state when
+    queue/inbox/shogun.yaml contains an unread entry. The summary now reads
+    the script-maintained shogun inbox (read: true/false flag) rather than
+    the ntfy_inbox.yaml shadow log, so the source of truth matches the
+    watchdog."""
 
     def setUp(self):
         self.script_dir = os.path.dirname(os.path.abspath(telegram_listener.__file__))
-        self.qa = os.path.join(self.script_dir, "../queue/ntfy_inbox.yaml")
+        self.inbox = os.path.join(self.script_dir, "../queue/inbox/shogun.yaml")
         self.dash = os.path.join(self.script_dir, "../queue/dashboard.md")
         self._cleanup()
 
@@ -99,29 +102,34 @@ class TestBuildProgressSummary(unittest.TestCase):
         self._cleanup()
 
     def _cleanup(self):
-        for p in (self.qa, self.dash):
+        for p in (self.inbox, self.dash):
             if os.path.exists(p):
                 os.remove(p)
 
     def _write_inbox(self, entries):
         import yaml
-        with open(self.qa, "w", encoding="utf-8") as f:
-            yaml.safe_dump({"inbox": entries}, f, default_flow_style=False,
+        os.makedirs(os.path.dirname(self.inbox), exist_ok=True)
+        with open(self.inbox, "w", encoding="utf-8") as f:
+            yaml.safe_dump({"messages": entries}, f, default_flow_style=False,
                            allow_unicode=True, sort_keys=False)
 
-    def test_pending_entry_returns_awaiting_shogun(self):
-        ts = time.strftime("%Y-%m-%dT%H:%M:%S%z", time.localtime())
+    def test_unread_entry_returns_awaiting_shogun(self):
+        ts = time.strftime("%Y-%m-%dT%H:%M:%S", time.localtime())
         self._write_inbox([
-            {"id": "111", "timestamp": ts, "message": "deploy now", "status": "pending"}
+            {"id": "111", "timestamp": ts,
+             "from": "telegram_listener", "type": "ntfy_received",
+             "content": "deploy now", "read": False}
         ])
         out = telegram_listener.build_progress_summary(self.script_dir)
         self.assertIn("Awaiting Shogun", out)
         self.assertIn("deploy now", out)
 
     def test_read_entry_falls_through_to_quiet(self):
-        ts = time.strftime("%Y-%m-%dT%H:%M:%S%z", time.localtime())
+        ts = time.strftime("%Y-%m-%dT%H:%M:%S", time.localtime())
         self._write_inbox([
-            {"id": "112", "timestamp": ts, "message": "done", "status": "read"}
+            {"id": "112", "timestamp": ts,
+             "from": "telegram_listener", "type": "ntfy_received",
+             "content": "done", "read": True}
         ])
         out = telegram_listener.build_progress_summary(self.script_dir)
         self.assertIn("All quiet", out)
@@ -130,10 +138,12 @@ class TestBuildProgressSummary(unittest.TestCase):
         out = telegram_listener.build_progress_summary(self.script_dir)
         self.assertIn("All quiet", out)
 
-    def test_pending_overrides_dashboard(self):
-        ts = time.strftime("%Y-%m-%dT%H:%M:%S%z", time.localtime())
+    def test_unread_overrides_dashboard(self):
+        ts = time.strftime("%Y-%m-%dT%H:%M:%S", time.localtime())
         self._write_inbox([
-            {"id": "113", "timestamp": ts, "message": "stuck", "status": "pending"}
+            {"id": "113", "timestamp": ts,
+             "from": "telegram_listener", "type": "ntfy_received",
+             "content": "stuck", "read": False}
         ])
         with open(self.dash, "w", encoding="utf-8") as f:
             f.write("# Dashboard\n\nMission complete\n")
@@ -143,34 +153,60 @@ class TestBuildProgressSummary(unittest.TestCase):
 
 class TestWatchStaleInbox(unittest.TestCase):
     """Tests for the 90s watchdog that warns the Lord when an inbox entry
-    has been sitting in 'pending' state too long."""
+    has been sitting unread in queue/inbox/shogun.yaml for too long.
+
+    The watchdog's source of truth is queue/inbox/shogun.yaml (the file
+    inbox_write.sh writes to when the Telegram listener forwards a Lord
+    message, and that Shogun flips `read: True` on when it picks the
+    message up). It does NOT read queue/ntfy_inbox.yaml, which is a shadow
+    log that requires LLM cooperation to maintain and can stay "pending"
+    forever after Shogun has actually handled the message — the false
+    positive that motivated moving the watchdog.
+    """
 
     def setUp(self):
         self.script_dir = os.path.dirname(os.path.abspath(telegram_listener.__file__))
-        self.qa = os.path.join(self.script_dir, "../queue/ntfy_inbox.yaml")
+        self.inbox = os.path.join(self.script_dir, "../queue/inbox/shogun.yaml")
+        self.shadow = os.path.join(self.script_dir, "../queue/ntfy_inbox.yaml")
         self._cleanup()
 
     def tearDown(self):
         self._cleanup()
 
     def _cleanup(self):
-        if os.path.exists(self.qa):
-            os.remove(self.qa)
+        for path in (self.inbox, self.shadow):
+            if os.path.exists(path):
+                os.remove(path)
 
     def _write_inbox(self, entries):
         import yaml
-        with open(self.qa, "w", encoding="utf-8") as f:
+        os.makedirs(os.path.dirname(self.inbox), exist_ok=True)
+        with open(self.inbox, "w", encoding="utf-8") as f:
+            yaml.safe_dump({"messages": entries}, f, default_flow_style=False,
+                           allow_unicode=True, sort_keys=False)
+
+    def _write_shadow(self, entries):
+        """Mirror the Telegram listener's shadow-log writer. Used by the
+        regression test for the false-positive the user hit in production."""
+        import yaml
+        os.makedirs(os.path.dirname(self.shadow), exist_ok=True)
+        with open(self.shadow, "w", encoding="utf-8") as f:
             yaml.safe_dump({"inbox": entries}, f, default_flow_style=False,
                            allow_unicode=True, sort_keys=False)
 
     def _ts(self, seconds_ago, base):
-        return time.strftime("%Y-%m-%dT%H:%M:%S%z", time.localtime(base - seconds_ago))
+        # inbox_write.sh writes naive ISO 8601 (no timezone suffix); the
+        # watchdog parses it via strptime("%Y-%m-%dT%H:%M:%S"). The test
+        # mirrors that exact format.
+        return time.strftime("%Y-%m-%dT%H:%M:%S", time.localtime(base - seconds_ago))
 
     @patch("subprocess.run")
     def test_fresh_entry_no_warning(self, mock_run):
         now = time.time()
         self._write_inbox([
-            {"id": "300", "timestamp": self._ts(30, now), "message": "x", "status": "pending"}
+            {"id": "300", "timestamp": self._ts(30, now),
+             "from": "telegram_listener", "type": "ntfy_received",
+             "content": "x", "read": False}
         ])
         warned = set()
         telegram_listener.watch_stale_inbox(self.script_dir, warned, now=now)
@@ -182,7 +218,9 @@ class TestWatchStaleInbox(unittest.TestCase):
         now = time.time()
         ts = self._ts(200, now)
         self._write_inbox([
-            {"id": "301", "timestamp": ts, "message": "stuck", "status": "pending"}
+            {"id": "301", "timestamp": ts,
+             "from": "telegram_listener", "type": "ntfy_received",
+             "content": "stuck", "read": False}
         ])
         warned = set()
         telegram_listener.watch_stale_inbox(self.script_dir, warned, now=now)
@@ -198,7 +236,9 @@ class TestWatchStaleInbox(unittest.TestCase):
         now = time.time()
         ts = self._ts(200, now)
         self._write_inbox([
-            {"id": "302", "timestamp": ts, "message": "x", "status": "pending"}
+            {"id": "302", "timestamp": ts,
+             "from": "telegram_listener", "type": "ntfy_received",
+             "content": "x", "read": False}
         ])
         warned = set()
         # Call 100 times in a tight loop — must warn exactly once
@@ -210,16 +250,20 @@ class TestWatchStaleInbox(unittest.TestCase):
     def test_read_entry_pruned_from_warned(self, mock_run):
         now = time.time()
         ts = self._ts(200, now)
-        # Start with the entry pending — adds to warned
+        # Start with the entry unread — adds to warned
         self._write_inbox([
-            {"id": "303", "timestamp": ts, "message": "x", "status": "pending"}
+            {"id": "303", "timestamp": ts,
+             "from": "telegram_listener", "type": "ntfy_received",
+             "content": "x", "read": False}
         ])
         warned = set()
         telegram_listener.watch_stale_inbox(self.script_dir, warned, now=now)
         self.assertIn(("303", ts), warned)
         # Shogun marks it read — must be pruned
         self._write_inbox([
-            {"id": "303", "timestamp": ts, "message": "x", "status": "read"}
+            {"id": "303", "timestamp": ts,
+             "from": "telegram_listener", "type": "ntfy_received",
+             "content": "x", "read": True}
         ])
         telegram_listener.watch_stale_inbox(self.script_dir, warned, now=now)
         self.assertEqual(warned, set())
@@ -229,25 +273,58 @@ class TestWatchStaleInbox(unittest.TestCase):
         now = time.time()
         orphan_ts = self._ts(40 * 60, now)  # > 30 min
         self._write_inbox([
-            {"id": "304", "timestamp": orphan_ts, "message": "x", "status": "pending"}
+            {"id": "304", "timestamp": orphan_ts,
+             "from": "telegram_listener", "type": "ntfy_received",
+             "content": "x", "read": False}
         ])
         warned = set()
         telegram_listener.watch_stale_inbox(self.script_dir, warned, now=now)
         mock_run.assert_not_called()
         self.assertNotIn(("304", orphan_ts), warned)
         # File must NOT be auto-deleted
-        self.assertTrue(os.path.exists(self.qa))
+        self.assertTrue(os.path.exists(self.inbox))
 
     @patch("subprocess.run")
     def test_malformed_timestamp_skipped(self, mock_run):
         now = time.time()
         self._write_inbox([
-            {"id": "305", "timestamp": "GARBAGE", "message": "x", "status": "pending"}
+            {"id": "305", "timestamp": "GARBAGE",
+             "from": "telegram_listener", "type": "ntfy_received",
+             "content": "x", "read": False}
         ])
         warned = set()
         telegram_listener.watch_stale_inbox(self.script_dir, warned, now=now)
         mock_run.assert_not_called()
         self.assertNotIn(("305", "GARBAGE"), warned)
+
+    @patch("subprocess.run")
+    def test_shadow_log_alone_does_not_trigger_warning(self, mock_run):
+        """Regression test for the production false-positive the user hit:
+        the Telegram listener writes the Lord message to BOTH
+        queue/inbox/shogun.yaml (system of record) AND
+        queue/ntfy_inbox.yaml (shadow log). Shogun picks the message up
+        and flips read: True on shogun.yaml, but the shadow log stays
+        "pending" because the watchdog USED TO read that file and Shogun
+        was supposed to remember to mark it read. The watchdog must NOT
+        page the Lord just because the shadow log is stale.
+        """
+        now = time.time()
+        ts = self._ts(200, now)
+        # Shogun has already handled the message (read: True).
+        self._write_inbox([
+            {"id": "306", "timestamp": ts,
+             "from": "telegram_listener", "type": "ntfy_received",
+             "content": "Lord's command", "read": True}
+        ])
+        # Shadow log still says pending (the bug condition).
+        self._write_shadow([
+            {"id": "306", "timestamp": self._ts(200, now),
+             "message": "Lord's command", "status": "pending"}
+        ])
+        warned = set()
+        telegram_listener.watch_stale_inbox(self.script_dir, warned, now=now)
+        mock_run.assert_not_called()
+        self.assertEqual(warned, set())
 
 
 class TestBuildStatusTextShaping(unittest.TestCase):

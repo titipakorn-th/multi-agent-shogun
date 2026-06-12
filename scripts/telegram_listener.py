@@ -183,20 +183,27 @@ def fire_due_pings(script_dir):
 
 def watch_stale_inbox(script_dir, warned_entries, now=None):
     """
-    Watch queue/ntfy_inbox.yaml for entries that have been sitting in 'pending'
-    state too long. When a pending entry crosses STALE_THRESHOLD_SEC (90s),
-    send a one-shot Telegram warning to the Lord so they know the system
-    appears unresponsive.
+    Watch queue/inbox/shogun.yaml for entries that the Lord sent via Telegram
+    but that Shogun has not yet read. When an unread entry crosses
+    STALE_THRESHOLD_SEC (90s), send a one-shot Telegram warning to the Lord so
+    they know the system appears unresponsive.
+
+    Source of truth: queue/inbox/shogun.yaml. This is the file that
+    scripts/inbox_write.sh writes to when the Telegram listener forwards a
+    Lord message, and that Shogun flips `read: True` on when it picks the
+    message up. Both transitions are script-driven and deterministic — unlike
+    queue/ntfy_inbox.yaml (a shadow log that requires LLM cooperation to
+    maintain), so we can rely on the inbox file's read state for paging.
 
     Idempotent: each (id, timestamp) pair warns at most once per listener
     lifetime. The `warned_entries` set (caller-owned) tracks what we've
-    already paged about. Entries that disappear from the file or that
-    transition out of 'pending' are pruned from the set so the memory
-    doesn't grow unboundedly across long uptimes.
+    already paged about. Entries that disappear from the file or that flip
+    to read: True are pruned from the set so the memory doesn't grow
+    unboundedly across long uptimes.
 
-    Orphan handling: entries pending > ORPHAN_GRACE_SEC (30 min) are no
-    longer warned about — the Lord has been paged plenty, and the entry
-    itself is the user's problem to clean up. We don't auto-delete it.
+    Orphan handling: entries unread > ORPHAN_GRACE_SEC (30 min) are no longer
+    warned about — the Lord has been paged plenty, and the entry itself is
+    the user's problem to clean up. We don't auto-delete it.
     """
     STALE_THRESHOLD_SEC = 90
     ORPHAN_GRACE_SEC = 30 * 60  # 30 minutes
@@ -206,36 +213,36 @@ def watch_stale_inbox(script_dir, warned_entries, now=None):
 
     try:
         import yaml
-        ntfy_inbox_path = os.path.join(script_dir, "../queue/ntfy_inbox.yaml")
-        if not os.path.exists(ntfy_inbox_path):
+        shogun_inbox_path = os.path.join(script_dir, "../queue/inbox/shogun.yaml")
+        if not os.path.exists(shogun_inbox_path):
             # File was removed entirely — prune every warning we've ever sent.
             warned_entries.clear()
             return
 
-        with open(ntfy_inbox_path, "r", encoding="utf-8") as f:
+        with open(shogun_inbox_path, "r", encoding="utf-8") as f:
             data = yaml.safe_load(f) or {}
-        entries = data.get("inbox")
+        entries = data.get("messages")
         if not isinstance(entries, list):
             warned_entries.clear()
             return
 
-        # Build a set of (id, timestamp) tuples still present AND pending.
+        # Build a set of (id, timestamp) tuples still present AND unread.
         # Any tracked entry not in this set is no longer something we should
         # remember warning about, so we drop it.
         live_keys = set()
         for entry in entries:
             if not isinstance(entry, dict):
                 continue
-            if entry.get("status") not in ("read", "processed", "done"):
+            if not entry.get("read", False):
                 eid = str(entry.get("id", ""))
                 ets = str(entry.get("timestamp", ""))
                 if eid:
                     live_keys.add((eid, ets))
 
         # Prune warned_entries for entries that no longer exist or are
-        # already processed. This bounds memory across long uptimes and
-        # means a restart + re-process → re-warn (not double-warn within
-        # the same session).
+        # already read. This bounds memory across long uptimes and means a
+        # restart + re-process → re-warn (not double-warn within the same
+        # session).
         stale_keys = [k for k in warned_entries if k not in live_keys]
         for k in stale_keys:
             warned_entries.discard(k)
@@ -243,9 +250,8 @@ def watch_stale_inbox(script_dir, warned_entries, now=None):
         for entry in entries:
             if not isinstance(entry, dict):
                 continue
-            status = entry.get("status")
-            if status in ("read", "processed", "done"):
-                continue
+            if entry.get("read", False):
+                continue  # Shogun has it.
 
             eid = str(entry.get("id", ""))
             ets = str(entry.get("timestamp", ""))
@@ -256,9 +262,9 @@ def watch_stale_inbox(script_dir, warned_entries, now=None):
             if not ts_str:
                 continue
 
-            # Parse ISO 8601. Tolerate '+0900' and '+09:00' suffixes. The
-            # listener writes '+0900' (no colon); we strip the colon if
-            # present to keep strptime happy on both shapes.
+            # Parse ISO 8601. inbox_write.sh writes naive ("2026-06-13T10:30:00")
+            # timestamps without a timezone suffix; strptime handles them
+            # directly in the listener's local timezone.
             try:
                 normalized = ts_str[:19]
                 ts_epoch = time.mktime(time.strptime(normalized, "%Y-%m-%dT%H:%M:%S"))
@@ -287,7 +293,7 @@ def watch_stale_inbox(script_dir, warned_entries, now=None):
             # Build the warning message. Multi-line so it's readable on the
             # phone; Telegram renders \n correctly in sendMessage.
             age_int = int(age)
-            preview = (entry.get("message") or "").strip().splitlines()
+            preview = (entry.get("content") or "").strip().splitlines()
             preview_line = preview[0][:60] if preview else "(empty message)"
             warning = (
                 f"⚠️ Your message from {ets} hasn't been processed in {age_int}s.\n"
@@ -1005,7 +1011,7 @@ def build_progress_summary(script_dir):
     Build a one-line summary of what the system is doing right now.
     Order of preference:
       1. Active question (blocks everything else)
-      2. Pending ntfy_inbox.yaml entry (Lord sent, system didn't process)
+      2. Unread entry in queue/inbox/shogun.yaml (Lord sent, Shogun hasn't picked up)
       3. Active task in queue/tasks/*.yaml (status != done/idle)
       4. Fallback to dashboard.md first non-empty line
       5. Static 'all quiet' message
@@ -1024,27 +1030,26 @@ def build_progress_summary(script_dir):
 
     # 2. Has the Lord sent a message that Shogun hasn't picked up yet?
     #    This distinguishes "genuine idle" from "lost/dropped message" — a
-    #    critical visibility gap when the Lord lives on Telegram.
+    #    critical visibility gap when the Lord lives on Telegram. We read the
+    #    script-maintained queue/inbox/shogun.yaml (read: true/false flag)
+    #    rather than the ntfy_inbox.yaml shadow log, because the inbox is
+    #    the actual system of record and is updated deterministically by
+    #    inbox_write.sh and the agent that processes the message.
     try:
         import yaml
-        ntfy_inbox_path = os.path.join(script_dir, "../queue/ntfy_inbox.yaml")
-        if os.path.exists(ntfy_inbox_path):
-            with open(ntfy_inbox_path, "r", encoding="utf-8") as f:
-                ntfy_data = yaml.safe_load(f) or {}
-            ntfy_entries = ntfy_data.get("inbox")
-            if isinstance(ntfy_entries, list):
-                for entry in ntfy_entries:
+        shogun_inbox_path = os.path.join(script_dir, "../queue/inbox/shogun.yaml")
+        if os.path.exists(shogun_inbox_path):
+            with open(shogun_inbox_path, "r", encoding="utf-8") as f:
+                shogun_data = yaml.safe_load(f) or {}
+            shogun_entries = shogun_data.get("messages")
+            if isinstance(shogun_entries, list):
+                for entry in shogun_entries:
                     if not isinstance(entry, dict):
                         continue
-                    status = entry.get("status")
-                    # Anything not explicitly marked read/processed/done is
-                    # still awaiting Shogun. Forward-compat: unknown statuses
-                    # also count as pending so a misconfigured writer doesn't
-                    # silently make the Lord invisible.
-                    if status not in ("read", "processed", "done"):
+                    if not entry.get("read", False):
                         ts = entry.get("timestamp", "?")
-                        msg = (entry.get("message") or "").strip()
-                        preview = msg.splitlines()[0][:60] if msg else ""
+                        content = (entry.get("content") or "").strip()
+                        preview = content.splitlines()[0][:60] if content else ""
                         if not preview:
                             preview = entry.get("id", "(empty)")
                         return f"📨 Awaiting Shogun (since {ts}): {preview}"[:200]
@@ -1156,7 +1161,12 @@ def main():
         if updates_res.get("ok") and updates_res.get("result"):
             offset = updates_res["result"][-1]["update_id"] + 1
 
-    inbox_path = os.path.join(script_dir, "../queue/ntfy_inbox.yaml")
+    # Shadow-log writer: append every Lord message to queue/ntfy_inbox.yaml
+    # for human audit. The watchdog does NOT read this file (it reads
+    # queue/inbox/shogun.yaml instead, where read state is script-managed).
+    # Kept for forensics — ntfy_inbox.yaml gives a per-message history that
+    # the per-agent inboxes do not.
+    shadow_log_path = os.path.join(script_dir, "../queue/ntfy_inbox.yaml")
     message_buffers = {}
 
     # Throttle map for active-blocker "still waiting" edits.
@@ -1473,7 +1483,7 @@ def main():
                 print(f"[telegram_listener] Flushing buffer for chat {cid}. Concatenated text length: {len(concatenated_text)}")
 
                 # Forward to Shogun
-                append_to_inbox(inbox_path, first_msg_id, concatenated_text)
+                append_to_inbox(shadow_log_path, first_msg_id, concatenated_text)
 
                 # Send instant feedback to user (Minimal ACK to prevent double-reporting noise)
                 # Instead of a full message, we send a single emoji to acknowledge reception.
@@ -1559,9 +1569,12 @@ def main():
             fire_due_pings(script_dir)
 
             # Stale-Inbox Watchdog: warn the Lord once if a Telegram message
-            # has been sitting in queue/ntfy_inbox.yaml as 'pending' for more
+            # has been sitting in queue/inbox/shogun.yaml as unread for more
             # than 90s. Distinguishes "system is working" from "system lost
-            # your message". Idempotent and bounded — see watch_stale_inbox.
+            # your message". Source of truth is the script-maintained Shogun
+            # inbox, not the ntfy_inbox.yaml shadow log (which the watchdog
+            # used to read but which requires LLM cooperation to maintain).
+            # Idempotent and bounded — see watch_stale_inbox.
             watch_stale_inbox(script_dir, warned_entries)
 
             time.sleep(0.5)
