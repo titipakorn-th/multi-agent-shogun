@@ -1191,12 +1191,16 @@ def main():
             }
             poll_res = make_telegram_request(token, "getUpdates", poll_payload)
 
+            # Hoist question_file binding outside the per-update loop so the
+            # blinker block below stays valid even when Telegram returns an
+            # empty result set (the common case between Lord interactions).
+            question_file = os.path.join(script_dir, "../queue/current_question.json")
+
             if poll_res.get("ok"):
                 for update in poll_res.get("result", []):
                     offset = update["update_id"] + 1
-                    
+
                     # Check if there is an active telegram question
-                    question_file = os.path.join(script_dir, "../queue/current_question.json")
                     active_question = None
                     if os.path.exists(question_file):
                         try:
