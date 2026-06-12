@@ -1,5 +1,6 @@
 import sys
 import os
+import json
 import time
 import subprocess
 import unittest
@@ -1162,6 +1163,85 @@ class TestCancelCommandRouting(unittest.TestCase):
         last_send = send_msg_calls[-1]
         sent_text = last_send[0][2].get("text", "")
         self.assertIn("No active command", sent_text)
+
+
+class TestBlinkerEmptyPollRegression(unittest.TestCase):
+    """Regression test for the UnboundLocalError that fired in production when
+    Telegram returned an empty result set (the common case between Lord
+    interactions). The blinker block reads ``question_file``; if the variable
+    is only assigned inside the per-update for-loop, an empty result leaves
+    it unbound and the listener crashes with::
+
+        [telegram_listener] Blinker edit error: cannot access local variable
+        'question_file' where it is not associated with a value
+    """
+
+    def setUp(self):
+        os.environ["TELEGRAM_BOT_TOKEN"] = "123456:mock_token"
+        os.environ["TELEGRAM_CHAT_ID"] = "12345"
+
+        script_dir = os.path.dirname(os.path.abspath(telegram_listener.__file__))
+        self.queue_dir = os.path.normpath(os.path.join(script_dir, "../queue"))
+        self.question_file = os.path.join(self.queue_dir, "current_question.json")
+        os.makedirs(self.queue_dir, exist_ok=True)
+        with open(self.question_file, "w", encoding="utf-8") as qf:
+            json.dump(
+                {
+                    "status": "pending",
+                    "question": "test question",
+                    "message_id": 9001,
+                    "options": [],
+                },
+                qf,
+            )
+
+    def tearDown(self):
+        try:
+            os.remove(self.question_file)
+        except OSError:
+            pass
+
+    @patch('telegram_listener.append_to_inbox')
+    @patch('telegram_listener.make_telegram_request')
+    @patch('time.sleep')
+    @patch('time.time')
+    def test_empty_poll_does_not_unbound_question_file(self, mock_time, mock_sleep, mock_append, mock_request):
+        # Drive the loop forward; throttle does not matter for this test.
+        mock_time.side_effect = lambda: 1000.0
+
+        # Every Telegram API call returns an empty result set — this is the
+        # bug condition (no updates means the for-loop body never runs, so
+        # ``question_file`` is never assigned unless hoisted out of the loop).
+        mock_request.side_effect = lambda token, method, payload=None: {
+            "ok": True,
+            "result": [],
+        }
+
+        # Break out of the infinite loop after the blinker block has had a
+        # chance to run at least once.
+        def stop_after_first_sleep(*args, **kwargs):
+            raise KeyboardInterrupt("Stop after first poll cycle")
+        mock_sleep.side_effect = stop_after_first_sleep
+
+        # Capture stderr to verify the bug symptom is gone.
+        import io
+        from contextlib import redirect_stderr
+        captured = io.StringIO()
+        with redirect_stderr(captured):
+            try:
+                telegram_listener.main()
+            except KeyboardInterrupt:
+                pass
+
+        stderr = captured.getvalue()
+        self.assertNotIn(
+            "UnboundLocalError", stderr,
+            f"Blinker crashed on empty poll cycle:\n{stderr}",
+        )
+        self.assertNotIn(
+            "Blinker edit error", stderr,
+            f"Blinker error logged on empty poll cycle:\n{stderr}",
+        )
 
 
 if __name__ == '__main__':
