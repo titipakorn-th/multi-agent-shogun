@@ -93,3 +93,24 @@ JSON
     [ "$status" -eq 2 ]
     [[ "$output" == *"Telegram not configured"* ]]
 }
+
+@test "lord_ask.sh: enqueue_pending appends YAML entries" {
+    export LORD_ASK_PENDING_FILE="$TEST_TMPDIR/pending.yaml"
+    # Sanity: the no-configured-Telegram path exits early at line ~53,
+    # which is after PENDING_FILE setup and the enqueue_pending function
+    # definition. We exercise enqueue_pending directly via a sourced snippet
+    # written to a temp file (process substitution is fragile across bash
+    # subshells).
+    export SNIPPET="$TEST_TMPDIR/enqueue_snippet.sh"
+    sed -n '/^enqueue_pending()/,/^}/p' "$PROJECT_ROOT/scripts/lord_ask.sh" > "$SNIPPET"
+    cat >> "$SNIPPET" <<'EOF'
+enqueue_pending 'rid-1' 'first q' '["A"]'
+enqueue_pending 'rid-2' 'second q' '["B"]'
+EOF
+    QUEUE_DIR="$TEST_TMPDIR/queue" PENDING_FILE="$LORD_ASK_PENDING_FILE" \
+        bash "$SNIPPET"
+    grep -q "rid-1" "$LORD_ASK_PENDING_FILE"
+    grep -q "rid-2" "$LORD_ASK_PENDING_FILE"
+    grep -q 'first q' "$LORD_ASK_PENDING_FILE"
+    grep -q 'second q' "$LORD_ASK_PENDING_FILE"
+}

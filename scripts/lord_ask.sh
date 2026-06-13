@@ -27,6 +27,24 @@ TIMEOUT="${LORD_ASK_TIMEOUT:-86400}"
 INBOX_FILE="$QUEUE_DIR/inbox/shogun.yaml"
 mkdir -p "$(dirname "$INBOX_FILE")"
 
+# PENDING_FILE — FIFO of questions waiting for the current one to resolve.
+# Concurrent lord_ask.sh callers append here; the listener pops entries
+# back into current_question.json after the active question is answered.
+PENDING_FILE="${LORD_ASK_PENDING_FILE:-$QUEUE_DIR/pending_lord_questions.yaml}"
+mkdir -p "$(dirname "$PENDING_FILE")"
+
+enqueue_pending() {
+    local request_id="$1"
+    local question="$2"
+    local opts_json="$3"
+    local ts
+    ts=$(date -Iseconds)
+    # Append as a YAML list entry. Caller's options are passed as a JSON
+    # array string (e.g. '["A","B"]') and emitted as a YAML inline list.
+    printf -- '- request_id: "%s"\n  question: "%s"\n  options: %s\n  timestamp: "%s"\n' \
+        "$request_id" "${question//\"/\\\"}" "$opts_json" "$ts" >> "$PENDING_FILE"
+}
+
 if [[ -z "${TELEGRAM_BOT_TOKEN:-}" || -z "${TELEGRAM_CHAT_ID:-}" \
       || "$TELEGRAM_BOT_TOKEN" == "your_bot_token_here" \
       || "$TELEGRAM_CHAT_ID" == "your_chat_id_here" ]]; then
@@ -58,6 +76,30 @@ ASK_ARGS=(--question "$QUESTION" --question-file "$QUESTION_FILE"
 for o in "${OPTIONS[@]:-}"; do
     ASK_ARGS+=(--options "$o")
 done
+
+# If a question is already pending (current_question.json exists), enqueue
+# ours and wait for our turn. When our turn arrives, the listener will
+# have already written our entry into current_question.json with our
+# request_id; we then call telegram_ask.py to send the question.
+if [[ -f "$QUESTION_FILE" ]]; then
+    OPTS_JSON="[]"
+    if [[ ${#OPTIONS[@]} -gt 0 ]]; then
+        OPTS_JSON=$(printf '"%s",' "${OPTIONS[@]}" | sed 's/,$//')
+        OPTS_JSON="[$OPTS_JSON]"
+    fi
+    enqueue_pending "$REQUEST_ID" "$QUESTION" "$OPTS_JSON"
+    # Wait for our turn: when QUESTION_FILE has our request_id, proceed.
+    while true; do
+        if [[ -f "$QUESTION_FILE" ]]; then
+            CURRENT_RID=$(python3 -c "import json; print(json.load(open('$QUESTION_FILE')).get('request_id',''))" 2>/dev/null || echo "")
+            if [[ "$CURRENT_RID" == "$REQUEST_ID" ]]; then
+                break
+            fi
+        fi
+        sleep 1
+    done
+    # Now send the question via telegram_ask.py.
+fi
 
 REQUEST_ID="$REQUEST_ID" python3 "$TELEGRAM_ASK" "${ASK_ARGS[@]}" \
     || { echo "ERROR: telegram_ask.py failed" >&2; exit 1; }
