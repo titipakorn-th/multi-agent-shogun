@@ -1,3 +1,4 @@
+#!/usr/bin/env bash
 # shogun_telegram_relay_extract.sh — pure functions for extracting the
 # "### 📨 To Lord" block from a captured Shogun pane.
 #
@@ -10,6 +11,13 @@
 
 TRUNCATE_MAX=1500
 TRUNCATE_SUFFIX='…[truncated]'
+
+# Marker regex: anchored at start (^### ) and end (...To Lord$) so a heading
+# like "### Truly To Lord: an analysis" is NOT mistaken for a marker.
+# Permissive on the emoji (matches 📨, 📮, and 📰 renderings).
+# Note: bash's POSIX ERE does not interpret \xHH escapes in character classes,
+# so we use the literal emoji characters (encoded as UTF-8 bytes).
+MARKER_REGEX='^###[[:space:]]+(📨|📮|📰)[[:space:]]+To Lord[[:space:]]*$'
 
 # extract_lord_block <pane_text> -> echoes the last block below the marker
 # Block is: from the marker line, to the next `### ` heading OR end of input.
@@ -24,7 +32,7 @@ extract_lord_block() {
     local last_marker_idx=-1
     local i=0
     while IFS= read -r line; do
-        if [[ "$line" == "### "*"To Lord"* ]]; then
+        if [[ "$line" =~ $MARKER_REGEX ]]; then
             last_marker_idx=$i
         fi
         i=$((i + 1))
