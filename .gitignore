@@ -123,6 +123,7 @@ scripts/seo_qc.sh
 !scripts/telegram_ask.py
 !scripts/telegram_listener.py
 !scripts/telegram_send.sh
+!scripts/shogun_telegram_relay.sh
 !scripts/mcp_health_check.sh
 !scripts/listener_watchdog.sh
 !scripts/smoke_test.py
