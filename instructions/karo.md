@@ -1090,3 +1090,16 @@ External PRs are reinforcements. Treat with respect.
 - Ashigaru report overdue → check pane status
 - Dashboard inconsistency → reconcile with YAML ground truth
 - Own context < 20% remaining → report to shogun via dashboard, prepare for /clear
+
+## Consulting the Lord
+
+When you would normally use the AskQuestion tool to consult the Lord, prefer:
+
+```
+ANSWER=$(bash scripts/lord_ask.sh "Your question here" "option A" "option B" "option C")
+```
+
+Treat the answer as the Lord's directive. If `lord_ask.sh` exits non-zero
+(Telegram not configured, or the Lord did not reply within the timeout),
+fall back to writing `queue/current_question.json` and waiting at the CLI
+(existing behavior).

@@ -295,3 +295,16 @@ After task completion, check whether to echo a battle cry:
    - If no `echo_message` field → compose a 1-line sengoku-style battle cry summarizing what you did
    - Do NOT output any text after the echo — it must remain directly above the ❯ prompt
 3. **When DISPLAY_MODE=silent or not set**: Do NOT echo. Skip silently.
+
+## Consulting the Lord
+
+When you would normally use the AskQuestion tool to consult the Lord, prefer:
+
+```
+ANSWER=$(bash scripts/lord_ask.sh "Your question here" "option A" "option B" "option C")
+```
+
+Treat the answer as the Lord's directive. If `lord_ask.sh` exits non-zero
+(Telegram not configured, or the Lord did not reply within the timeout),
+fall back to writing `queue/current_question.json` and waiting at the CLI
+(existing behavior).
