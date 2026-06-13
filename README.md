@@ -1812,6 +1812,18 @@ Even if you're not comfortable with keyboard shortcuts, you can switch, scroll, 
 
 ---
 
+## What's New in v5.2.0 — Hands-free Shogun (Telegram channel)
+
+> **Read the Shogun's replies on your phone and answer AskQuestion prompts from anywhere.** A two-way Telegram channel connects the Lord to the Shogun so you can monitor command execution and unblock questions without being at the terminal.
+
+- **Shogun → Lord outbound relay** — the Shogun ends every final reply with a `### 📨 To Lord` block; a background daemon tails the Shogun pane, deduplicates, and pushes the block to Telegram
+- **Lord → Shogun inbound** — any non-slash message you send from Telegram is routed to the Shogun via the existing inbox; `/progress`, `/dashboard`, `/status`, `/cancel`, `/btw`, `/help`, and `/run` slash commands are wired up
+- **AskQuestion → Telegram** — `scripts/lord_ask.sh` is a bash wrapper that any agent can call to consult the Lord; the question appears in Telegram with inline-keyboard options and the agent blocks until you answer
+- **FIFO pending-questions queue** — concurrent Lord questions are queued in `queue/pending_lord_questions.yaml` and the listener pops them in order, so two agents asking at once don't clobber each other
+- **Marker lint** — `scripts/session_start_hook.sh` reminds the Shogun to emit the `### 📨 To Lord` block if the last turn didn't include one, so the Lord is never left guessing
+- **No Lord-side acks** — acks from the Shogun are informational only (no follow-up questions or options), so the Lord is in read-only mode and never wastes tokens replying to chitchat
+- **Deferred** — voice notes, multi-Lord routing, and Telegram-side answer history search are out of scope for v5.2.0
+
 ## What's New in v5.1.0 — Karo as Traffic Controller
 
 > **Keep the manager out of the work queue.** Karo now has a sharper management boundary: it keeps the workflow moving, delegates execution to Ashigaru, routes review and RCA to Gunshi, and owns E2E only as plan reviewer and final judge.
