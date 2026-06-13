@@ -231,3 +231,4 @@ tests/specs/osato_lms_*
 !reports/.gitkeep
 
 .claude/settings.local.json
+!scripts/lib/shogun_telegram_relay_extract.sh
