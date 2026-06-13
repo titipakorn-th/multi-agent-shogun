@@ -52,9 +52,9 @@ class TestTelegramListener(unittest.TestCase):
                 }
             ]},
             # Third getUpdates call (empty updates, triggers poll timeout check and flush)
-            {"ok": True, "result": []},
-            # sendMessage feedback response
-            {"ok": True, "result": {}}
+            {"ok": True, "result": []}
+            # NOTE: per spec §3, no sendMessage feedback is sent on buffer flush.
+            # The Shogun's "### 📨 To Lord" block is the substantive acknowledgment.
         ]
         mock_request.side_effect = lambda token, method, payload=None: responses.pop(0) if responses else {"ok": True}
 
@@ -77,12 +77,10 @@ class TestTelegramListener(unittest.TestCase):
         self.assertEqual(args[1], 2001) # First message ID
         self.assertEqual(args[2], "Hello, this is the first chunk of a long message.\nAnd this is the second chunk of the message.")
 
-        # Verify that a feedback message was sent via sendMessage
+        # Per spec §3: no system-level ack to Lord on inbound delivery.
+        # No sendMessage should be issued to the Lord on buffer flush.
         sent_messages = [call for call in mock_request.call_args_list if call[0][1] == "sendMessage"]
-        self.assertEqual(len(sent_messages), 1)
-        payload = sent_messages[0][0][2]
-        self.assertEqual(payload["chat_id"], "12345")
-        self.assertIn("🏯", payload["text"])
+        self.assertEqual(len(sent_messages), 0)
 
 
 class TestBuildProgressSummary(unittest.TestCase):

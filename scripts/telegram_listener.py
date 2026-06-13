@@ -1485,16 +1485,10 @@ def main():
                 # Forward to Shogun
                 append_to_inbox(shadow_log_path, first_msg_id, concatenated_text)
 
-                # Send instant feedback to user (Minimal ACK to prevent double-reporting noise)
-                # Instead of a full message, we send a single emoji to acknowledge reception.
-                # The Shogun will follow up with the actual strategic confirmation.
-                feedback_text = "🏯"
-
-                make_telegram_request(token, "sendMessage", {
-                    "chat_id": cid,
-                    "text": feedback_text,
-                    "parse_mode": "Markdown"
-                })
+                # Per spec: no system-level ack to Lord on inbound delivery.
+                # The Shogun's next "### 📨 To Lord" block is the substantive
+                # acknowledgment. Saves a Telegram API call per message and
+                # keeps the Lord in read-only mode.
 
 
                 # Signal Shogun to wake up
