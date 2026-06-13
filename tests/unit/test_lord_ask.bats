@@ -150,3 +150,45 @@ EOF
     grep -q "rid-2" "$LORD_ASK_PENDING_FILE"
     grep -q 'second q' "$LORD_ASK_PENDING_FILE"
 }
+
+@test "lord_ask.sh: pending_pop handles sequential enqueues via tail -n +5" {
+    # C1 regression: the bash-side invariant — pending_pop's tail -n +5
+    # must still produce a clean FIFO after multiple sequential enqueues.
+    # (The race fix is in the Python drain; this verifies the post-fix
+    # invariant holds when no race occurs.)
+    export LORD_ASK_PENDING_FILE="$TEST_TMPDIR/pending.yaml"
+    export SNIPPET="$TEST_TMPDIR/queue_helpers.sh"
+    sed -n '/^enqueue_pending()/,/^}/p; /^pending_first()/,/^}/p; /^pending_pop()/,/^}/p' \
+        "$PROJECT_ROOT/scripts/lord_ask.sh" > "$SNIPPET"
+    cat >> "$SNIPPET" <<'EOF'
+enqueue_pending 'rid-1' 'q1' '[]'
+enqueue_pending 'rid-2' 'q2' '[]'
+enqueue_pending 'rid-3' 'q3' '[]'
+pending_pop
+EOF
+    QUEUE_DIR="$TEST_TMPDIR/queue" PENDING_FILE="$LORD_ASK_PENDING_FILE" \
+        bash "$SNIPPET"
+    ! grep -q "rid-1" "$LORD_ASK_PENDING_FILE"
+    grep -q "rid-2" "$LORD_ASK_PENDING_FILE"
+    grep -q "rid-3" "$LORD_ASK_PENDING_FILE"
+    # File should be exactly 8 lines (2 mappings x 4 lines)
+    [ "$(wc -l < "$LORD_ASK_PENDING_FILE")" -eq 8 ]
+}
+
+@test "lord_ask.sh: enqueue_pending escapes newlines so each mapping is 4 lines" {
+    # C2 regression: a question with a literal newline must NOT produce
+    # a multi-line YAML mapping, otherwise pending_pop's `tail -n +5`
+    # corrupts the queue by deleting the first entry's tail AND the
+    # second entry's head.
+    export LORD_ASK_PENDING_FILE="$TEST_TMPDIR/pending.yaml"
+    export SNIPPET="$TEST_TMPDIR/enqueue_snippet.sh"
+    sed -n '/^enqueue_pending()/,/^}/p' "$PROJECT_ROOT/scripts/lord_ask.sh" > "$SNIPPET"
+    # Pass a question with a literal newline (bash $'...' ANSI-C quoting).
+    printf "enqueue_pending 'rid-1' $'q1\\nline2' '[]'\n" >> "$SNIPPET"
+    QUEUE_DIR="$TEST_TMPDIR/queue" PENDING_FILE="$LORD_ASK_PENDING_FILE" \
+        bash "$SNIPPET"
+    # Mapping must be exactly 4 lines even with embedded newlines
+    [ "$(wc -l < "$LORD_ASK_PENDING_FILE")" -eq 4 ]
+    # The newline should be escaped (literal backslash + n in the file)
+    grep -q 'q1\\nline2' "$LORD_ASK_PENDING_FILE"
+}

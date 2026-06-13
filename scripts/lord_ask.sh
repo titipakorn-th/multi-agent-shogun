@@ -41,8 +41,16 @@ enqueue_pending() {
     ts=$(date -Iseconds)
     # Append as a YAML list entry. Caller's options are passed as a JSON
     # array string (e.g. '["A","B"]') and emitted as a YAML inline list.
+    # C2 fix: escape backslashes, then quotes, then literal newlines so
+    # each mapping is exactly 4 lines. The newline escape (literal
+    # backslash + n) is what pending_pop's `tail -n +5` and the
+    # telegram_listener drain regex rely on. The Python drain side
+    # unescapes \n -> real newline before sending to Telegram.
+    local safe_question="${question//\\/\\\\}"   # backslashes first
+    safe_question="${safe_question//\"/\\\"}"    # then double quotes
+    safe_question="${safe_question//$'\n'/\\n}"  # then real LFs
     printf -- '- request_id: "%s"\n  question: "%s"\n  options: %s\n  timestamp: "%s"\n' \
-        "$request_id" "${question//\"/\\\"}" "$opts_json" "$ts" >> "$PENDING_FILE"
+        "$request_id" "$safe_question" "$opts_json" "$ts" >> "$PENDING_FILE"
 }
 
 # pending_first — returns the first YAML mapping block (6 lines) from the
