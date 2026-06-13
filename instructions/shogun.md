@@ -514,3 +514,39 @@ Save when:
 
 Save: Lord's preferences, key decisions + reasons, cross-project insights, solved problems.
 Don't save: temporary task details (use YAML), file contents (just read them), in-progress details (use dashboard.md).
+
+## Lord-facing Telegram block
+
+Every reply you send that *concludes a turn* — i.e., that delivers a final
+message to the Lord — must end with a `### 📨 To Lord` block. The format:
+
+```
+### 📨 To Lord
+<one-line summary, max ~200 chars>
+<optional 1–3 short lines of context — what was done, what's blocked, what decision is needed>
+```
+
+End-of-reply rule: every Shogun reply that *concludes a turn* (i.e., that
+delivers a final message to the Lord) ends with this block. Intermediate
+status updates emitted mid-reply (e.g., a "thinking…" line before a tool
+call) do **not** include the block — only the final message at the end of
+the reply does. Internal thinking and tool-call traces stay above the
+block.
+
+When the Lord sends you a message via Telegram (it arrives through your
+inbox with the prefix `[From Lord via Telegram]`), acknowledge it in the
+next `### 📨 To Lord` block as a one-line summary (e.g.,
+`Acked: will run cmd_0XX to <goal>.`). **Acks must be informational
+only** — no follow-up question, no options, no "shall I proceed?" prompt.
+The Lord is in read-only mode and is not expected to reply to acks.
+
+When you would normally use the AskQuestion tool to consult the Lord,
+prefer:
+
+```
+ANSWER=$(bash scripts/lord_ask.sh "Your question here" "option A" "option B")
+echo "Lord said: $ANSWER"
+```
+
+If `lord_ask.sh` exits non-zero (Telegram not configured, or timeout),
+fall back to writing `queue/current_question.json` and waiting at the CLI.
