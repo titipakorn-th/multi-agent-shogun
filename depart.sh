@@ -291,9 +291,14 @@ if ! tmux has-session -t multiagent 2>/dev/null; then
     tmux new-window -t multiagent -n research
 fi
 
-# Pane-border format for multiagent
-tmux set-option -t multiagent -w pane-border-status top
-tmux set-option -t multiagent -w pane-border-format '#{?pane_active,#[reverse],}#[bold]#{@agent_id}#[default] (#{@model_name}) #{@current_task}'
+# ponytail: set pane-border-format on BOTH windows explicitly. `set-option -t
+# multiagent -w` targets the session's *current* window — and `new-window` makes
+# the newly-created window current, so it would silently miss `ops`. Without
+# this fix, ops panes show no agent name in the border.
+for w in ops research; do
+    tmux set-option -t "multiagent:${w}" -w pane-border-status top
+    tmux set-option -t "multiagent:${w}" -w pane-border-format '#{?pane_active,#[reverse],}#[bold]#{@agent_id}#[default] (#{@model_name}) #{@current_task}'
+done
 
 # ─── Pane creation helper ──────────────────────────────────────────────────
 # Usage: start_specialist_pane <role> <session> <window> <pane_index> <cli>
