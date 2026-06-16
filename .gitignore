@@ -130,6 +130,8 @@ scripts/seo_qc.sh
 !scripts/listener_watchdog.sh
 !scripts/smoke_test.py
 !scripts/LISTENER_SUPERVISION.md
+!scripts/validate_settings.sh
+!scripts/migrate_to_v2.sh
 !scripts/shutsujin_v2_constants.sh
 !scripts/shutsujin_departure_v2.sh
 

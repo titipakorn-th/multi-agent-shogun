@@ -1,15 +1,22 @@
-# multi-agent-shogun v2 settings sample
-# Copy to config/settings.yaml and customize.
+# ═══════════════════════════════════════════════════════════════
+# multi-agent-shogun v2 — canonical settings sample
 #
-# topology:
-#   v1 = original karo/ashigaru/gunshi panes (default)
-#   v2 = 1 orchestrator + 7 specialists (shutsujin_departure_v2.sh)
+# Copy to config/settings.yaml and customize. config/settings.yaml
+# is gitignored (per project convention); only this sample template
+# is committed to the repository.
+#
+# Topology:
+#   v1 — original karo/ashigaru/gunshi layout (legacy)
+#   v2 — flat specialist team (1 orchestrator + 7 specialists)
+#
+# When topology=v2 is set, exactly 9 roles must be defined:
+#   shogun, orchestrator, explorer, librarian, oracle, designer,
+#   fixer, observer, council.
+# ═══════════════════════════════════════════════════════════════
 
 language: en
 shell: bash
-
-# Topology version (v1 = original karo/ashigaru/gunshi, v2 = specialist team)
-topology: v1
+topology: v2
 
 skill:
   save_path: "~/.claude/skills/"
@@ -21,3 +28,121 @@ logging:
 
 cli:
   default: claude
+
+roles:
+  shogun:
+    model: opus
+    cli_variant: claude
+    pane_target: "shogun:main.0"
+    color: "#002b36"
+    title: "shogun"
+    prompt_path: "instructions/shogun.md"
+    temperature: 0.1
+    skills: [shogun-zoom-out, shogun-grill-with-docs]
+    permissions_override: {}
+
+  orchestrator:
+    model: opus
+    cli_variant: claude
+    pane_target: "multiagent:ops.0"
+    color: "#501515"
+    title: "orchestrator"
+    prompt_path: "instructions/orchestrator.md"
+    temperature: 0.1
+    skills: []
+    permissions_override:
+      read_allow:
+        - "queue/inbox/orchestrator.yaml"
+        - "queue/tasks/*.yaml"
+        - "queue/reports/*.yaml"
+        - "context/*"
+        - "dashboard.md"
+      edit_allow:
+        - "queue/tasks/*.yaml"
+        - "queue/tasks/pending.yaml"
+        - "dashboard.md"
+      edit_deny:
+        - "queue/reports/*.yaml"
+
+  explorer:
+    model: haiku
+    cli_variant: claude
+    pane_target: "multiagent:research.0"
+    color: "#454510"
+    title: "explorer"
+    prompt_path: "instructions/explorer.md"
+    temperature: 0.1
+    skills: [codemap]
+    permissions_override:
+      read_allow: ["context/*"]
+      edit_deny: ["**/*"]
+
+  librarian:
+    model: sonnet
+    cli_variant: claude
+    pane_target: "multiagent:research.1"
+    color: "#503515"
+    title: "librarian"
+    prompt_path: "instructions/librarian.md"
+    temperature: 0.2
+    skills: [web-search, doc-fetch]
+    permissions_override:
+      edit_deny: ["**/*"]
+
+  oracle:
+    model: opus
+    cli_variant: claude
+    pane_target: "multiagent:research.2"
+    color: "#9e7c0a"
+    title: "oracle"
+    prompt_path: "instructions/oracle.md"
+    temperature: 0.1
+    skills: [shogun-grill-with-docs]
+    permissions_override:
+      edit_deny: ["**/*"]
+
+  designer:
+    model: sonnet
+    cli_variant: claude
+    pane_target: "multiagent:ops.2"
+    color: "#3a1e3a"
+    title: "designer"
+    prompt_path: "instructions/designer.md"
+    temperature: 0.3
+    skills: [frontend-design]
+    permissions_override: {}
+
+  fixer:
+    model: sonnet
+    cli_variant: claude
+    pane_target: "multiagent:ops.1"
+    color: "#1e3a1e"
+    title: "fixer"
+    prompt_path: "instructions/fixer.md"
+    temperature: 0.2
+    skills: [shogun-subagent-driven-development]
+    permissions_override: {}
+
+  observer:
+    model: sonnet
+    cli_variant: claude
+    pane_target: "multiagent:ops.3"
+    color: "#1e3a3a"
+    title: "observer"
+    prompt_path: "instructions/observer.md"
+    temperature: 0.2
+    skills: []
+    permissions_override:
+      edit_deny: ["**/*"]
+
+  council:
+    model: opus
+    cli_variant: claude
+    pane_target: "multiagent:research.3"
+    color: "#353535"
+    title: "council"
+    prompt_path: "instructions/council.md"
+    temperature: 0.1
+    skills: []
+    permissions_override:
+      edit_deny: ["**/*"]
