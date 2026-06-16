@@ -232,6 +232,36 @@ build_instruction_file "antigravity" "gunshi" "antigravity-gunshi.md"
 build_instruction_file "antigravity" "telegram" "antigravity-telegram.md"
 
 # ============================================================
+# v2 specialist team — sub-C deliverable
+# ============================================================
+# Emit per-CLI variants of the 7 v2 specialist prompts.  Unlike the legacy
+# role template pipeline (which concatenates instructions/roles/<role>_role.md
+# with common sections and CLI-specific tool docs), v2 specialist prompts are
+# authored as self-contained files at instructions/<role>.md — the YAML
+# frontmatter is already embedded and the body is final.  We simply copy the
+# file with the per-CLI filename convention.
+#
+# This block is additive — it does not remove the legacy ashigaru/karo/gunshi
+# outputs above (those remain for one release cycle under sub-B's migration
+# plan).
+V2_SPECIALIST_ROLES=(explorer librarian oracle designer fixer observer council)
+
+for role in "${V2_SPECIALIST_ROLES[@]}"; do
+    if [ ! -f "$ROOT_DIR/instructions/${role}.md" ]; then
+        echo "  ⚠️  instructions/${role}.md not found; skipping ${role}"
+        continue
+    fi
+    cp "$ROOT_DIR/instructions/${role}.md" "$OUTPUT_DIR/${role}.md"
+    cp "$ROOT_DIR/instructions/${role}.md" "$OUTPUT_DIR/codex-${role}.md"
+    cp "$ROOT_DIR/instructions/${role}.md" "$OUTPUT_DIR/copilot-${role}.md"
+    cp "$ROOT_DIR/instructions/${role}.md" "$OUTPUT_DIR/kimi-${role}.md"
+    cp "$ROOT_DIR/instructions/${role}.md" "$OUTPUT_DIR/opencode-${role}.md"
+    cp "$ROOT_DIR/instructions/${role}.md" "$OUTPUT_DIR/cursor-${role}.md"
+    cp "$ROOT_DIR/instructions/${role}.md" "$OUTPUT_DIR/antigravity-${role}.md"
+    echo "  ✅ Created v2 variants for ${role}"
+done
+
+# ============================================================
 # AGENTS.md generation (Codex auto-load file)
 # ============================================================
 # Codex CLI automatically loads AGENTS.md in the repository root.

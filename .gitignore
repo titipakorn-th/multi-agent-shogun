@@ -34,6 +34,17 @@
 !instructions/gunshi.md
 !instructions/telegram.md
 
+# v2 specialist team
+!instructions/orchestrator.md
+!instructions/explorer.md
+!instructions/librarian.md
+!instructions/oracle.md
+!instructions/designer.md
+!instructions/fixer.md
+!instructions/observer.md
+!instructions/council.md
+!instructions/_archive/
+
 # Multi-CLI: CLI-specific tool descriptions
 !instructions/cli_specific/
 !instructions/cli_specific/claude_tools.md
