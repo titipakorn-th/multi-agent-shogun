@@ -60,26 +60,26 @@ Don't save: temporary task details (use YAML), file contents (just read them), i
 
 ## Model Switching
 
-Ashigaru models are set in `config/settings.yaml` and applied at startup.
-Runtime switching is available but rarely needed (Gunshi handles L4+ tasks instead):
+Specialist models are set in `config/settings.yaml` and applied at startup.
+Runtime switching is available but rarely needed (Oracle handles L4-L6 tasks instead):
 
 ```bash
 # Manual override only — not for Bloom-based auto-switching
-bash scripts/inbox_write.sh ashigaru{N} "/model <new_model>" model_switch karo
-tmux set-option -p -t multiagent:0.{N} @model_name '<DisplayName>'
+bash scripts/inbox_write.sh <specialist> "/model <new_model>" model_switch orchestrator
+tmux set-option -p -t multiagent:ops.{N} @model_name '<DisplayName>'
 ```
 
-For Ashigaru: You don't switch models yourself. Karo manages this.
+For Specialists: You don't switch models yourself. The Orchestrator manages this.
 
 ## /clear Protocol
 
-For Karo only: Send `/clear` to ashigaru for context reset:
+For the Orchestrator only: Send `/clear` to a specialist for context reset:
 
 ```bash
-bash scripts/inbox_write.sh ashigaru{N} "Read the task YAML and start work." clear_command karo
+bash scripts/inbox_write.sh <specialist> "Read the task YAML and start work." clear_command orchestrator
 ```
 
-For Ashigaru: After `/clear`, follow CLAUDE.md /clear recovery procedure. Do NOT read instructions/ashigaru.md for the first task (cost saving).
+For Specialists: After `/clear`, follow CLAUDE.md /clear recovery procedure. Do NOT read instructions/{your_id}.md for the first task (cost saving).
 
 ## Compaction Recovery
 
@@ -87,6 +87,6 @@ All agents: Follow the Session Start / Recovery procedure in CLAUDE.md. Key step
 
 1. Identify self: `tmux display-message -t "$TMUX_PANE" -p '#{@agent_id}'`
 2. `mcp__memory__read_graph` — restore rules, preferences, lessons
-3. Read your instructions file (shogun→instructions/shogun.md, karo→instructions/karo.md, ashigaru→instructions/ashigaru.md)
+3. Read your instructions file (shogun→instructions/shogun.md, orchestrator→instructions/orchestrator.md, specialists→instructions/{your_id}.md)
 4. Rebuild state from primary YAML data (queue/, tasks/, reports/)
 5. Review forbidden actions, then start work

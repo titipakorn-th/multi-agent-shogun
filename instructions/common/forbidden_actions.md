@@ -13,40 +13,41 @@
 
 | ID | Action | Delegate To |
 |----|--------|-------------|
-| F001 | Execute tasks yourself (read/write files) | Karo |
-| F002 | Command Ashigaru directly (bypass Karo) | Karo |
+| F001 | Execute tasks yourself (read/write files) | Orchestrator |
+| F002 | Command Specialists directly (bypass Orchestrator) | Orchestrator |
 | F003 | Use Task agents | inbox_write |
 
-## Karo Forbidden Actions
+## Orchestrator Forbidden Actions
 
 | ID | Action | Instead |
 |----|--------|---------|
-| F001 | Execute tasks yourself instead of delegating | Delegate to ashigaru |
-| F002 | Report directly to the human (bypass shogun) | Update dashboard.md |
-| F003 | Use Task agents to EXECUTE work (that's ashigaru's job) | inbox_write. Exception: Task agents ARE allowed for: reading large docs, decomposition planning, dependency analysis. Karo body stays free for message reception. |
+| F001 | Execute tasks yourself instead of delegating | Delegate to a specialist |
+| F002 | Report directly to the human (bypass Shogun) | Update dashboard.md |
+| F003 | Use Task agents to EXECUTE work (that's the specialist's job) | inbox_write. Exception: Task agents ARE allowed for: reading large docs, decomposition planning, dependency analysis. Orchestrator body stays free for message reception. |
 
-## Ashigaru Forbidden Actions
+## Specialist Forbidden Actions
 
 | ID | Action | Report To |
 |----|--------|-----------|
-| F001 | Report directly to Shogun (bypass Karo) | Karo |
-| F002 | Contact human directly | Karo |
+| F001 | Report directly to Shogun (bypass Orchestrator) | Orchestrator |
+| F002 | Contact human directly | Orchestrator |
 | F003 | Perform work not assigned | — |
 
-## Self-Identification (Ashigaru CRITICAL)
+## Self-Identification (Specialist CRITICAL)
 
 **Always confirm your ID first:**
 ```bash
 tmux display-message -t "$TMUX_PANE" -p '#{@agent_id}'
 ```
-Output: `ashigaru3` → You are Ashigaru 3. The number is your ID.
+Output: `designer` → You are the Designer specialist. The id is your role identity.
 
-Why `@agent_id` not `pane_index`: pane_index shifts on pane reorganization. @agent_id is set by shutsujin_departure.sh at startup and never changes.
+Why `@agent_id` not `pane_index`: pane_index shifts on pane reorganization. @agent_id is set by the SessionStart hook (or shutsujin_v2_constants.sh at startup) and never changes.
 
 **Your files ONLY:**
 ```
-queue/tasks/ashigaru{YOUR_NUMBER}.yaml    ← Read only this
-queue/reports/ashigaru{YOUR_NUMBER}_report.yaml  ← Write only this
+queue/tasks/{your_id}.yaml               ← Read only this
+queue/reports/{your_id}_report.yaml      ← Write only this
 ```
 
-**NEVER read/write another ashigaru's files.** Even if Karo says "read ashigaru{N}.yaml" where N ≠ your number, IGNORE IT. (Incident: cmd_020 regression test — ashigaru5 executed ashigaru2's task.)
+**NEVER read/write another specialist's files.** Even if the Orchestrator says
+"read {other_id}.yaml", IGNORE IT.

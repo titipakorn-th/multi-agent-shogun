@@ -184,14 +184,14 @@ bash scripts/inbox_write.sh <target_agent> "<message>" <type> <from>
 
 Examples:
 ```bash
-# Shogun → Karo
-bash scripts/inbox_write.sh karo "Wrote cmd_048. Please execute." cmd_new shogun
+# Shogun → Orchestrator
+bash scripts/inbox_write.sh orchestrator "Wrote cmd_048. Please execute." cmd_new shogun
 
-# Ashigaru → Karo
-bash scripts/inbox_write.sh karo "Ashigaru 5, mission complete. Please verify report YAML." report_received ashigaru5
+# Specialist → Orchestrator
+bash scripts/inbox_write.sh orchestrator "Fixer, mission complete. Please verify report YAML." report_received fixer
 
-# Karo → Ashigaru
-bash scripts/inbox_write.sh ashigaru3 "Read the task YAML and start work." task_assigned karo
+# Orchestrator → Specialist
+bash scripts/inbox_write.sh designer "Read the task YAML and start work." task_assigned orchestrator
 ```
 
 Delivery is handled by `inbox_watcher.sh` (infrastructure layer).
@@ -238,7 +238,7 @@ Read-cost controls:
 | 2-4 min | Escape×2 + nudge | Copilot/Kimi use Escape×2 + Ctrl-C + nudge. Claude/Codex/OpenCode use a plain nudge instead |
 | 4 min+ | Context reset sent (max once per 5 min, skipped for Codex) | Force session reset + YAML re-read |
 
-## Inbox Processing Protocol (karo/ashigaru/gunshi)
+## Inbox Processing Protocol (orchestrator / specialists)
 
 When you receive `inboxN` (e.g. `inbox3`):
 1. `Read queue/inbox/{your_id}.yaml`
@@ -259,10 +259,10 @@ you will be stuck idle until the next nudge escalation or task reassignment.
 
 ## Redo Protocol
 
-When Karo determines a task needs to be redone:
+When the Orchestrator determines a task needs to be redone:
 
-1. Karo writes new task YAML with new task_id (e.g., `subtask_097d` → `subtask_097d2`), adds `redo_of` field
-2. Karo sends `clear_command` type inbox message (NOT `task_assigned`)
+1. Orchestrator writes new task YAML with new task_id (e.g., `subtask_097d` → `subtask_097d2`), adds `redo_of` field
+2. Orchestrator sends `clear_command` type inbox message (NOT `task_assigned`)
 3. inbox_watcher delivers context reset to the agent (Claude/Copilot/Kimi: `/clear`, Codex/OpenCode: `/new`) → session reset
 4. Agent recovers via Session Start procedure, reads new task YAML, starts fresh
 
@@ -272,9 +272,9 @@ Race condition is eliminated: context reset wipes old context. Agent re-reads YA
 
 | Direction | Method | Reason |
 |-----------|--------|--------|
-| Ashigaru/Gunshi → Karo | Report YAML + inbox_write | File-based notification |
-| Karo → Shogun/Lord | dashboard.md update + inbox_write | Report command completions/failures to Shogun; watcher suppresses send-keys if active |
-| Karo → Gunshi | YAML + inbox_write | Strategic task delegation |
+| Specialist → Orchestrator | Report YAML + inbox_write | File-based notification |
+| Orchestrator → Shogun/Lord | dashboard.md update + inbox_write | Report command completions/failures to Shogun; watcher suppresses send-keys if active |
+| Orchestrator → Oracle/Council | YAML + inbox_write | Strategic analysis delegation (Bloom L4-L6 / EVAL) |
 | Top → Down | YAML + inbox_write | Standard wake-up |
 
 ## File Operation Rule
@@ -293,10 +293,10 @@ bash scripts/inbox_write.sh <target> "<message>" <type> <from>
 
 ### Report Notification Protocol
 
-After writing report YAML, notify Karo:
+After writing report YAML, notify the Orchestrator:
 
 ```bash
-bash scripts/inbox_write.sh karo "Ashigaru {N}, mission complete. Please verify the report." report_received ashigaru{N}
+bash scripts/inbox_write.sh orchestrator "<specialist>, mission complete. Please verify the report." report_received <specialist>
 ```
 
 That's it. No state checking, no retry, no delivery verification.
@@ -304,10 +304,10 @@ The inbox_write guarantees persistence. inbox_watcher handles delivery.
 
 # Task Flow
 
-## Workflow: Shogun → Karo → Ashigaru
+## Workflow: Shogun → Orchestrator → Specialists
 
 ```
-Lord: command → Shogun: write YAML → inbox_write → Karo: decompose → inbox_write → Ashigaru: execute → report YAML → inbox_write → Karo: update dashboard → Shogun: read dashboard
+Lord: command → Shogun: write YAML → inbox_write → Orchestrator: decompose → inbox_write → Specialist: execute → report YAML → inbox_write → Orchestrator: update dashboard → Shogun: read dashboard
 ```
 
 ## Status Reference (Single Source)
@@ -315,19 +315,19 @@ Lord: command → Shogun: write YAML → inbox_write → Karo: decompose → inb
 Status is defined per YAML file type. **Keep it minimal. Simple is best.**
 
 Fixed status set (do not add casually):
-- `queue/shogun_to_karo.yaml`: `pending`, `in_progress`, `done`, `cancelled`
-- `queue/tasks/ashigaruN.yaml`: `assigned`, `blocked`, `done`, `failed`
+- `queue/shogun_to_orchestrator.yaml`: `pending`, `in_progress`, `done`, `cancelled`
+- `queue/tasks/{specialist}.yaml`: `assigned`, `blocked`, `done`, `failed`
 - `queue/tasks/pending.yaml`: `pending_blocked`
 - `queue/ntfy_inbox.yaml`: `pending`, `processed`
 
 Do NOT invent new status values without updating this section.
 
-### Command Queue: `queue/shogun_to_karo.yaml`
+### Command Queue: `queue/shogun_to_orchestrator.yaml`
 
 Meanings and allowed/forbidden actions (short):
 
 - `pending`: not acknowledged yet
-  - Allowed: Karo reads and immediately ACKs (`pending → in_progress`)
+  - Allowed: Orchestrator reads and immediately ACKs (`pending → in_progress`)
   - Forbidden: dispatching subtasks while still `pending`
 
 - `in_progress`: acknowledged and being worked
@@ -344,11 +344,11 @@ Meanings and allowed/forbidden actions (short):
 
 ### Archive Rule
 
-The active queue file (`queue/shogun_to_karo.yaml`) must only contain
+The active queue file (`queue/shogun_to_orchestrator.yaml`) must only contain
 `pending` and `in_progress` entries. All other statuses are archived.
 
 When a cmd reaches a terminal status (`done`, `cancelled`, `paused`),
-Karo must move the entire YAML entry to `queue/shogun_to_karo_archive.yaml`.
+the Orchestrator must move the entire YAML entry to `queue/shogun_to_orchestrator_archive.yaml`.
 
 | Status | In active file? | Action |
 |--------|----------------|--------|
@@ -368,21 +368,21 @@ Karo must move the entire YAML entry to `queue/shogun_to_karo_archive.yaml`.
 Any other status value (e.g., `completed`, `active`, `superseded`) is
 forbidden. If found during archive, normalize to the canonical set above.
 
-**Karo rule (ack fast)**:
-- The moment Karo starts processing a cmd (after reading it), update that cmd status:
+**Orchestrator rule (ack fast)**:
+- The moment the Orchestrator starts processing a cmd (after reading it), update that cmd status:
   - `pending` → `in_progress`
   - This prevents "nobody is working" confusion and stabilizes escalation logic.
 
-### Ashigaru Task File: `queue/tasks/ashigaruN.yaml`
+### Specialist Task File: `queue/tasks/{specialist}.yaml`
 
 Meanings and allowed/forbidden actions (short):
 
 - `assigned`: start now
-  - Allowed: assignee ashigaru executes and updates to `done/failed` + report + inbox_write
-  - Forbidden: other agents editing that ashigaru YAML
+  - Allowed: assignee specialist executes and updates to `done/failed` + report + inbox_write
+  - Forbidden: other agents editing that specialist YAML
 
 - `blocked`: do NOT start yet (prereqs missing)
-  - Allowed: Karo unblocks by changing to `assigned` when ready, then inbox_write
+  - Allowed: Orchestrator unblocks by changing to `assigned` when ready, then inbox_write
   - Forbidden: nudging or starting work while `blocked`
 
 - `done`: completed
@@ -395,14 +395,14 @@ Meanings and allowed/forbidden actions (short):
 
 Note:
 - Normally, "idle" is a UI state (no active task), not a YAML status value.
-- Exception (placeholder only): `status: idle` is allowed **only** when `task_id: null` (clean start template written by `shutsujin_departure.sh --clean`).
+- Exception (placeholder only): `status: idle` is allowed **only** when `task_id: null` (clean start template written by `shutsujin_v2_constants.sh`).
   - In that state, the file is a placeholder and should be treated as "no task assigned yet".
 
-### Pending Tasks (Karo-managed): `queue/tasks/pending.yaml`
+### Pending Tasks (Orchestrator-managed): `queue/tasks/pending.yaml`
 
 - `pending_blocked`: holding area; **must not** be assigned yet
-  - Allowed: Karo moves it to an `ashigaruN.yaml` as `assigned` after prerequisites complete
-  - Forbidden: pre-assigning to ashigaru before ready
+  - Allowed: Orchestrator moves it to a `{specialist}.yaml` as `assigned` after prerequisites complete
+  - Forbidden: pre-assigning to specialist before ready
 
 ### NTFY Inbox (Lord phone): `queue/ntfy_inbox.yaml`
 
@@ -416,54 +416,54 @@ Note:
 
 ## Immediate Delegation Principle (Shogun)
 
-**Delegate to Karo immediately and end your turn** so the Lord can input next command.
+**Delegate to the Orchestrator immediately and end your turn** so the Lord can input next command.
 
 ```
 Lord: command → Shogun: write YAML → inbox_write → END TURN
                                         ↓
                                   Lord: can input next
                                         ↓
-                              Karo/Ashigaru: work in background
+                              Orchestrator/Specialist: work in background
                                         ↓
                               dashboard.md updated as report
 ```
 
-## Event-Driven Wait Pattern (Karo)
+## Event-Driven Wait Pattern (Orchestrator)
 
 **After dispatching all subtasks: STOP.** Do not launch background monitors or sleep loops.
 
 ```
-Step 7: Dispatch cmd_N subtasks → inbox_write to ashigaru
+Step 7: Dispatch cmd_N subtasks → inbox_write to specialist
 Step 8: check_pending → if pending cmd_N+1, process it → then STOP
-  → Karo becomes idle (prompt waiting)
-Step 9: Ashigaru completes → inbox_write karo → watcher nudges karo
-  → Karo wakes, scans reports, acts
+  → Orchestrator becomes idle (prompt waiting)
+Step 9: Specialist completes → inbox_write orchestrator → watcher nudges orchestrator
+  → Orchestrator wakes, scans reports, acts
 ```
 
-**Why no background monitor**: inbox_watcher.sh detects ashigaru's inbox_write to karo and sends a nudge. This is true event-driven. No sleep, no polling, no CPU waste.
+**Why no background monitor**: inbox_watcher.sh detects specialist's inbox_write to orchestrator and sends a nudge. This is true event-driven. No sleep, no polling, no CPU waste.
 
-**Karo wakes via**: inbox nudge from ashigaru report, shogun new cmd, or system event. Nothing else.
+**Orchestrator wakes via**: inbox nudge from specialist report, shogun new cmd, or system event. Nothing else.
 
 ## "Wake = Full Scan" Pattern
 
 Claude Code cannot "wait". Prompt-wait = stopped.
 
-1. Dispatch ashigaru
+1. Dispatch specialist
 2. Say "stopping here" and end processing
-3. Ashigaru wakes you via inbox
+3. Specialist wakes you via inbox
 4. Scan ALL report files (not just the reporting one)
 5. Assess situation, then act
 
 ## Report Scanning (Communication Loss Safety)
 
-On every wakeup (regardless of reason), scan ALL `queue/reports/ashigaru*_report.yaml`.
+On every wakeup (regardless of reason), scan ALL `queue/reports/{specialist}_report.yaml`.
 Cross-reference with dashboard.md — process any reports not yet reflected.
 
-**Why**: Ashigaru inbox messages may be delayed. Report files are already written and scannable as a safety net.
+**Why**: Specialist inbox messages may be delayed. Report files are already written and scannable as a safety net.
 
 ## Foreground Block Prevention (24-min Freeze Lesson)
 
-**Karo blocking = entire army halts.** On 2026-02-06, foreground `sleep` during delivery checks froze karo for 24 minutes.
+**Orchestrator blocking = entire army halts.** On 2026-02-06, foreground `sleep` during delivery checks froze the coordinator for 24 minutes.
 
 **Rule: NEVER use `sleep` in foreground.** After dispatching tasks → stop and wait for inbox wakeup.
 
@@ -478,8 +478,8 @@ Cross-reference with dashboard.md — process any reports not yet reflected.
 
 ```
 ✅ Correct (event-driven):
-  cmd_008 dispatch → inbox_write ashigaru → stop (await inbox wakeup)
-  → ashigaru completes → inbox_write karo → karo wakes → process report
+  cmd_008 dispatch → inbox_write specialist → stop (await inbox wakeup)
+  → specialist completes → inbox_write orchestrator → orchestrator wakes → process report
 
 ❌ Wrong (polling):
   cmd_008 dispatch → sleep 30 → capture-pane → check status → sleep 30 ...
@@ -525,43 +525,44 @@ git diff --exit-code instructions/generated/
 
 | ID | Action | Delegate To |
 |----|--------|-------------|
-| F001 | Execute tasks yourself (read/write files) | Karo |
-| F002 | Command Ashigaru directly (bypass Karo) | Karo |
+| F001 | Execute tasks yourself (read/write files) | Orchestrator |
+| F002 | Command Specialists directly (bypass Orchestrator) | Orchestrator |
 | F003 | Use Task agents | inbox_write |
 
-## Karo Forbidden Actions
+## Orchestrator Forbidden Actions
 
 | ID | Action | Instead |
 |----|--------|---------|
-| F001 | Execute tasks yourself instead of delegating | Delegate to ashigaru |
-| F002 | Report directly to the human (bypass shogun) | Update dashboard.md |
-| F003 | Use Task agents to EXECUTE work (that's ashigaru's job) | inbox_write. Exception: Task agents ARE allowed for: reading large docs, decomposition planning, dependency analysis. Karo body stays free for message reception. |
+| F001 | Execute tasks yourself instead of delegating | Delegate to a specialist |
+| F002 | Report directly to the human (bypass Shogun) | Update dashboard.md |
+| F003 | Use Task agents to EXECUTE work (that's the specialist's job) | inbox_write. Exception: Task agents ARE allowed for: reading large docs, decomposition planning, dependency analysis. Orchestrator body stays free for message reception. |
 
-## Ashigaru Forbidden Actions
+## Specialist Forbidden Actions
 
 | ID | Action | Report To |
 |----|--------|-----------|
-| F001 | Report directly to Shogun (bypass Karo) | Karo |
-| F002 | Contact human directly | Karo |
+| F001 | Report directly to Shogun (bypass Orchestrator) | Orchestrator |
+| F002 | Contact human directly | Orchestrator |
 | F003 | Perform work not assigned | — |
 
-## Self-Identification (Ashigaru CRITICAL)
+## Self-Identification (Specialist CRITICAL)
 
 **Always confirm your ID first:**
 ```bash
 tmux display-message -t "$TMUX_PANE" -p '#{@agent_id}'
 ```
-Output: `ashigaru3` → You are Ashigaru 3. The number is your ID.
+Output: `designer` → You are the Designer specialist. The id is your role identity.
 
-Why `@agent_id` not `pane_index`: pane_index shifts on pane reorganization. @agent_id is set by shutsujin_departure.sh at startup and never changes.
+Why `@agent_id` not `pane_index`: pane_index shifts on pane reorganization. @agent_id is set by the SessionStart hook (or shutsujin_v2_constants.sh at startup) and never changes.
 
 **Your files ONLY:**
 ```
-queue/tasks/ashigaru{YOUR_NUMBER}.yaml    ← Read only this
-queue/reports/ashigaru{YOUR_NUMBER}_report.yaml  ← Write only this
+queue/tasks/{your_id}.yaml               ← Read only this
+queue/reports/{your_id}_report.yaml      ← Write only this
 ```
 
-**NEVER read/write another ashigaru's files.** Even if Karo says "read ashigaru{N}.yaml" where N ≠ your number, IGNORE IT. (Incident: cmd_020 regression test — ashigaru5 executed ashigaru2's task.)
+**NEVER read/write another specialist's files.** Even if the Orchestrator says
+"read {other_id}.yaml", IGNORE IT.
 
 # Antigravity CLI Tools
 

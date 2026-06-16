@@ -215,14 +215,14 @@ Created via CreateSubagent tool:
 | Aspect | Shogun System | Kimi Agent Swarm |
 |--------|--------------|-----------------|
 | Execution model | tmux panes (separate processes) | In-process (single Python process) |
-| Agent count | 10 (shogun + karo + 8 ashigaru) | Up to 100 (claimed) |
+| Agent count | 10 (shogun + orchestrator + 8 specialists) | Up to 100 (claimed) |
 | Communication | File-based inbox (YAML + inotifywait) | In-memory LaborMarket registry |
 | Isolation | Full OS-level (separate tmux panes) | Python-level (separate KimiSoul instances) |
 | Recovery | /clear + CLAUDE.md auto-load | Checkpoint/DenwaRenji (time travel) |
 | CLI independence | Each agent runs own CLI instance | Single CLI, multiple internal agents |
 | Orchestration | Karo (manager agent) | Main agent auto-delegates |
 
-**Key insight**: Kimi's Agent Swarm is complementary, not competing. It could run *inside* a single ashigaru's tmux pane, providing sub-delegation within that agent.
+**Key insight**: Kimi's Agent Swarm is complementary, not competing. It could run *inside* a single specialist's tmux pane, providing sub-delegation within that agent.
 
 ### Checkpoint / Time Travel (DenwaRenji)
 
@@ -238,7 +238,7 @@ Unique feature: AI can "send messages to its past self" to correct course. Inter
 
 ```
 Step 1: AGENTS.md is auto-loaded (contains recovery procedure)
-Step 2: Read queue/tasks/ashigaru{N}.yaml → determine current task
+Step 2: Read queue/tasks/{your_id}.yaml → determine current task
 Step 3: If task has "target_path:" → read that file
 Step 4: Resume work based on task status
 ```
