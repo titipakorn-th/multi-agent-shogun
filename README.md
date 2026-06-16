@@ -1297,7 +1297,6 @@ Skills ship with the repository in `skills/`. They are domain-agnostic utilities
 | `/model-list` | Reference table: all CLI tools × models × subscriptions × Bloom max level |
 | `/bloom-config` | Interactive configurator: answer 2 questions about your subscriptions → get ready-to-paste `capability_tiers` YAML |
 | `/model-switch` | Live CLI/model switching: settings.yaml update → `/exit` → relaunch with correct flags. Supports Thinking ON/OFF control |
-| `/readme-sync` | Keep README.md and README_ja.md in sync |
 
 These help you configure and operate the system. Personal workflow skills grow organically through the bottom-up discovery process.
 
@@ -1660,8 +1659,7 @@ multi-agent-shogun/
 │   ├── agent-status/  # Agent status display
 │   ├── model-list/    # Model capability reference
 │   ├── bloom-config/  # Bloom tier configurator
-│   ├── model-switch/  # Live CLI/model switching
-│   └── readme-sync/   # README sync
+│   └── model-switch/  # Live CLI/model switching
 │
 ├── memory/                   # Memory MCP persistent storage
 ├── dashboard.md              # Real-time status board

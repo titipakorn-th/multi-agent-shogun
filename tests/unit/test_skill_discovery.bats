@@ -15,11 +15,11 @@ setup() {
   PROJECT_ROOT="$(cd "$(dirname "$BATS_TEST_FILENAME")/../.." && pwd)"
 }
 
-@test "skills/shogun/ contains all 15 migrated skills" {
+@test "skills/shogun/ contains all 14 migrated skills" {
   [ -d "$PROJECT_ROOT/skills/shogun" ]
   for skill in agent-status bloom-config changelog clonedeps diagnose \
               feature-spec grill-with-docs improve-codebase-architecture \
-              model-list model-switch readme-sync screenshot \
+              model-list model-switch screenshot \
               subagent-driven-development worktrees zoom-out; do
     [ -f "$PROJECT_ROOT/skills/shogun/$skill/SKILL.md" ] || \
       { echo "MISSING: skills/shogun/$skill/SKILL.md"; return 1; }
