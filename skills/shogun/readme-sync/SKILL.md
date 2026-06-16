@@ -1,12 +1,12 @@
 ---
-name: shogun-readme-sync
+name: readme-sync
 description: |
   Checks and executes synchronization between README.md (English) and README_ja.md (Japanese).
   Used to ensure both language versions are updated simultaneously when the README is modified.
   Triggered by: "README update", "README sync", "readme sync".
 ---
 
-# /shogun-readme-sync - README English/Japanese Sync
+# /readme-sync - README English/Japanese Sync
 
 ## Overview
 

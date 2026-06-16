@@ -194,7 +194,31 @@ logs/
 !skills/shogun-subagent-driven-development/references/*.md
 !skills/shogun-feature-spec/
 !skills/shogun-feature-spec/SKILL.md
+!skills/common/
+!skills/common/.gitkeep
+!skills/orchestrator/
+!skills/orchestrator/.gitkeep
+!skills/explorer/
+!skills/explorer/.gitkeep
+!skills/librarian/
+!skills/librarian/.gitkeep
+!skills/oracle/
+!skills/oracle/.gitkeep
+!skills/designer/
+!skills/designer/.gitkeep
+!skills/fixer/
+!skills/fixer/.gitkeep
+!skills/observer/
+!skills/observer/.gitkeep
+!skills/council/
+!skills/council/.gitkeep
 
+# Shogun Worktrees and Clonedeps
+!skills/shogun-worktrees/
+!skills/shogun-worktrees/SKILL.md
+!skills/shogun-clonedeps/
+!skills/shogun-clonedeps/SKILL.md
+!.shogun/clonedeps.json
 
 # Python venv (explicit deny — whitelist patterns like LICENSE leak through !*/)
 .venv/

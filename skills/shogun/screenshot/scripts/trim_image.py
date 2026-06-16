@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Image cropping script — for shogun-screenshot skill"""
+"""Image cropping script — for screenshot skill"""
 import argparse
 import sys
 

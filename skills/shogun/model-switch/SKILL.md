@@ -1,5 +1,5 @@
 ---
-name: shogun-model-switch
+name: model-switch
 description: |
   Live-switch agent CLI and models. Automates settings.yaml update → /exit → starting new CLI →
   pane metadata update in one shot. Also controls Thinking ON/OFF.

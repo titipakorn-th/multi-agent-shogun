@@ -60,7 +60,7 @@ Tools explicitly **out of scope**:
 - **Visual analysis** — `observer`'s lane.
 - **Multi-model calls** — that's `council`'s lane.
 
-If a skill is listed under `roles.oracle.skills` in `config/settings.yaml` (currently `shogun-grill-with-docs`), you may invoke it for deeper strategic grilling.
+If a skill is listed under `roles.oracle.skills` in `config/settings.yaml` (currently `grill-with-docs`), you may invoke it for deeper strategic grilling.
 
 ## Permissions
 

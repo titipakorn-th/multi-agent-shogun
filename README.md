@@ -1154,7 +1154,7 @@ SayTask handles personal productivity (capture → schedule → remind). The cmd
 
 **Thinking control**: Set `thinking: true/false` per agent in `config/settings.yaml`. When `thinking: false`, the agent starts with `MAX_THINKING_TOKENS=0` to disable Extended Thinking. Pane borders show `+T` suffix when Thinking is enabled (e.g., `Sonnet+T`, `Opus+T`).
 
-**Live model switching**: Use `/shogun-model-switch` to change any agent's CLI type, model, or Thinking setting without restarting the entire system. See the Skills section for details.
+**Live model switching**: Use `/model-switch` to change any agent's CLI type, model, or Thinking setting without restarting the entire system. See the Skills section for details.
 
 The system routes work by **cognitive complexity** at two levels: **Agent routing** (Specialist for L1–L3, Oracle for L4–L6) and **Model routing within Specialist** via `capability_tiers` (see Dynamic Model Routing below).
 
@@ -1213,10 +1213,10 @@ Two built-in skills help you configure this:
 
 | Skill | Purpose |
 |-------|---------|
-| `/shogun-model-list` | Reference table: all models × subscriptions × Bloom max |
-| `/shogun-bloom-config` | Interactive: answer 2 questions → get ready-to-paste YAML |
+| `/model-list` | Reference table: all models × subscriptions × Bloom max |
+| `/bloom-config` | Interactive: answer 2 questions → get ready-to-paste YAML |
 
-Run `/shogun-bloom-config` after setup to generate your optimal `capability_tiers` configuration.
+Run `/bloom-config` after setup to generate your optimal `capability_tiers` configuration.
 
 ---
 
@@ -1296,11 +1296,11 @@ Skills ship with the repository in `skills/`. They are domain-agnostic utilities
 | Skill | Description |
 |-------|-------------|
 | `/skill-creator` | Template and guide for creating new skills |
-| `/shogun-agent-status` | Show busy/idle status of all agents with task and inbox info |
-| `/shogun-model-list` | Reference table: all CLI tools × models × subscriptions × Bloom max level |
-| `/shogun-bloom-config` | Interactive configurator: answer 2 questions about your subscriptions → get ready-to-paste `capability_tiers` YAML |
-| `/shogun-model-switch` | Live CLI/model switching: settings.yaml update → `/exit` → relaunch with correct flags. Supports Thinking ON/OFF control |
-| `/shogun-readme-sync` | Keep README.md and README_ja.md in sync |
+| `/agent-status` | Show busy/idle status of all agents with task and inbox info |
+| `/model-list` | Reference table: all CLI tools × models × subscriptions × Bloom max level |
+| `/bloom-config` | Interactive configurator: answer 2 questions about your subscriptions → get ready-to-paste `capability_tiers` YAML |
+| `/model-switch` | Live CLI/model switching: settings.yaml update → `/exit` → relaunch with correct flags. Supports Thinking ON/OFF control |
+| `/readme-sync` | Keep README.md and README_ja.md in sync |
 
 These help you configure and operate the system. Personal workflow skills grow organically through the bottom-up discovery process.
 
@@ -1660,11 +1660,11 @@ multi-agent-shogun/
 │
 ├── skills/                   # Reusable skills (committed to repo)
 │   ├── skill-creator/        # Skill creation template
-│   ├── shogun-agent-status/  # Agent status display
-│   ├── shogun-model-list/    # Model capability reference
-│   ├── shogun-bloom-config/  # Bloom tier configurator
-│   ├── shogun-model-switch/  # Live CLI/model switching
-│   └── shogun-readme-sync/   # README sync
+│   ├── agent-status/  # Agent status display
+│   ├── model-list/    # Model capability reference
+│   ├── bloom-config/  # Bloom tier configurator
+│   ├── model-switch/  # Live CLI/model switching
+│   └── readme-sync/   # README sync
 │
 ├── memory/                   # Memory MCP persistent storage
 ├── dashboard.md              # Real-time status board
@@ -1853,8 +1853,8 @@ Even if you're not comfortable with keyboard shortcuts, you can switch, scroll, 
 
 - **Bloom Dynamic Model Routing** — `capability_tiers` in `config/settings.yaml` maps each model to its Bloom ceiling. L1-L3 → Spark, L4 → Sonnet 4.6, L5 → Sonnet 4.6 + extended thinking, L6 → Opus. Routing happens without agent restarts — the system finds the right idle agent by model capability
 - **Sonnet 4.6 as the new standard** — SWE-bench 79.6%, only 1.2pp below Opus 4.6. Oracle downgraded Opus → Sonnet 4.6. All Specialist default to Sonnet 4.6. One YAML line change, no restarts required
-- **`/shogun-model-list` skill** — Complete reference table: all CLI tools × models × subscriptions × Bloom max level. Updated for Sonnet 4.6 and Spark positioning
-- **`/shogun-bloom-config` skill** — Interactive configurator: answer 2 questions about your subscriptions → get ready-to-paste `capability_tiers` YAML
+- **`/model-list` skill** — Complete reference table: all CLI tools × models × subscriptions × Bloom max level. Updated for Sonnet 4.6 and Spark positioning
+- **`/bloom-config` skill** — Interactive configurator: answer 2 questions about your subscriptions → get ready-to-paste `capability_tiers` YAML
 
 </details>
 

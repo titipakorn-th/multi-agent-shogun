@@ -35,7 +35,7 @@ roles:
     title: "shogun"
     prompt_path: "instructions/shogun.md"
     temperature: 0.1
-    skills: [shogun-zoom-out, shogun-grill-with-docs]
+    skills: [zoom-out, grill-with-docs]
     permissions_override: {}
 
   orchestrator:
@@ -94,7 +94,7 @@ roles:
     title: "oracle"
     prompt_path: "instructions/oracle.md"
     temperature: 0.1
-    skills: [shogun-grill-with-docs]
+    skills: [grill-with-docs]
     permissions_override:
       edit_deny: ["**/*"]
 
@@ -117,7 +117,7 @@ roles:
     title: "fixer"
     prompt_path: "instructions/fixer.md"
     temperature: 0.2
-    skills: [shogun-subagent-driven-development]
+    skills: [subagent-driven-development]
     permissions_override: {}
 
   observer:

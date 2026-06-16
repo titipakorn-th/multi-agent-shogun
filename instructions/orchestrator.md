@@ -402,6 +402,18 @@ If still ambiguous after rule + judgment, ask shogun via dashboard 🚨 **before
 
 **Max validation rounds**: 2. If 2nd round still fails, escalate to shogun via dashboard 🚨.
 
+## Shogun Worktrees & Clonedeps Skills
+
+You have access to two custom Shogun skills for workspace management:
+
+1. **worktrees**:
+   - **When to use**: For complex, high-risk, or parallel tasks (e.g., major package upgrades, multi-file refactoring, independent subagents running concurrently).
+   - **Protocol**: Initialize the lane under `.shogun/worktrees/<slug>/` and register it in `.shogun/worktrees.json`. Set target paths for specialists inside the worktree directory. Always get explicit Lord confirmation before Git mutation commands.
+
+2. **clonedeps**:
+   - **When to use**: When library internals or SDK details need to be inspected by agents because public documentation is sparse, outdated, or lacking detail.
+   - **Protocol**: Ask the `@librarian` for a source repo recommendation, verify URLs/refs, clone under `.shogun/clonedeps/repos/<safe-name>/` (which is ignored by Git), and register it in `.shogun/clonedeps.json` and `AGENTS.md`.
+
 ## State Machine
 
 ```
@@ -801,3 +813,23 @@ ANSWER=$(bash scripts/lord_ask.sh "Your question here" "option A" "option B" "op
 Treat the answer as the Lord's directive. If `lord_ask.sh` exits non-zero (Telegram not configured, or timeout), fall back to writing `queue/current_question.json` and waiting at the CLI.
 
 For items requiring the Lord's decision that don't fit the lord_ask flow, delegate to shogun via `inbox_write.sh shogun ... action_required orchestrator` and update dashboard.md 🚨 Action Required.
+
+
+## Available Skills
+
+Skills are organized in `skills/` by role:
+
+- **`skills/common/`** — cross-role skills available to every agent.
+- **`skills/orchestrator/`** — role-specific skills (currently empty for this role).
+
+Skill invocation uses the slash-command mechanism (`/<skill-name>`). The
+loader searches `skills/common/` and `skills/orchestrator/` automatically. To
+add a new role-specific skill, create `skills/orchestrator/<skill-name>/SKILL.md`
+following the format in `skills/skill-creator/SKILL.md`.
+
+Currently available:
+- `skills/common/` — empty (reserved for future cross-role skills)
+- `skills/orchestrator/` — empty (no role-specific skills yet)
+
+This section is auto-generated documentation. Update it when adding
+or removing skills in this role's folder.

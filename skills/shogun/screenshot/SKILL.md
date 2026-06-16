@@ -1,5 +1,5 @@
 ---
-name: shogun-screenshot
+name: screenshot
 description: |
   Captures and processes screenshots. Retrieves the latest image from local screenshots,
   captures web pages via Playwright, crops/resizes images, and masks sensitive info in black.
@@ -10,7 +10,7 @@ argument-hint: "[url-or-target e.g. https://example.com, latest]"
 allowed-tools: Bash, Read
 ---
 
-# /shogun-screenshot - Screenshot Capture & Processing Skill
+# /screenshot - Screenshot Capture & Processing Skill
 
 ## North Star (Supreme standard for all judgments)
 
@@ -72,7 +72,7 @@ Returns an error if none of the paths exist.
 
 **Helper script** (automatically searches all paths):
 ```bash
-bash skills/shogun-screenshot/scripts/capture_local.sh -n 3
+bash skills/shogun/screenshot/scripts/capture_local.sh -n 3
 ```
 
 **When specifying a specific path manually**:
@@ -100,7 +100,7 @@ Suppress errors from non-existent paths with `2>/dev/null`.
 3. Save the cropped image
 
 ```bash
-python3 skills/shogun-screenshot/scripts/trim_image.py \
+python3 skills/shogun/screenshot/scripts/trim_image.py \
   --input /path/to/image.png \
   --output /path/to/trimmed.png \
   --crop "x1,y1,x2,y2"
@@ -114,19 +114,19 @@ Blacks out API keys, topic names, personal info, etc., in the screenshot with re
 
 ```bash
 # Single region
-python3 skills/shogun-screenshot/scripts/mask_sensitive.py \
+python3 skills/shogun/screenshot/scripts/mask_sensitive.py \
   --input /path/to/image.png \
   --output /path/to/masked.png \
   --regions "100,50,400,80"
 
 # Multiple regions
-python3 skills/shogun-screenshot/scripts/mask_sensitive.py \
+python3 skills/shogun/screenshot/scripts/mask_sensitive.py \
   --input /path/to/image.png \
   --output /path/to/masked.png \
   --regions "100,50,400,80" "500,200,800,230"
 
 # Position verification (Red outline preview, no blackout)
-python3 skills/shogun-screenshot/scripts/mask_sensitive.py \
+python3 skills/shogun/screenshot/scripts/mask_sensitive.py \
   --input /path/to/image.png \
   --output /path/to/preview.png \
   --regions "100,50,400,80" --preview

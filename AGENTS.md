@@ -57,7 +57,7 @@ mcp_tools: [Notion, Playwright, GitHub, Sequential Thinking, Memory]
 mcp_usage: "Lazy-loaded. Always ToolSearch before first use."
 
 parallel_principle: "Deploy specialists in parallel as much as possible. Orchestrator focuses solely on coordination. Do not hog tasks single-handedly."
-std_process: "Strategy→Grill (shogun-grill-with-docs)→Spec→Test→Implement→Verify is the standard procedure for all cmds"
+std_process: "Strategy→Grill (grill-with-docs)→Spec→Test→Implement→Verify is the standard procedure for all cmds"
 critical_thinking_principle: "Orchestrator and specialists must not follow blindly, but verify assumptions and propose alternatives. However, do not stop at excessive criticism; maintain a balance with execution feasibility."
 bloom_routing_rule: "Check bloom_routing configuration in config/settings.yaml. If 'auto', Orchestrator must execute Step 6.5 (Bloom Taxonomy L1-L6 model routing: explorer=L1, orchestrator=L2/L3, oracle=L4/L6, council=L5/EVAL). Do not skip under any circumstances."
 
@@ -76,7 +76,7 @@ language:
 1. Identify self: `tmux display-message -t "$TMUX_PANE" -p '#{@agent_id}'`
 2. `mcp__memory__read_graph` — restore rules, preferences, lessons **(shogun/orchestrator only. task-layer specialists skip this step — task YAML is sufficient)**
 3. **Read `memory/MEMORY.md`** (shogun only) — persistent cross-session memory. If file missing, skip. *Codex CLI users: this file is also auto-loaded via Codex CLI's memory feature.*
-4. **Read your instructions file**: shogun→`instructions/generated/codex-shogun.md`, orchestrator→`instructions/orchestrator.md`, explorer→`instructions/explorer.md`, librarian→`instructions/librarian.md`, oracle→`instructions/oracle.md`, designer→`instructions/designer.md`, fixer→`instructions/fixer.md`, observer→`instructions/observer.md`, council→`instructions/council.md`, telegram→`instructions/generated/antigravity-telegram.md`. **NEVER SKIP** — even if a conversation summary exists. Summaries do NOT preserve persona, speech style, or forbidden actions.
+4. **Read your instructions file**: shogun→`instructions/generated/codex-shogun.md`, orchestrator→`instructions/generated/codex-orchestrator.md`, explorer→`instructions/explorer.md`, librarian→`instructions/librarian.md`, oracle→`instructions/oracle.md`, designer→`instructions/designer.md`, fixer→`instructions/fixer.md`, observer→`instructions/observer.md`, council→`instructions/council.md`, telegram→`instructions/generated/antigravity-telegram.md`. **NEVER SKIP** — even if a conversation summary exists. Summaries do NOT preserve persona, speech style, or forbidden actions.
 4. Rebuild state from primary YAML data (queue/, tasks/, reports/)
 5. Review forbidden actions, then start work
 
@@ -227,7 +227,7 @@ System manages ALL white-collar work, not just self-improvement. Project folders
 6. **Skill candidates**: Specialists report `skill_candidate:` in their reports. Orchestrator collects → dashboard. Shogun approves → creates design doc.
 7. **Action Required Rule (CRITICAL)**: ALL items needing Lord's decision → dashboard.md 🚨Action Required section. If Telegram is configured in `config/telegram.env`, questions are sent to the Lord's phone. Orchestrator delegates these inquiries to the Shogun via `inbox_write.sh`, and the Shogun executes `scripts/telegram_ask.py --no-wait`.
 8. **Blocker Feedback**: While waiting for Orchestrator, Shogun must check for `queue/current_question.json` and display any active Telegram blocker questions in the terminal panel.
-9. **Strategic Skills**: Utilize `shogun-grill-with-docs`, `shogun-diagnose`, `shogun-improve-codebase-architecture`, and `shogun-zoom-out` to maintain high engineering standards.
+9. **Strategic Skills**: Utilize `grill-with-docs`, `diagnose`, `improve-codebase-architecture`, and `zoom-out` to maintain high engineering standards.
 
 # Test Rules (all agents)
 

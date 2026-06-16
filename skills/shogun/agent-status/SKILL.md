@@ -1,5 +1,5 @@
 ---
-name: shogun-agent-status
+name: agent-status
 description: |
   Skill to display the status list of all agents (Karo, Ashigaru 1-7, Gunshi).
   Integrates tmux pane status (Active/Idle/Absent), task YAML status (task_id, status),

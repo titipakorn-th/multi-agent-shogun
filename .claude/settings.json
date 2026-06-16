@@ -18,6 +18,11 @@
             "type": "command",
             "command": "bash scripts/stop_hook_inbox.sh",
             "timeout": 60
+          },
+          {
+            "type": "command",
+            "command": "bash scripts/shogun_stop_telegram_forward.sh",
+            "timeout": 15
           }
         ]
       }
