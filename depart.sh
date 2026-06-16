@@ -15,6 +15,8 @@ source "${SCRIPT_DIR}/scripts/shutsujin_v2_constants.sh"
 set -u
 
 CLI_DEFAULT="${CLI_DEFAULT:-claude}"
+# ponytail: default to Claude's --dangerously-skip-permissions; override per-CLI if needed (e.g. copilot: --yolo)
+PERMISSION_FLAG="${PERMISSION_FLAG:---dangerously-skip-permissions}"
 
 # ─── Pane creation helper ────────────────────────────────────
 # Usage: start_specialist_pane <role> <session> <window> <pane_index> <model> <color> <cli>
@@ -45,7 +47,7 @@ start_specialist_pane() {
     tmux select-pane -t "$target" -P "bg=${color}"
 
     # Launch CLI
-    tmux send-keys -t "$target" "${cli} --model ${model}" Enter
+    tmux send-keys -t "$target" "${cli} --model ${model} ${PERMISSION_FLAG}" Enter
 }
 
 # ─── Phase 1: Shogun session (existing) ──────────────────────
@@ -55,7 +57,7 @@ if ! tmux has-session -t shogun 2>/dev/null; then
     tmux select-pane -t shogun:main.0 -T "shogun"
     tmux select-pane -t shogun:main.0 -P "bg=#002b36"
     # Launch CLI in the shogun pane (matches start_specialist_pane behavior)
-    tmux send-keys -t shogun:main.0 "${CLI_DEFAULT} --model $(v2_model_for shogun)" Enter
+    tmux send-keys -t shogun:main.0 "${CLI_DEFAULT} --model $(v2_model_for shogun) ${PERMISSION_FLAG}" Enter
 fi
 
 # ─── Phase 2: Multiagent session with two windows ────────────
