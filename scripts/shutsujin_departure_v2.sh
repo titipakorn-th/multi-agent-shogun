@@ -16,6 +16,26 @@ set -u
 
 CLI_DEFAULT="${CLI_DEFAULT:-claude}"
 
+# ─── Pane creation helper ────────────────────────────────────
+# Usage: start_specialist_pane <role> <session> <window> <pane_index> <model> <color> <cli>
+start_specialist_pane() {
+    local role=$1 session=$2 window=$3 pane_idx=$4 model=$5 color=$6 cli=$7
+    local target="${session}:${window}.${pane_idx}"
+
+    # Split pane if not pane 0
+    if [ "$pane_idx" -gt 0 ]; then
+        tmux split-window -h -t "${session}:${window}"
+    fi
+
+    # Set agent_id and styling
+    tmux set-option -p -t "$target" @agent_id "$role"
+    tmux select-pane -t "$target" -T "$role"
+    tmux select-pane -t "$target" -P "bg=${color}"
+
+    # Launch CLI
+    tmux send-keys -t "$target" "${cli} --model ${model}" Enter
+}
+
 # ─── Phase 1: Shogun session (existing) ──────────────────────
 if ! tmux has-session -t shogun 2>/dev/null; then
     tmux new-session -d -s shogun -n main
