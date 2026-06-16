@@ -100,3 +100,20 @@ else
 fi
 
 echo "[shutsujin_v2] topology ready"
+
+# ─── Phase 5: inbox_watcher launch ───────────────────────────
+WATCHER="${SCRIPT_DIR}/scripts/inbox_watcher.sh"
+LOG_DIR="${SCRIPT_DIR}/logs"
+mkdir -p "$LOG_DIR"
+
+for role in $(v2_role_list); do
+    pane_target="$(v2_pane_for "$role")"
+    # Skip if watcher is already running for this role
+    if ! pgrep -f "inbox_watcher.sh ${role} " >/dev/null 2>&1 \
+       && ! pgrep -f "inbox_watcher.sh ${role}\$" >/dev/null 2>&1; then
+        nohup bash "$WATCHER" "$role" "$pane_target" "$CLI_DEFAULT" \
+            >"${LOG_DIR}/inbox_watcher_${role}.log" 2>&1 &
+    fi
+done
+
+echo "[shutsujin_v2] watchers launched"
