@@ -26,6 +26,50 @@ if [ "$FROM" = "$TARGET" ]; then
     exit 1
 fi
 
+# Role validation (v2 topology): when config/settings.yaml declares
+# topology=v2 with a roles block, the target must be one of those roles.
+# v1 (legacy) accepts any role name. Hard cutover per spec — no aliases.
+SETTINGS_FILE="$SCRIPT_DIR/config/settings.yaml"
+if [ -f "$SETTINGS_FILE" ] && [ -x "$SCRIPT_DIR/.venv/bin/python3" ]; then
+    # Temporarily disable set -e so the inner python exit code is captured
+    set +e
+    _validation="$("$SCRIPT_DIR/.venv/bin/python3" -c "
+import sys, yaml
+try:
+    with open('$SETTINGS_FILE', 'r', encoding='utf-8') as f:
+        data = yaml.safe_load(f) or {}
+except Exception as e:
+    # If settings.yaml is unreadable, do not block writes — log a warning.
+    print('WARN: cannot read settings.yaml:', e, file=sys.stderr)
+    print('OK')
+    sys.exit(0)
+
+topology = data.get('topology', 'v1')
+if topology != 'v2':
+    # Legacy v1: accept any role
+    print('OK')
+    sys.exit(0)
+
+roles = (data.get('roles') or {})
+if not roles:
+    # topology=v2 with no roles block — skip validation (no list to check against)
+    print('OK')
+    sys.exit(0)
+
+if '$TARGET' not in roles:
+    print(f'Error: unknown role \\'$TARGET\\'. Defined roles: {sorted(roles.keys())}', file=sys.stderr)
+    sys.exit(2)
+
+print('OK')
+" 2>&1)"
+    _validation_rc=$?
+    set -e
+    if [ "$_validation_rc" -ne 0 ] || [ "$_validation" != "OK" ]; then
+        echo "$_validation" >&2
+        exit 1
+    fi
+fi
+
 # Initialize inbox if not exists
 # dangling symlink recovery: if queue/inbox is a broken symlink, re-generate the link destination
 _inbox_parent="$(dirname "$INBOX")"
