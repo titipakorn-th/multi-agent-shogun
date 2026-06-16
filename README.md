@@ -1093,10 +1093,7 @@ Silent mode sets `DISPLAY_MODE=silent` as a tmux environment variable. The Orche
 
 | Before (v1) | After (v2) |
 |:-----------:|:----------:|
-| ![Task list v1](images/screenshots/masked/ntfy_tasklist_v1_before.jpg) | ![Task list v2](images/screenshots/masked/ntfy_tasklist_v2_aligned.jpg) |
 | Raw task dump | Clean, organized daily summary |
-
-> *Note: Topic names shown in screenshots are examples. Use your own unique topic name.*
 
 ### Use Cases
 
