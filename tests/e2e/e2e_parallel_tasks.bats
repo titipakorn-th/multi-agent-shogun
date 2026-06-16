@@ -2,13 +2,13 @@
 # ═══════════════════════════════════════════════════════════════
 # E2E-006: Parallel Tasks Test
 # ═══════════════════════════════════════════════════════════════
-# Validates that multiple ashigaru can process tasks simultaneously:
-#   1. Two tasks assigned to ashigaru1 and ashigaru2
+# Validates that multiple specialist can process tasks simultaneously:
+#   1. Two tasks assigned to explorer and librarian
 #   2. Both receive inbox nudges
 #   3. Both complete independently
 #   4. Both reports are written
 #
-# Uses 3-pane setup (karo + ashigaru1 + ashigaru2).
+# Uses 3-pane setup (orchestrator + explorer + librarian).
 # ═══════════════════════════════════════════════════════════════
 
 # bats file_tags=e2e
@@ -42,21 +42,21 @@ setup() {
 }
 
 # ═══════════════════════════════════════════════════════════════
-# E2E-006-A: Two ashigaru process tasks in parallel
+# E2E-006-A: Two specialist process tasks in parallel
 # ═══════════════════════════════════════════════════════════════
 
-@test "E2E-006-A: ashigaru1 and ashigaru2 complete tasks in parallel" {
-    # 1. Place tasks for both ashigaru
+@test "E2E-006-A: explorer and librarian complete tasks in parallel" {
+    # 1. Place tasks for both specialist
     cp "$PROJECT_ROOT/tests/e2e/fixtures/task_ashigaru1_basic.yaml" \
-       "$E2E_QUEUE/queue/tasks/ashigaru1.yaml"
+       "$E2E_QUEUE/queue/tasks/explorer.yaml"
     cp "$PROJECT_ROOT/tests/e2e/fixtures/task_ashigaru2_basic.yaml" \
-       "$E2E_QUEUE/queue/tasks/ashigaru2.yaml"
+       "$E2E_QUEUE/queue/tasks/librarian.yaml"
 
     # 2. Send task_assigned to both inboxes
-    bash "$E2E_QUEUE/scripts/inbox_write.sh" "ashigaru1" \
-        "Read task YAML and start work." "task_assigned" "karo"
-    bash "$E2E_QUEUE/scripts/inbox_write.sh" "ashigaru2" \
-        "Read task YAML and start work." "task_assigned" "karo"
+    bash "$E2E_QUEUE/scripts/inbox_write.sh" "explorer" \
+        "Read task YAML and start work." "task_assigned" "orchestrator"
+    bash "$E2E_QUEUE/scripts/inbox_write.sh" "librarian" \
+        "Read task YAML and start work." "task_assigned" "orchestrator"
 
     # 3. Nudge both simultaneously
     local ashigaru1_pane ashigaru2_pane
@@ -67,9 +67,9 @@ setup() {
     send_to_pane "$ashigaru2_pane" "inbox1"
 
     # 4. Both should complete
-    run wait_for_yaml_value "$E2E_QUEUE/queue/tasks/ashigaru1.yaml" "task.status" "done" 30
+    run wait_for_yaml_value "$E2E_QUEUE/queue/tasks/explorer.yaml" "task.status" "done" 30
     assert_success
-    run wait_for_yaml_value "$E2E_QUEUE/queue/tasks/ashigaru2.yaml" "task.status" "done" 30
+    run wait_for_yaml_value "$E2E_QUEUE/queue/tasks/librarian.yaml" "task.status" "done" 30
     assert_success
 
     # 5. Both reports should exist
@@ -79,8 +79,8 @@ setup() {
     assert_success
 
     # 6. Reports should have correct agent IDs
-    assert_yaml_field "$E2E_QUEUE/queue/reports/ashigaru1_report.yaml" "worker_id" "ashigaru1"
-    assert_yaml_field "$E2E_QUEUE/queue/reports/ashigaru2_report.yaml" "worker_id" "ashigaru2"
+    assert_yaml_field "$E2E_QUEUE/queue/reports/ashigaru1_report.yaml" "worker_id" "explorer"
+    assert_yaml_field "$E2E_QUEUE/queue/reports/ashigaru2_report.yaml" "worker_id" "librarian"
 }
 
 # ═══════════════════════════════════════════════════════════════
@@ -90,14 +90,14 @@ setup() {
 @test "E2E-006-B: parallel tasks maintain inbox isolation" {
     # 1. Place tasks and send notifications
     cp "$PROJECT_ROOT/tests/e2e/fixtures/task_ashigaru1_basic.yaml" \
-       "$E2E_QUEUE/queue/tasks/ashigaru1.yaml"
+       "$E2E_QUEUE/queue/tasks/explorer.yaml"
     cp "$PROJECT_ROOT/tests/e2e/fixtures/task_ashigaru2_basic.yaml" \
-       "$E2E_QUEUE/queue/tasks/ashigaru2.yaml"
+       "$E2E_QUEUE/queue/tasks/librarian.yaml"
 
-    bash "$E2E_QUEUE/scripts/inbox_write.sh" "ashigaru1" \
-        "Read task YAML and start work." "task_assigned" "karo"
-    bash "$E2E_QUEUE/scripts/inbox_write.sh" "ashigaru2" \
-        "Read task YAML and start work." "task_assigned" "karo"
+    bash "$E2E_QUEUE/scripts/inbox_write.sh" "explorer" \
+        "Read task YAML and start work." "task_assigned" "orchestrator"
+    bash "$E2E_QUEUE/scripts/inbox_write.sh" "librarian" \
+        "Read task YAML and start work." "task_assigned" "orchestrator"
 
     local ashigaru1_pane ashigaru2_pane
     ashigaru1_pane=$(pane_target 1)
@@ -107,22 +107,22 @@ setup() {
     send_to_pane "$ashigaru2_pane" "inbox1"
 
     # 2. Wait for both to complete
-    run wait_for_yaml_value "$E2E_QUEUE/queue/tasks/ashigaru1.yaml" "task.status" "done" 30
+    run wait_for_yaml_value "$E2E_QUEUE/queue/tasks/explorer.yaml" "task.status" "done" 30
     assert_success
-    run wait_for_yaml_value "$E2E_QUEUE/queue/tasks/ashigaru2.yaml" "task.status" "done" 30
+    run wait_for_yaml_value "$E2E_QUEUE/queue/tasks/librarian.yaml" "task.status" "done" 30
     assert_success
 
-    # 3. Each inbox should have its own messages (task_assigned from karo + no cross-contamination)
-    # ashigaru1's inbox should NOT have ashigaru2's messages
+    # 3. Each inbox should have its own messages (task_assigned from orchestrator + no cross-contamination)
+    # explorer's inbox should NOT have librarian's messages
     run python3 -c "
 import yaml
-with open('$E2E_QUEUE/queue/inbox/ashigaru1.yaml') as f:
+with open('$E2E_QUEUE/queue/inbox/explorer.yaml') as f:
     data = yaml.safe_load(f) or {}
 msgs = data.get('messages', [])
-# All messages in ashigaru1's inbox should be addressed to ashigaru1 context
-# (no ashigaru2 task_assigned should appear here)
+# All messages in explorer's inbox should be addressed to explorer context
+# (no librarian task_assigned should appear here)
 for m in msgs:
-    if m.get('type') == 'task_assigned' and 'ashigaru2' in str(m.get('content', '')):
+    if m.get('type') == 'task_assigned' and 'librarian' in str(m.get('content', '')):
         print('CROSS-CONTAMINATION DETECTED')
         exit(1)
 "

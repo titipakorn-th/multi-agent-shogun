@@ -1570,16 +1570,16 @@ def main():
                                 except Exception:
                                     pass
                                 
-                                # Wake up Karo via inbox
+                                # Wake up Orchestrator via inbox
                                 try:
                                     inbox_write_path = os.path.join(script_dir, "inbox_write.sh")
                                     subprocess.run([
-                                        "bash", inbox_write_path, "karo",
+                                        "bash", inbox_write_path, "orchestrator",
                                         f"Telegram question answered: {selected_option}",
                                         "telegram_answer", "telegram_listener"
                                     ], check=True)
                                 except Exception as e:
-                                    print(f"[telegram_listener] Error nudging Karo: {e}", file=sys.stderr)
+                                    print(f"[telegram_listener] Error nudging Orchestrator: {e}", file=sys.stderr)
                         else:
                             # Clear loading spinner for informational callback queries
                             make_telegram_request(token, "answerCallbackQuery", {"callback_query_id": cb["id"], "text": "Acknowledged"})
@@ -1630,16 +1630,16 @@ def main():
                                 except Exception:
                                     pass
                                 
-                                # Wake up Karo via inbox
+                                # Wake up Orchestrator via inbox
                                 try:
                                     inbox_write_path = os.path.join(script_dir, "inbox_write.sh")
                                     subprocess.run([
-                                        "bash", inbox_write_path, "karo",
+                                        "bash", inbox_write_path, "orchestrator",
                                         f"Telegram question answered: {reply_text}",
                                         "telegram_answer", "telegram_listener"
                                     ], check=True)
                                 except Exception as e:
-                                    print(f"[telegram_listener] Error nudging Karo: {e}", file=sys.stderr)
+                                    print(f"[telegram_listener] Error nudging Orchestrator: {e}", file=sys.stderr)
                             continue
                             
                         # Ignore replies (handled by reply check above)

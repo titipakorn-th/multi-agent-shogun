@@ -41,10 +41,9 @@ CODEX_CONTEXT_CRIT=10
 CODEX_LIMIT_HITS_WARN=3
 
 # ─── Agent list (dynamic from settings.yaml) ───
-_ashigaru_ids_str=$(get_ashigaru_ids 2>/dev/null || echo "ashigaru1 ashigaru2 ashigaru3 ashigaru4 ashigaru5 ashigaru6 ashigaru7")
-ALL_AGENTS=("shogun" "karo")
-for _aid in $_ashigaru_ids_str; do ALL_AGENTS+=("$_aid"); done
-ALL_AGENTS+=("gunshi")
+_specialist_ids_str=$(get_specialist_ids 2>/dev/null || echo "explorer librarian oracle designer fixer observer council")
+ALL_AGENTS=("shogun" "orchestrator")
+for _aid in $_specialist_ids_str; do ALL_AGENTS+=("$_aid"); done
 
 # ═══════════════════════════════════════════════════════
 # Phase 1: Scan all tmux panes for metadata
@@ -524,7 +523,7 @@ if [[ ${#CODEX_AGENTS[@]} -gt 0 ]]; then
 
     # Shared model
     codex_model="${AGENT_MODEL[${CODEX_AGENTS[0]}]}"
-    printf "  Agents: ashigaru1-%d (%s)\n" "${#CODEX_AGENTS[@]}" "$codex_model"
+    printf "  Agents: %d specialists (%s)\n" "${#CODEX_AGENTS[@]}" "$codex_model"
 
     # Context display
     printf "  Context left:\n    "
@@ -532,7 +531,6 @@ if [[ ${#CODEX_AGENTS[@]} -gt 0 ]]; then
     count=0
     for agent in "${CODEX_AGENTS[@]}"; do
         ctx="${CODEX_CONTEXT[$agent]}"
-        num="${agent#ashigaru}"  # extract number
         # Add warning markers
         marker=""
         if [[ "$ctx" != "?" ]]; then
@@ -542,7 +540,7 @@ if [[ ${#CODEX_AGENTS[@]} -gt 0 ]]; then
                 marker="!"
             fi
         fi
-        printf "%s:%s%%%s  " "$num" "$ctx" "$marker"
+        printf "%s:%s%%%s  " "$agent" "$ctx" "$marker"
         count=$((count + 1))
         if [[ $((count % 4)) -eq 0 ]] && [[ $count -lt ${#CODEX_AGENTS[@]} ]]; then
             printf "\n    "

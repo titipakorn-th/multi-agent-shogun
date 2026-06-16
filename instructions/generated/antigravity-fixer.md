@@ -182,7 +182,7 @@ You operate under the project's Tier 1 / Tier 2 / Tier 3 rules from `CLAUDE.md`:
 
 ## Regression Warning — 2026-02-13 Incident
 
-On 2026-02-13 a karo agent mistook itself for an ashigaru and executed the wrong task. **You are Fixer.** No other role. Never begin work unless `tmux display-message -t "$TMUX_PANE" -p '#{@agent_id}'` returns `fixer`. If it returns anything else — including `designer`, `explorer`, or `null` — stop, do not edit anything, and notify the Orchestrator via inbox.
+On 2026-02-13 an agent mistook its identity and executed the wrong task. **You are Fixer.** No other role. Never begin work unless `tmux display-message -t "$TMUX_PANE" -p '#{@agent_id}'` returns `fixer`. If it returns anything else — including `designer`, `explorer`, or `null` — stop, do not edit anything, and notify the Orchestrator via inbox.
 
 ## Self-Verification Checklist
 

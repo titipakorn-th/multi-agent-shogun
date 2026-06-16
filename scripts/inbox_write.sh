@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # inbox_write.sh — Write message to mailbox (with exclusive lock)
 # Usage: bash scripts/inbox_write.sh <target_agent> <content> <type> <from>
-# Example: bash scripts/inbox_write.sh karo "Ashigaru 5, mission complete" report_received ashigaru5
+# Example: bash scripts/inbox_write.sh orchestrator "Fixer 5, mission complete" report_received fixer
 
 set -e
 

@@ -352,11 +352,11 @@ get_instruction_file() {
     cli_type=$(_cli_adapter_normalize_cli_type "$cli_type")
 
     case "$agent_id" in
-        shogun)    role="shogun" ;;
-        karo)      role="karo" ;;
-        gunshi)    role="gunshi" ;;
-        ashigaru*) role="ashigaru" ;;
-        telegram)  role="telegram" ;;
+        shogun)        role="shogun" ;;
+        orchestrator)  role="orchestrator" ;;
+        explorer|librarian|oracle|designer|fixer|observer|council)
+                      role="$agent_id" ;;
+        telegram)      role="telegram" ;;
         *)
             echo "" >&2
             return 1
@@ -463,16 +463,16 @@ get_agent_model() {
         kimi)
             # Default model for Kimi CLI
             case "$agent_id" in
-                shogun|karo)    echo "k2.5" ;;
-                ashigaru*)      echo "k2.5" ;;
-                *)              echo "k2.5" ;;
+                shogun|orchestrator)               echo "k2.5" ;;
+                explorer|librarian|oracle|designer|fixer|observer|council) echo "k2.5" ;;
+                *)                                 echo "k2.5" ;;
             esac
             ;;
         cursor)
             # Default model for Cursor Agent CLI (model name is passed through)
             case "$agent_id" in
-                shogun|gunshi)  echo "claude-sonnet-4-6" ;;
-                *)              echo "claude-sonnet-4-6" ;;
+                shogun|orchestrator|oracle|council) echo "claude-sonnet-4-6" ;;
+                *)                                 echo "claude-sonnet-4-6" ;;
             esac
             ;;
         antigravity)
@@ -484,13 +484,12 @@ get_agent_model() {
             echo ""
             ;;
         *)
-            # Default model for Claude Code/Codex
+            # Default model for Claude Code/Codex (v2 specialist team)
             case "$agent_id" in
-                shogun)         echo "opus" ;;
-                karo)           echo "sonnet" ;;
-                gunshi)         echo "opus" ;;
-                ashigaru*)      echo "sonnet" ;;
-                *)              echo "sonnet" ;;
+                shogun|orchestrator|oracle|council) echo "opus" ;;
+                explorer)                          echo "haiku" ;;
+                librarian|designer|fixer|observer) echo "sonnet" ;;
+                *)                                 echo "sonnet" ;;
             esac
             ;;
     esac
@@ -986,7 +985,8 @@ can_model_switch() {
 
 # =============================================================================
 # Dynamic Model Routing — Issue #53 Phase 3
-# gunshi_analysis.yaml validation, Bloom analysis trigger judgment
+# oracle_analysis.yaml validation, Bloom analysis trigger judgment
+# (v2: oracle does deep analysis, council does evaluation)
 # =============================================================================
 
 # get_bloom_routing()
@@ -1024,11 +1024,11 @@ except Exception:
     esac
 }
 
-# validate_gunshi_analysis(yaml_path)
-# Schema validation for gunshi_analysis.yaml
+# validate_oracle_analysis(yaml_path)
+# Schema validation for oracle_analysis.yaml
 # Output: "valid" (normal) | error message (abnormal)
 # Exit code: 0 (normal) | 1 (abnormal)
-validate_gunshi_analysis() {
+validate_oracle_analysis() {
     local yaml_path="$1"
 
     if [[ ! -f "$yaml_path" ]]; then
@@ -1093,19 +1093,39 @@ print('valid')
     fi
 }
 
-# should_trigger_bloom_analysis(bloom_routing, bloom_analysis_required, gunshi_available)
+# v2_bloom_routing(level)
+# Map a Bloom taxonomy level (L1..L6, or EVAL) to a v2 specialist role.
+#   L1 (remember)    -> explorer  (factual lookup, no analysis)
+#   L2 (understand)  -> orchestrator (comprehension / task framing)
+#   L3 (apply)       -> orchestrator (apply known patterns)
+#   L4 (analyze)     -> oracle  (deep analysis)
+#   L5 (evaluate)    -> council (multi-model evaluation)
+#   L6 (create)      -> oracle  (synthesis) + council (review)
+#   EVAL             -> council (pure evaluation)
+v2_bloom_routing() {
+    local level="${1:-L1}"
+    case "$level" in
+        L1)      echo "explorer" ;;
+        L2|L3)   echo "orchestrator" ;;
+        L4|L6)   echo "oracle" ;;
+        L5|EVAL) echo "council" ;;
+        *)       echo "orchestrator" ;;
+    esac
+}
+
+# should_trigger_bloom_analysis(bloom_routing, bloom_analysis_required, oracle_available)
 # Judge whether to trigger Bloom analysis
 # $1: bloom_routing — "auto" | "manual" | "off"
 # $2: bloom_analysis_required — "true" | "false" (flag in task YAML)
-# $3: gunshi_available — "yes" | "no" (defaults to "yes")
+# $3: oracle_available — "yes" | "no" (defaults to "yes")
 # Output: "yes" | "no" | "fallback"
 should_trigger_bloom_analysis() {
     local bloom_routing="${1:-off}"
     local bloom_analysis_required="${2:-false}"
-    local gunshi_available="${3:-yes}"
+    local oracle_available="${3:-yes}"
 
-    # Gunshi not started -> Phase 2 fallback
-    if [[ "$gunshi_available" = "no" ]]; then
+    # Oracle not started -> Phase 2 fallback
+    if [[ "$oracle_available" = "no" ]]; then
         echo "fallback"
         return 0
     fi
@@ -1298,13 +1318,13 @@ except Exception:
 #   - Idle Pane: CLI switch OK (stop -> start)
 #   e.g. If Codex 5.3 is required but only Claude Code is idle, downgrade to Claude Code is OK
 #   e.g. If Claude Code is required but only Codex is idle, kill Codex and start Claude Code is OK
-#   Actual restart logic for CLI switching is handled by karo.md (this function only returns agent_id)
+#   Actual restart logic for CLI switching is handled by orchestrator.md (this function only returns agent_id)
 #
 # Arguments:
 #   $1: recommended_model — return value of get_recommended_model()
 #
 # Returns:
-#   Idle Ashigaru ID (e.g. "ashigaru4") — exact match or fallback
+#   Idle specialist ID (e.g. "designer") — exact match or fallback
 #   All busy -> "QUEUE"
 #   Error -> "" (empty string)
 #
@@ -1313,7 +1333,7 @@ except Exception:
 #   case "$agent" in
 #     QUEUE) echo "add to queue" ;;
 #     "")    echo "error" ;;
-#     *)     echo "Ashigaru: assign to $agent (karo.md decides CLI switch)" ;;
+#     *)     echo "Specialist: assign to $agent (orchestrator.md decides CLI switch)" ;;
 #   esac
 find_agent_for_model() {
     local recommended_model="$1"
@@ -1324,7 +1344,7 @@ find_agent_for_model() {
 
     local settings="${CLI_ADAPTER_SETTINGS:-${CLI_ADAPTER_PROJECT_ROOT}/config/settings.yaml}"
 
-    # Extract Ashigaru using recommended_model from settings.yaml's cli.agents
+    # Extract v2 task-eligible specialists using recommended_model from settings.yaml's roles:
     local candidates
     candidates=$("$CLI_ADAPTER_PROJECT_ROOT/.venv/bin/python3" -c "
 import yaml, sys
@@ -1334,11 +1354,12 @@ try:
         cfg = yaml.safe_load(f) or {}
     cli_cfg = cfg.get('cli', {})
     agents = cli_cfg.get('agents', {})
+    task_eligible = {'explorer', 'librarian', 'oracle', 'designer', 'fixer', 'observer', 'council'}
 
     results = []
     for agent_id, spec in agents.items():
-        # Ashigaru only (exclude karo, gunshi, shogun)
-        if not agent_id.startswith('ashigaru'):
+        # v2 task-eligible specialists only (exclude shogun, orchestrator, telegram)
+        if agent_id not in task_eligible:
             continue
         if not isinstance(spec, dict):
             continue
@@ -1346,14 +1367,15 @@ try:
         if agent_model == '${recommended_model}':
             results.append(agent_id)
 
-    # Sort in numerical order (ashigaru1, ashigaru2, ...)
-    results.sort(key=lambda x: int(x.replace('ashigaru', '')) if x.replace('ashigaru', '').isdigit() else 99)
+    # Stable order: explorer, librarian, oracle, designer, fixer, observer, council
+    order = {r: i for i, r in enumerate(task_eligible)}
+    results.sort(key=lambda x: order.get(x, 99))
     print(' '.join(results))
 except Exception:
     pass
 " 2>/dev/null)
 
-    # Check candidate Ashigaru in order (find idle)
+    # Check candidate specialists in order (find idle)
     # Re-use agent_status.sh's agent_is_busy_check
     local agent_status_lib="${CLI_ADAPTER_PROJECT_ROOT}/lib/agent_status.sh"
 
@@ -1394,7 +1416,7 @@ except Exception:
         fi
     done
 
-    # Phase 2: Exact match is all busy -> fallback to any idle Ashigaru
+    # Phase 2: Exact match is all busy -> fallback to any idle v2 specialist
     # Lord's Policy: "If Codex 5.3 is wanted but only Claude Code is idle, Claude Code is acceptable"
     # Never kill/restart. Reuse the idle pane.
     local all_agents
@@ -1405,8 +1427,9 @@ try:
     with open('${settings}') as f:
         cfg = yaml.safe_load(f) or {}
     agents = cfg.get('cli', {}).get('agents', {})
-    results = [k for k in agents if k.startswith('ashigaru')]
-    results.sort(key=lambda x: int(x.replace('ashigaru', '')) if x.replace('ashigaru', '').isdigit() else 99)
+    task_eligible = ['explorer', 'librarian', 'oracle', 'designer', 'fixer', 'observer', 'council']
+    results = [k for k in agents if k in task_eligible]
+    results.sort(key=lambda x: task_eligible.index(x) if x in task_eligible else 99)
     print(' '.join(results))
 except Exception:
     pass
@@ -1439,15 +1462,16 @@ except Exception:
         fi
     done
 
-    # All Ashigaru busy -> queue wait
+    # All specialists busy -> queue wait
     echo "QUEUE"
     return 0
 }
 
-# get_ashigaru_ids()
-# Returns Ashigaru ID list from settings.yaml's cli.agents (space-separated, numerical order)
-# Fallback: "ashigaru1 ashigaru2 ashigaru3 ashigaru4 ashigaru5 ashigaru6 ashigaru7"
-get_ashigaru_ids() {
+# get_specialist_ids()
+# Returns the v2 task-eligible specialist list (the 7 specialists: explorer,
+# librarian, oracle, designer, fixer, observer, council) in canonical order.
+# Fallback to the canonical 7 if settings.yaml is absent or malformed.
+get_specialist_ids() {
     local settings="${CLI_ADAPTER_SETTINGS:-${CLI_ADAPTER_PROJECT_ROOT}/config/settings.yaml}"
     local result
     result=$("$CLI_ADAPTER_PROJECT_ROOT/.venv/bin/python3" -c "
@@ -1456,15 +1480,15 @@ try:
     with open('${settings}') as f:
         cfg = yaml.safe_load(f) or {}
     agents = cfg.get('cli', {}).get('agents', {})
-    results = [k for k in agents if k.startswith('ashigaru')]
-    results.sort(key=lambda x: int(x.replace('ashigaru', '')) if x.replace('ashigaru', '').isdigit() else 99)
-    print(' '.join(results))
+    task_eligible = ['explorer', 'librarian', 'oracle', 'designer', 'fixer', 'observer', 'council']
+    found = [k for k in task_eligible if k in agents]
+    print(' '.join(found if found else task_eligible))
 except Exception:
-    pass
+    print(' '.join(['explorer', 'librarian', 'oracle', 'designer', 'fixer', 'observer', 'council']))
 " 2>/dev/null)
     if [[ -n "$result" ]]; then
         echo "$result"
     else
-        echo "ashigaru1 ashigaru2 ashigaru3 ashigaru4 ashigaru5 ashigaru6 ashigaru7"
+        echo "explorer librarian oracle designer fixer observer council"
     fi
 }

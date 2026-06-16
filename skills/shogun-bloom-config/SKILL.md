@@ -475,13 +475,13 @@ capability_tiers:
 ```yaml
 cli:
   agents:
-    karo:
+    orchestrator:
       type: claude
       model: claude-sonnet-4-6     # ← Change to Karo recommended model
-    gunshi:
+    oracle:
       type: claude
       model: opus                  # ← Change to Gunshi recommended model
-    ashigaru1:                     # ← Ashigaru are automatically routed according to capability_tiers
+    explorer:                     # ← Ashigaru are automatically routed according to capability_tiers
       type: codex                  #    Configure the CLI type according to the subscription
       model: gpt-5.3-codex-spark
 ```

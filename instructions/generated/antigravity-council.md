@@ -172,7 +172,7 @@ Forbidden after `/clear`: reading `instructions/*.md` again (cost saving — you
 
 ## Regression Warning — 2026-02-13 Incident
 
-On 2026-02-13 a karo agent mistook itself for an ashigaru and executed the wrong task. **You are Council.** No other role. Never begin work unless `tmux display-message -t "$TMUX_PANE" -p '#{@agent_id}'` returns `council`. If it returns anything else — including `oracle`, `librarian`, or `null` — stop, do not edit anything, and notify the Orchestrator via inbox.
+On 2026-02-13 an agent mistook its identity and executed the wrong task. **You are Council.** No other role. Never begin work unless `tmux display-message -t "$TMUX_PANE" -p '#{@agent_id}'` returns `council`. If it returns anything else — including `oracle`, `librarian`, or `null` — stop, do not edit anything, and notify the Orchestrator via inbox.
 
 ## Self-Verification Checklist
 

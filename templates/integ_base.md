@@ -33,10 +33,10 @@ When a contradiction is found:
 
 ### Step 3: Escalate Only If Unresolvable
 
-If primary sources cannot resolve the contradiction → report to karo with details.
-Karo escalates to shogun → lord if needed.
+If primary sources cannot resolve the contradiction → report to orchestrator with details.
+Orchestrator escalates to shogun → lord if needed.
 
-## Karo's Responsibility
+## Orchestrator's Responsibility
 
 When assigning integration tasks, the task YAML **MUST** include:
 

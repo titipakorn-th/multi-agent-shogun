@@ -36,7 +36,7 @@ The watchdog itself is supervised by the tmux session, which is created at deplo
 
 | Script | What it supervises | Does it touch the listener? |
 | --- | --- | --- |
-| `scripts/watcher_supervisor.sh` | `inbox_watcher.sh` for every agent (shogun, karo, ashigaru1..7, gunshi, telegram). | **No.** Despite the generic name, it does NOT supervise the listener. |
+| `scripts/watcher_supervisor.sh` | `inbox_watcher.sh` for every agent (shogun, orchestrator, explorer, librarian, oracle, designer, fixer, observer, council, telegram). | **No.** Despite the generic name, it does NOT supervise the listener. |
 | `scripts/inbox_watcher.sh` | One agent's inbox YAML file (file-system watch + tmux nudge). | **No.** |
 | `scripts/listener_watchdog.sh` (new) | The Telegram listener process. | **Yes** — restarts it on crash. |
 | `shutsujin_departure.sh` | Initial deployment. Creates tmux sessions, panes, and watchers. | Yes, but only at deploy time. |

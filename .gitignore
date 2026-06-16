@@ -25,17 +25,11 @@
 !.claude/
 !.claude/settings.json
 
-# Instructions (core OSS)
+# Instructions (core OSS — v2 specialist team)
 !instructions/
 !instructions/shogun.md
-!instructions/karo.md
 !instructions/orchestrator.md
-!instructions/ashigaru.md
-!instructions/gunshi.md
 !instructions/telegram.md
-
-# v2 specialist team
-!instructions/orchestrator.md
 !instructions/explorer.md
 !instructions/librarian.md
 !instructions/oracle.md
@@ -88,7 +82,6 @@
 !.cursor/skills/inbox-write/SKILL.md
 
 # Setup and deployment scripts
-!shutsujin_departure.sh
 !first_setup.sh
 !setup.sh
 !install.bat
@@ -143,7 +136,6 @@ scripts/seo_qc.sh
 !scripts/smoke_test.py
 !scripts/LISTENER_SUPERVISION.md
 !scripts/validate_settings.sh
-!scripts/migrate_to_v2.sh
 !scripts/shutsujin_v2_constants.sh
 !scripts/shutsujin_departure_v2.sh
 

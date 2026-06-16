@@ -21,13 +21,12 @@ roles:
     question: deny
     read_deny:
       - queue/inbox/*
-      - queue/tasks/ashigaru*.yaml
-      - queue/tasks/gunshi.yaml
+      - queue/tasks/*.yaml
       - queue/tasks/pending.yaml
-      - queue/shogun_to_karo_archive.yaml
+      - queue/shogun_to_orchestrator_archive.yaml
     read_allow:
       - queue/inbox/shogun.yaml
-      - queue/shogun_to_karo.yaml
+      - queue/shogun_to_orchestrator.yaml
       - queue/ntfy_inbox.yaml
       - queue/reports/*
       - dashboard.md
@@ -35,34 +34,31 @@ roles:
       - saytask/streaks.yaml
       - context/*
     edit_deny:
-      - queue/tasks/ashigaru*.yaml
-      - queue/tasks/gunshi.yaml
+      - queue/tasks/*.yaml
       - queue/tasks/pending.yaml
       - queue/reports/*
-      - queue/shogun_to_karo_archive.yaml
+      - queue/shogun_to_orchestrator_archive.yaml
       - dashboard.md
       - saytask/*
     edit_allow:
-      - queue/shogun_to_karo.yaml
+      - queue/shogun_to_orchestrator.yaml
       - queue/ntfy_inbox.yaml
       - saytask/tasks.yaml
       - saytask/streaks.yaml
 
-  karo:
+  orchestrator:
     question: deny
     read_deny:
       - queue/inbox/*
       - queue/ntfy_inbox.yaml
       - saytask/tasks.yaml
     read_allow:
-      - queue/inbox/karo.yaml
-      - queue/shogun_to_karo.yaml
-      - queue/shogun_to_karo_archive.yaml
-      - queue/tasks/ashigaru*.yaml
-      - queue/tasks/gunshi.yaml
+      - queue/inbox/orchestrator.yaml
+      - queue/shogun_to_orchestrator.yaml
+      - queue/shogun_to_orchestrator_archive.yaml
+      - queue/tasks/*.yaml
       - queue/tasks/pending.yaml
-      - queue/reports/ashigaru*_report.yaml
-      - queue/reports/gunshi_report.yaml
+      - queue/reports/*_report.yaml
       - dashboard.md
       - saytask/streaks.yaml
       - context/*
@@ -71,71 +67,91 @@ roles:
       - queue/reports/*
       - saytask/tasks.yaml
     edit_allow:
-      - queue/shogun_to_karo.yaml
-      - queue/shogun_to_karo_archive.yaml
-      - queue/tasks/ashigaru*.yaml
-      - queue/tasks/gunshi.yaml
+      - queue/shogun_to_orchestrator.yaml
+      - queue/shogun_to_orchestrator_archive.yaml
+      - queue/tasks/*.yaml
       - queue/tasks/pending.yaml
       - dashboard.md
       - saytask/streaks.yaml
 
-  ashigaru:
+  specialist:
+    # Generic block applied to all task-layer specialists:
+    # explorer, librarian, oracle, designer, fixer, observer, council.
+    # {agent_id} expands to the specialist's role at build time.
     question: deny
     read_deny:
       - queue/inbox/*
       - queue/tasks/*
       - queue/reports/*
       - queue/ntfy_inbox.yaml
-      - queue/shogun_to_karo_archive.yaml
+      - queue/shogun_to_orchestrator_archive.yaml
       - dashboard.md
       - saytask/*
     read_allow:
       - queue/inbox/{agent_id}.yaml
       - queue/tasks/{agent_id}.yaml
       - queue/reports/{agent_id}_report.yaml
-      - queue/shogun_to_karo.yaml
+      - queue/shogun_to_orchestrator.yaml
       - context/*
     edit_deny:
       - queue/tasks/*
       - queue/reports/*
       - queue/ntfy_inbox.yaml
-      - queue/shogun_to_karo.yaml
-      - queue/shogun_to_karo_archive.yaml
+      - queue/shogun_to_orchestrator.yaml
+      - queue/shogun_to_orchestrator_archive.yaml
       - dashboard.md
       - saytask/*
     edit_allow:
       - queue/tasks/{agent_id}.yaml
       - queue/reports/{agent_id}_report.yaml
 
-  gunshi:
+  oracle:
+    # Read-only analyst; cannot edit any task or report files.
+    # Inherits specialist read_allow, but edit_allow is empty.
     question: deny
     read_deny:
       - queue/inbox/*
-      - queue/tasks/ashigaru*.yaml
-      - queue/tasks/pending.yaml
-      - queue/shogun_to_karo.yaml
-      - queue/shogun_to_karo_archive.yaml
+      - queue/tasks/*
+      - queue/reports/*
       - queue/ntfy_inbox.yaml
+      - queue/shogun_to_orchestrator_archive.yaml
+      - dashboard.md
       - saytask/*
     read_allow:
-      - queue/inbox/gunshi.yaml
-      - queue/tasks/gunshi.yaml
-      - queue/reports/ashigaru*_report.yaml
-      - queue/reports/gunshi_report.yaml
-      - dashboard.md
+      - queue/inbox/oracle.yaml
+      - queue/tasks/*.yaml
+      - queue/reports/*_report.yaml
+      - queue/shogun_to_orchestrator.yaml
       - context/*
     edit_deny:
-      - queue/tasks/ashigaru*.yaml
-      - queue/tasks/pending.yaml
-      - queue/shogun_to_karo.yaml
-      - queue/shogun_to_karo_archive.yaml
+      - "*"
+    edit_allow: []
+
+  council:
+    # Multi-model consensus; can write its own report but no task mutations.
+    question: deny
+    read_deny:
+      - queue/inbox/*
+      - queue/tasks/*
       - queue/ntfy_inbox.yaml
-      - queue/reports/ashigaru*_report.yaml
+      - queue/shogun_to_orchestrator_archive.yaml
+      - dashboard.md
+      - saytask/*
+    read_allow:
+      - queue/inbox/council.yaml
+      - queue/tasks/*.yaml
+      - queue/reports/*_report.yaml
+      - queue/shogun_to_orchestrator.yaml
+      - context/*
+    edit_deny:
+      - queue/tasks/*
+      - queue/ntfy_inbox.yaml
+      - queue/shogun_to_orchestrator.yaml
+      - queue/shogun_to_orchestrator_archive.yaml
+      - dashboard.md
       - saytask/*
     edit_allow:
-      - queue/tasks/gunshi.yaml
-      - queue/reports/gunshi_report.yaml
-      - dashboard.md
+      - queue/reports/council_report.yaml
 
   telegram:
     question: deny
@@ -143,19 +159,19 @@ roles:
       - queue/inbox/*
       - queue/tasks/*
       - queue/reports/*
-      - queue/shogun_to_karo_archive.yaml
+      - queue/shogun_to_orchestrator_archive.yaml
       - saytask/*
     read_allow:
       - queue/inbox/telegram.yaml
-      - queue/shogun_to_karo.yaml
+      - queue/shogun_to_orchestrator.yaml
       - queue/ntfy_inbox.yaml
       - dashboard.md
       - context/*
     edit_deny:
       - queue/tasks/*
       - queue/reports/*
-      - queue/shogun_to_karo.yaml
-      - queue/shogun_to_karo_archive.yaml
+      - queue/shogun_to_orchestrator.yaml
+      - queue/shogun_to_orchestrator_archive.yaml
       - queue/ntfy_inbox.yaml
       - dashboard.md
       - saytask/*

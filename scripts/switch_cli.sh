@@ -6,22 +6,22 @@
 #
 # Examples:
 #   # Restart with current settings.yaml values (no CLI type or model change)
-#   bash scripts/switch_cli.sh ashigaru3
+#   bash scripts/switch_cli.sh designer
 #
 #   # Switch from Codex Spark to Claude Sonnet
-#   bash scripts/switch_cli.sh ashigaru3 --type claude --model claude-sonnet-4-6
+#   bash scripts/switch_cli.sh designer --type claude --model claude-sonnet-4-6
 #
 #   # Directly specify provider/model in OpenCode (role definition is --agent, model change takes effect on restart)
-#   bash scripts/switch_cli.sh ashigaru3 --type opencode --model openai/gpt-5.4-mini
+#   bash scripts/switch_cli.sh designer --type opencode --model openai/gpt-5.4-mini
 #
 #   # OpenCode provider-specific reasoning variant
-#   bash scripts/switch_cli.sh ashigaru3 --type opencode --model openrouter/minimax/minimax-m2.5 --variant xhigh
+#   bash scripts/switch_cli.sh designer --type opencode --model openrouter/minimax/minimax-m2.5 --variant xhigh
 #
 #   # Change model and Claude effort within the same CLI (Sonnet -> Opus/max)
-#   bash scripts/switch_cli.sh ashigaru3 --model claude-opus-4-8 --effort max
+#   bash scripts/switch_cli.sh designer --model claude-opus-4-8 --effort max
 #
-#   # Bulk switch all Ashigaru
-#   for i in $(seq 1 7); do bash scripts/switch_cli.sh ashigaru$i --type claude --model claude-sonnet-4-6; done
+#   # Bulk switch all specialists
+#   for r in explorer librarian oracle designer fixer observer council; do bash scripts/switch_cli.sh "$r" --type claude --model claude-sonnet-4-6; done
 #
 # Flow:
 #   1. (Optional) Update settings.yaml
@@ -54,7 +54,7 @@ log() {
 usage() {
     echo "Usage: $0 <agent_id> [--type <cli_type>] [--model <model_name>] [--effort <level>] [--variant <variant>]"
     echo ""
-    echo "  agent_id   Agent configured in config/settings.yaml (e.g. karo, ashigaru1, gunshi)"
+    echo "  agent_id   Agent configured in config/settings.yaml (e.g. orchestrator, explorer, oracle)"
     echo "  --type     claude | codex | copilot | kimi | opencode | cursor"
     echo "  --model    claude-sonnet-4-6 | claude-opus-4-8 | gpt-5.3-codex | openai/gpt-5.4-mini | etc."
     echo "  --effort   Claude effort level: low | medium | high | xhigh | max"

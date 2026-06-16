@@ -1,13 +1,13 @@
 #!/usr/bin/env bats
 # e2e_bloom_routing.bats — Dim C: Smart Switching E2E Test
-# Issue #53 Phase 2 — find_agent_for_model() + karo bloom routing Integration Verification
+# Issue #53 Phase 2 — find_agent_for_model() + orchestrator bloom routing Integration Verification
 #
 # Assumed execution only on VPS. The tmux session "multiagent" is already started,
-# and a mixed CLI configuration (ashigaru1-3=Spark, ashigaru4-5=Sonnet, ashigaru6-7=Opus) is
+# and a mixed CLI configuration (explorer-3=Spark, fixer-5=Sonnet, oracle-7=Opus) is
 # required.
 #
 # Prerequisites:
-#   - VPS configuration: ashigaru1-3=codex/spark, ashigaru4-5=claude/sonnet, ashigaru6-7=claude/opus
+#   - VPS configuration: explorer-3=codex/spark, fixer-5=claude/sonnet, oracle-7=claude/opus
 #   - bloom_routing: "manual" or "auto"
 #   - All Ashigaru are idle (before starting test)
 #
@@ -37,7 +37,7 @@ teardown() {
 }
 
 # ─────────────────────────────────────────────
-# TC-BLOOM-001: L1 task -> assigned to Spark Ashigaru (ashigaru1/2/3)
+# TC-BLOOM-001: L1 task -> assigned to Spark Ashigaru (explorer/2/3)
 # ─────────────────────────────────────────────
 @test "TC-BLOOM-001: L1 task -> assigned to Spark Agent" {
     run get_recommended_model 1
@@ -48,12 +48,12 @@ teardown() {
     recommended="$output"
     run find_agent_for_model "$recommended"
     [ "$status" -eq 0 ]
-    # Spark Ashigaru is one of ashigaru1, 2, or 3
-    [[ "$output" =~ ^ashigaru[1-3]$ ]]
+    # Spark Ashigaru is one of explorer, 2, or 3
+    [[ "$output" =~ ^specialist[1-3]$ ]]
 }
 
 # ─────────────────────────────────────────────
-# TC-BLOOM-002: L5 task -> assigned to Sonnet Ashigaru (ashigaru4/5)
+# TC-BLOOM-002: L5 task -> assigned to Sonnet Ashigaru (fixer/5)
 # ─────────────────────────────────────────────
 @test "TC-BLOOM-002: L5 task -> assigned to Sonnet Agent" {
     run get_recommended_model 5
@@ -63,11 +63,11 @@ teardown() {
     recommended="$output"
     run find_agent_for_model "$recommended"
     [ "$status" -eq 0 ]
-    [[ "$output" =~ ^ashigaru[4-5]$ ]]
+    [[ "$output" =~ ^specialist[4-5]$ ]]
 }
 
 # ─────────────────────────────────────────────
-# TC-BLOOM-003: L6 task -> assigned to Opus Ashigaru (ashigaru6/7)
+# TC-BLOOM-003: L6 task -> assigned to Opus Ashigaru (oracle/7)
 # ─────────────────────────────────────────────
 @test "TC-BLOOM-003: L6 task -> assigned to Opus Agent" {
     run get_recommended_model 6
@@ -77,20 +77,20 @@ teardown() {
     recommended="$output"
     run find_agent_for_model "$recommended"
     [ "$status" -eq 0 ]
-    [[ "$output" =~ ^ashigaru[6-7]$ ]]
+    [[ "$output" =~ ^specialist[6-7]$ ]]
 }
 
 # ─────────────────────────────────────────────
-# TC-BLOOM-004: ashigaru4 busy + L5 task -> assigned to ashigaru5
+# TC-BLOOM-004: fixer busy + L5 task -> assigned to observer
 # No kill/restart occurs (verify busy pane remains unchanged)
 # ─────────────────────────────────────────────
-@test "TC-BLOOM-004: When ashigaru4 is busy, L5 task is assigned to ashigaru5" {
-    # Get pane target of ashigaru4
+@test "TC-BLOOM-004: When fixer is busy, L5 task is assigned to observer" {
+    # Get pane target of fixer
     pane4=$(tmux list-panes -a -F '#{session_name}:#{window_index}.#{pane_index} #{@agent_id}' \
-        | awk '$2 == "ashigaru4" {print $1}')
+        | awk '$2 == "fixer" {print $1}')
 
     if [[ -z "$pane4" ]]; then
-        skip "ashigaru4 pane not found"
+        skip "fixer pane not found"
     fi
 
     # Create busy state using sleep (teardown guaranteed by trap)
@@ -103,7 +103,7 @@ teardown() {
     busy_rc=0
     agent_is_busy_check "$pane4" && true || busy_rc=$?
     if [[ $busy_rc -ne 0 ]]; then
-        skip "Could not set ashigaru4 to busy state (busy_rc=${busy_rc})"
+        skip "Could not set fixer to busy state (busy_rc=${busy_rc})"
     fi
 
     # L5 task routing
@@ -111,30 +111,30 @@ teardown() {
     run find_agent_for_model "$recommended"
     [ "$status" -eq 0 ]
 
-    # ashigaru4 is busy so it should be assigned to ashigaru5
-    [ "$output" = "ashigaru5" ] || \
-        { echo "Expected: ashigaru5, Actual: $output"; return 1; }
+    # fixer is busy so it should be assigned to observer
+    [ "$output" = "observer" ] || \
+        { echo "Expected: observer, Actual: $output"; return 1; }
 
-    # Verify ashigaru4 is still running (not killed/restarted)
+    # Verify fixer is still running (not killed/restarted)
     still_busy=0
     agent_is_busy_check "$pane4" && true || still_busy=$?
-    [[ $still_busy -eq 0 ]] || echo "WARNING: ashigaru4 state changed (possible kill/restart)"
+    [[ $still_busy -eq 0 ]] || echo "WARNING: fixer state changed (possible kill/restart)"
 }
 
 # ─────────────────────────────────────────────
-# TC-BLOOM-005: both ashigaru4/5 busy + L5 task -> QUEUE (no downgrade to Codex)
+# TC-BLOOM-005: both fixer/5 busy + L5 task -> QUEUE (no downgrade to Codex)
 # ─────────────────────────────────────────────
 @test "TC-BLOOM-005: When all Sonnet Ashigaru are busy, placed in QUEUE (verify no downgrade to Codex)" {
     pane4=$(tmux list-panes -a -F '#{session_name}:#{window_index}.#{pane_index} #{@agent_id}' \
-        | awk '$2 == "ashigaru4" {print $1}')
+        | awk '$2 == "fixer" {print $1}')
     pane5=$(tmux list-panes -a -F '#{session_name}:#{window_index}.#{pane_index} #{@agent_id}' \
-        | awk '$2 == "ashigaru5" {print $1}')
+        | awk '$2 == "observer" {print $1}')
 
     if [[ -z "$pane4" || -z "$pane5" ]]; then
-        skip "ashigaru4 or ashigaru5 pane not found"
+        skip "fixer or observer pane not found"
     fi
 
-    # Create busy state for ashigaru4/5 using sleep (teardown guaranteed by trap)
+    # Create busy state for fixer/5 using sleep (teardown guaranteed by trap)
     # shellcheck disable=SC2064
     trap "tmux send-keys -t '$pane4' '' C-c; tmux send-keys -t '$pane5' '' C-c; sleep 0.3" EXIT
     tmux send-keys -t "$pane4" "echo 'Working...'; sleep 30" Enter
@@ -146,7 +146,7 @@ teardown() {
     rc5=0; agent_is_busy_check "$pane5" && true || rc5=$?
 
     if [[ $rc4 -ne 0 || $rc5 -ne 0 ]]; then
-        skip "Could not set either ashigaru4 or ashigaru5 to busy state (rc4=${rc4}, rc5=${rc5})"
+        skip "Could not set either fixer or observer to busy state (rc4=${rc4}, rc5=${rc5})"
     fi
 
     # L5 task routing
@@ -156,7 +156,7 @@ teardown() {
 
     # Fallback (other idle Ashigaru) or QUEUE is allowed
     # In case of fallback to non-Sonnet Ashigaru, output model quality warning
-    if [[ "$result" =~ ^ashigaru[1-3]$ ]]; then
+    if [[ "$result" =~ ^specialist[1-3]$ ]]; then
         echo "Fallback destination: $result (Spark agent - watch out for quality degradation)"
     elif [[ "$result" = "QUEUE" ]]; then
         echo "QUEUE: All Ashigaru busy"
@@ -164,8 +164,8 @@ teardown() {
         echo "Fallback destination: $result"
     fi
 
-    # Confirm it returns QUEUE or ashigaru (doing nothing is invalid)
-    [[ "$result" = "QUEUE" ]] || [[ "$result" =~ ^ashigaru[0-9]+$ ]]
+    # Confirm it returns QUEUE or specialist (doing nothing is invalid)
+    [[ "$result" = "QUEUE" ]] || [[ "$result" =~ ^specialist[0-9]+$ ]]
 }
 
 # ─────────────────────────────────────────────
@@ -183,6 +183,6 @@ teardown() {
     run find_agent_for_model "$recommended"
     [ "$status" -eq 0 ]
 
-    # Spark Ashigaru (ashigaru1-3) only
-    [[ "$output" =~ ^ashigaru[1-3]$ ]]
+    # Spark Ashigaru (explorer-3) only
+    [[ "$output" =~ ^specialist[1-3]$ ]]
 }

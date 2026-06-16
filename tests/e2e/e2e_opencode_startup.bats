@@ -56,25 +56,25 @@ dump_watcher_log() {
 
     # 1. Respawn pane with OpenCode mock
     tmux respawn-pane -k -t "$ashigaru1_pane" \
-        "MOCK_CLI_TYPE=opencode MOCK_AGENT_ID=ashigaru1 MOCK_PROCESSING_DELAY=1 MOCK_PROJECT_ROOT=$E2E_QUEUE bash $PROJECT_ROOT/tests/e2e/mock_cli.sh"
+        "MOCK_CLI_TYPE=opencode MOCK_AGENT_ID=explorer MOCK_PROCESSING_DELAY=1 MOCK_PROJECT_ROOT=$E2E_QUEUE bash $PROJECT_ROOT/tests/e2e/mock_cli.sh"
     sleep 2
     tmux set-option -p -t "$ashigaru1_pane" @agent_cli "opencode"
 
     # 2. Place assigned task YAML
     cp "$PROJECT_ROOT/tests/e2e/fixtures/task_ashigaru1_basic.yaml" \
-       "$E2E_QUEUE/queue/tasks/ashigaru1.yaml"
+       "$E2E_QUEUE/queue/tasks/explorer.yaml"
 
     # 3. Send task_assigned message via inbox_write
-    bash "$E2E_QUEUE/scripts/inbox_write.sh" "ashigaru1" \
-        "Read task YAML and start work." "task_assigned" "karo"
+    bash "$E2E_QUEUE/scripts/inbox_write.sh" "explorer" \
+        "Read task YAML and start work." "task_assigned" "orchestrator"
 
     # 4. Start inbox_watcher with OpenCode CLI type
     local watcher_pid log_file
-    watcher_pid=$(start_inbox_watcher "ashigaru1" 1 "opencode")
+    watcher_pid=$(start_inbox_watcher "explorer" 1 "opencode")
     log_file="/tmp/e2e_inbox_watcher_ashigaru1_$$.log"
 
     # 5. Wait for task to complete
-    run wait_for_yaml_value "$E2E_QUEUE/queue/tasks/ashigaru1.yaml" "task.status" "done" 45
+    run wait_for_yaml_value "$E2E_QUEUE/queue/tasks/explorer.yaml" "task.status" "done" 45
     if [ "$status" -ne 0 ]; then
         dump_watcher_log "$log_file"
     fi

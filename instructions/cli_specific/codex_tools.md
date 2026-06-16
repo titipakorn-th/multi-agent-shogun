@@ -130,7 +130,7 @@ Codex handles compaction differently from Claude Code:
 
 ```
 Step 1: AGENTS.md is auto-loaded (contains recovery procedure)
-Step 2: Read queue/tasks/ashigaru{N}.yaml → determine current task
+Step 2: Read queue/tasks/{your_id}.yaml → determine current task
 Step 3: If task has "target_path:" → read that file
 Step 4: Resume work based on task status
 ```

@@ -57,15 +57,21 @@ multi-agent-shogun/
 │   └── build_instructions.sh  # Generate CLI-specific instructions
 │
 ├── instructions/         # Agent behavior definitions
-│   ├── shogun.md         # Shogun (commander) instructions
-│   ├── karo.md           # Karo (manager) instructions
-│   ├── ashigaru.md       # Ashigaru (worker) instructions
-│   ├── cli_specific/     # CLI-specific tool descriptions
+│   ├── shogun.md            # Shogun (commander) instructions
+│   ├── orchestrator.md      # Orchestrator (manager) instructions
+│   ├── explorer.md          # Local code search
+│   ├── librarian.md         # External research
+│   ├── oracle.md            # Strategic advisor (read-only)
+│   ├── designer.md          # Plans / specs / designs
+│   ├── fixer.md             # Tactical implementation
+│   ├── observer.md          # Visual / media analysis
+│   ├── council.md           # Multi-model consensus
+│   ├── cli_specific/        # CLI-specific tool descriptions
 │   │   ├── claude_tools.md
 │   │   ├── codex_tools.md
 │   │   ├── copilot_tools.md
 │   │   └── opencode_tools.md
-│   └── generated/        # Built from templates (do not edit manually)
+│   └── generated/           # Built from templates (do not edit manually)
 │
 ├── lib/                  # Core libraries
 │   ├── cli_adapter.sh    # Multi-CLI abstraction layer
@@ -201,7 +207,7 @@ All shell scripts must adhere to these standards:
    # Function: send_message
    # Description: Writes a message to an agent's inbox
    # Arguments:
-   #   $1 - target_agent (shogun|karo|ashigaru1-8)
+   #   $1 - target_agent (shogun|orchestrator|explorer|librarian|oracle|designer|fixer|observer|council)
    #   $2 - message content
    # Returns: 0 on success, 1 on error
    send_message() {
@@ -236,7 +242,7 @@ All shell scripts must adhere to these standards:
 
 Example:
 ```yaml
-# Task assignment for ashigaru1
+# Task assignment for fixer
 task:
   task_id: subtask_001
   description: "Research React 19 features"
@@ -311,9 +317,9 @@ teardown() {
 }
 
 @test "inbox_write.sh creates inbox file" {
-    run bash scripts/inbox_write.sh karo "test message" cmd_new shogun
+    run bash scripts/inbox_write.sh orchestrator "test message" cmd_new shogun
     [ "$status" -eq 0 ]
-    [ -f "queue/inbox/karo.yaml" ]
+    [ -f "queue/inbox/orchestrator.yaml" ]
 }
 ```
 

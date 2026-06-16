@@ -166,7 +166,7 @@ if declare -f agent_registry_multiagent_agents >/dev/null 2>&1; then
     done < <(agent_registry_multiagent_agents)
 fi
 if [ "${#AGENTS[@]}" -eq 0 ]; then
-    AGENTS=("karo" "ashigaru1" "ashigaru2" "ashigaru3" "ashigaru4" "ashigaru5" "ashigaru6" "ashigaru7" "gunshi")
+    AGENTS=("orchestrator" "explorer" "librarian" "oracle" "designer" "fixer" "observer" "council")
 fi
 
 # pane-base-index
@@ -234,7 +234,13 @@ fi
 for i in "${!AGENTS[@]}"; do
     agent="${AGENTS[$i]}"
     pane_idx=$((PANE_BASE + i))
-    pane_target="multiagent:agents.${pane_idx}"
+    # v2 pane target — uses shutsujin_v2_constants.sh mapping (ops/research split)
+    if declare -f v2_pane_for >/dev/null 2>&1; then
+        pane_target=$(v2_pane_for "$agent" 2>/dev/null || true)
+    fi
+    if [ -z "$pane_target" ]; then
+        pane_target="multiagent:agents.${pane_idx}"
+    fi
 
     # CLI type
     if $CLI_ADAPTER_AVAILABLE; then

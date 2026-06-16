@@ -1,15 +1,12 @@
 # ═══════════════════════════════════════════════════════════════
-# multi-agent-shogun v2 — canonical settings sample
+# multi-agent-shogun — canonical settings sample
 #
 # Copy to config/settings.yaml and customize. config/settings.yaml
 # is gitignored (per project convention); only this sample template
 # is committed to the repository.
 #
-# Topology:
-#   v1 — original karo/ashigaru/gunshi layout (legacy)
-#   v2 — flat specialist team (1 orchestrator + 7 specialists)
-#
-# When topology=v2 is set, exactly 9 roles must be defined:
+# The default topology is v2 (shogun + orchestrator + 7 specialists).
+# Exactly 9 roles must be defined:
 #   shogun, orchestrator, explorer, librarian, oracle, designer,
 #   fixer, observer, council.
 # ═══════════════════════════════════════════════════════════════

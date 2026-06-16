@@ -16,11 +16,11 @@ setup_file() {
 
     export WATCHER_SCRIPT="$PROJECT_ROOT/scripts/inbox_watcher.sh"
     export INBOX_WRITE_SCRIPT="$PROJECT_ROOT/scripts/inbox_write.sh"
-    export ASHIGARU_INSTR="$PROJECT_ROOT/instructions/generated/codex-ashigaru.md"
+    export SPECIALIST_INSTR="$PROJECT_ROOT/instructions/generated/codex-fixer.md"
 
     [ -f "$WATCHER_SCRIPT" ] || return 1
     [ -f "$INBOX_WRITE_SCRIPT" ] || return 1
-    [ -f "$ASHIGARU_INSTR" ] || return 1
+    [ -f "$SPECIALIST_INSTR" ] || return 1
     "$VENV_PYTHON" -c "import yaml" 2>/dev/null || return 1
 }
 
@@ -87,19 +87,19 @@ teardown() {
     cat > "$TEST_INBOX" << 'YAML'
 messages:
   - id: msg_task
-    from: karo
+    from: orchestrator
     timestamp: "2026-02-09T21:00:00"
     type: task_assigned
     content: task
     read: false
   - id: msg_clear
-    from: karo
+    from: orchestrator
     timestamp: "2026-02-09T21:00:01"
     type: clear_command
     content: /clear
     read: false
   - id: msg_model
-    from: karo
+    from: orchestrator
     timestamp: "2026-02-09T21:00:02"
     type: model_switch
     content: /model opus
@@ -136,7 +136,7 @@ PY
     cat > "$TEST_INBOX" << 'YAML'
 messages:
   - id: msg_clear
-    from: karo
+    from: orchestrator
     timestamp: "2026-02-09T21:00:01"
     type: clear_command
     content: /clear
@@ -157,8 +157,8 @@ print("OK")
 PY
 }
 
-@test "TC-FR-005: post-task inbox check rule is documented for ashigaru" {
-    grep -q "MANDATORY Post-Task Inbox Check" "$ASHIGARU_INSTR"
+@test "TC-FR-005: post-task inbox check rule is documented for specialist" {
+    grep -q "MANDATORY Post-Task Inbox Check" "$SPECIALIST_INSTR"
 }
 
 @test "TC-FR-006 [RED]: metrics hooks are defined (unread_latency/read_count/estimated_tokens)" {
@@ -198,7 +198,7 @@ PY
 }
 
 @test "TC-FR-014 + TC-NFR-002: inbox_write IF and schema remain backward compatible" {
-    run bash "$INBOX_WRITE_SCRIPT" test_agent "compat-check" task_assigned karo
+    run bash "$INBOX_WRITE_SCRIPT" test_agent "compat-check" task_assigned orchestrator
     [ "$status" -eq 0 ]
 
     "$VENV_PYTHON" - << 'PY' "$PROJECT_ROOT/queue/inbox/test_agent.yaml"
@@ -211,7 +211,7 @@ msg = data["messages"][-1]
 for k in ("id", "from", "timestamp", "type", "content", "read"):
     assert k in msg
 assert msg["type"] == "task_assigned"
-assert msg["from"] == "karo"
+assert msg["from"] == "orchestrator"
 print("OK")
 PY
 

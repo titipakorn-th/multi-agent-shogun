@@ -61,7 +61,7 @@ wait_for_log() {
     local log_file watcher_pid
 
     cp "$PROJECT_ROOT/tests/e2e/fixtures/task_ashigaru1_basic.yaml" \
-        "$E2E_QUEUE/queue/tasks/ashigaru1.yaml"
+        "$E2E_QUEUE/queue/tasks/explorer.yaml"
 
     # Keep mock in busy state before clear_command arrives.
     send_to_pane "$ashigaru1_pane" "busy_hold 2"
@@ -70,23 +70,23 @@ wait_for_log() {
     tmux set-option -p -t "$ashigaru1_pane" @agent_cli "copilot"
     log_file="/tmp/e2e_inbox_watcher_ashigaru1_busy_${BASHPID}.log"
     watcher_pid=$(
-        bash "$E2E_QUEUE/scripts/inbox_watcher.sh" "ashigaru1" "$ashigaru1_pane" "copilot" \
+        bash "$E2E_QUEUE/scripts/inbox_watcher.sh" "explorer" "$ashigaru1_pane" "copilot" \
             > "$log_file" 2>&1 &
         echo $!
     )
     sleep 2
 
-    bash "$E2E_QUEUE/scripts/inbox_write.sh" "ashigaru1" \
-        "/clear" "clear_command" "karo"
+    bash "$E2E_QUEUE/scripts/inbox_write.sh" "explorer" \
+        "/clear" "clear_command" "orchestrator"
 
-    run wait_for_log "$log_file" "[SKIP] Agent ashigaru1 is busy — /clear (clear_command) deferred to next cycle"
+    run wait_for_log "$log_file" "[SKIP] Agent explorer is busy — /clear (clear_command) deferred to next cycle"
     assert_success
 
     # Busy suppression keeps task unprocessed by /clear path.
-    run wait_for_yaml_value "$E2E_QUEUE/queue/tasks/ashigaru1.yaml" "task.status" "assigned" 30
+    run wait_for_yaml_value "$E2E_QUEUE/queue/tasks/explorer.yaml" "task.status" "assigned" 30
     assert_success
 
-    run grep -qF "[SEND-KEYS] Copilot /clear: sending Ctrl-C + restart for ashigaru1" "$log_file"
+    run grep -qF "[SEND-KEYS] Copilot /clear: sending Ctrl-C + restart for explorer" "$log_file"
     [ "$status" -ne 0 ]
 
     stop_inbox_watcher "$watcher_pid"
@@ -103,24 +103,24 @@ wait_for_log() {
     touch "$idle_flag"
 
     cp "$PROJECT_ROOT/tests/e2e/fixtures/task_ashigaru1_basic.yaml" \
-        "$E2E_QUEUE/queue/tasks/ashigaru1.yaml"
+        "$E2E_QUEUE/queue/tasks/explorer.yaml"
 
     tmux set-option -p -t "$ashigaru1_pane" @agent_cli "claude"
     log_file="/tmp/e2e_inbox_watcher_ashigaru1_idle_${BASHPID}.log"
     watcher_pid=$(
-        bash "$E2E_QUEUE/scripts/inbox_watcher.sh" "ashigaru1" "$ashigaru1_pane" "claude" \
+        bash "$E2E_QUEUE/scripts/inbox_watcher.sh" "explorer" "$ashigaru1_pane" "claude" \
             > "$log_file" 2>&1 &
         echo $!
     )
     sleep 2
 
-    bash "$E2E_QUEUE/scripts/inbox_write.sh" "ashigaru1" \
-        "/clear" "clear_command" "karo"
+    bash "$E2E_QUEUE/scripts/inbox_write.sh" "explorer" \
+        "/clear" "clear_command" "orchestrator"
 
-    run wait_for_log "$log_file" "[SEND-KEYS] Sending CLI command to ashigaru1 (claude): /clear"
+    run wait_for_log "$log_file" "[SEND-KEYS] Sending CLI command to explorer (claude): /clear"
     assert_success
 
-    run wait_for_yaml_value "$E2E_QUEUE/queue/tasks/ashigaru1.yaml" "task.status" "done" 45
+    run wait_for_yaml_value "$E2E_QUEUE/queue/tasks/explorer.yaml" "task.status" "done" 45
     assert_success
 
     stop_inbox_watcher "$watcher_pid"

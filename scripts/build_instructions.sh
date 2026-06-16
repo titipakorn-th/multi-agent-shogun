@@ -121,10 +121,7 @@ EOFYAML
 
 # Build Claude Code instruction files
 build_instruction_file "claude" "shogun" "shogun.md"
-build_instruction_file "claude" "karo" "karo.md"
 build_instruction_file "claude" "orchestrator" "orchestrator.md"
-build_instruction_file "claude" "ashigaru" "ashigaru.md"
-build_instruction_file "claude" "gunshi" "gunshi.md"
 build_instruction_file "claude" "telegram" "telegram.md"
 
 # ============================================================
@@ -185,65 +182,42 @@ discover_v2_role_cli_pairs || echo "  (v2 role/CLI discovery skipped)"
 
 # Build Codex instruction files
 build_instruction_file "codex" "shogun" "codex-shogun.md"
-build_instruction_file "codex" "karo" "codex-karo.md"
 build_instruction_file "codex" "orchestrator" "codex-orchestrator.md"
-build_instruction_file "codex" "ashigaru" "codex-ashigaru.md"
-build_instruction_file "codex" "gunshi" "codex-gunshi.md"
 build_instruction_file "codex" "telegram" "codex-telegram.md"
 
 # Build Copilot instruction files
 build_instruction_file "copilot" "shogun" "copilot-shogun.md"
-build_instruction_file "copilot" "karo" "copilot-karo.md"
 build_instruction_file "copilot" "orchestrator" "copilot-orchestrator.md"
-build_instruction_file "copilot" "ashigaru" "copilot-ashigaru.md"
-build_instruction_file "copilot" "gunshi" "copilot-gunshi.md"
 build_instruction_file "copilot" "telegram" "copilot-telegram.md"
 
 # Build Kimi K2 instruction files
 build_instruction_file "kimi" "shogun" "kimi-shogun.md"
-build_instruction_file "kimi" "karo" "kimi-karo.md"
 build_instruction_file "kimi" "orchestrator" "kimi-orchestrator.md"
-build_instruction_file "kimi" "ashigaru" "kimi-ashigaru.md"
-build_instruction_file "kimi" "gunshi" "kimi-gunshi.md"
 build_instruction_file "kimi" "telegram" "kimi-telegram.md"
 
 # Build OpenCode instruction files
 build_instruction_file "opencode" "shogun" "opencode-shogun.md"
-build_instruction_file "opencode" "karo" "opencode-karo.md"
 build_instruction_file "opencode" "orchestrator" "opencode-orchestrator.md"
-build_instruction_file "opencode" "ashigaru" "opencode-ashigaru.md"
-build_instruction_file "opencode" "gunshi" "opencode-gunshi.md"
 build_instruction_file "opencode" "telegram" "opencode-telegram.md"
 
 # Build Cursor Agent instruction files
 build_instruction_file "cursor" "shogun" "cursor-shogun.md"
-build_instruction_file "cursor" "karo" "cursor-karo.md"
 build_instruction_file "cursor" "orchestrator" "cursor-orchestrator.md"
-build_instruction_file "cursor" "ashigaru" "cursor-ashigaru.md"
-build_instruction_file "cursor" "gunshi" "cursor-gunshi.md"
 build_instruction_file "cursor" "telegram" "cursor-telegram.md"
 
 # Build Antigravity instruction files
 build_instruction_file "antigravity" "shogun" "antigravity-shogun.md"
-build_instruction_file "antigravity" "karo" "antigravity-karo.md"
 build_instruction_file "antigravity" "orchestrator" "antigravity-orchestrator.md"
-build_instruction_file "antigravity" "ashigaru" "antigravity-ashigaru.md"
-build_instruction_file "antigravity" "gunshi" "antigravity-gunshi.md"
 build_instruction_file "antigravity" "telegram" "antigravity-telegram.md"
 
 # ============================================================
-# v2 specialist team — sub-C deliverable
+# v2 specialist team — emit per-CLI variants of specialist prompts
 # ============================================================
-# Emit per-CLI variants of the 7 v2 specialist prompts.  Unlike the legacy
-# role template pipeline (which concatenates instructions/roles/<role>_role.md
-# with common sections and CLI-specific tool docs), v2 specialist prompts are
+# Unlike legacy v1 role templates that concatenated instructions/roles/<role>_role.md
+# with common sections and CLI-specific tool docs, v2 specialist prompts are
 # authored as self-contained files at instructions/<role>.md — the YAML
-# frontmatter is already embedded and the body is final.  We simply copy the
+# frontmatter is already embedded and the body is final. We simply copy the
 # file with the per-CLI filename convention.
-#
-# This block is additive — it does not remove the legacy ashigaru/karo/gunshi
-# outputs above (those remain for one release cycle under sub-B's migration
-# plan).
 V2_SPECIALIST_ROLES=(explorer librarian oracle designer fixer observer council)
 
 for role in "${V2_SPECIALIST_ROLES[@]}"; do
@@ -282,9 +256,7 @@ generate_agents_md() {
         -e 's|CLAUDE\.md|AGENTS.md|g' \
         -e 's|CLAUDE\.local\.md|AGENTS.override.md|g' \
         -e 's|instructions/shogun\.md|instructions/generated/codex-shogun.md|g' \
-        -e 's|instructions/karo\.md|instructions/generated/codex-karo.md|g' \
-        -e 's|instructions/ashigaru\.md|instructions/generated/codex-ashigaru.md|g' \
-        -e 's|instructions/gunshi\.md|instructions/generated/codex-gunshi.md|g' \
+        -e 's|instructions/orchestrator\.md|instructions/generated/codex-orchestrator.md|g' \
         -e 's|~/.claude/|~/.codex/|g' \
         -e 's|\.claude\.json|.codex/config.toml|g' \
         -e 's|\.mcp\.json|config.toml (mcp_servers section)|g' \
@@ -328,9 +300,7 @@ generate_copilot_instructions() {
         -e 's|CLAUDE\.md|copilot-instructions.md|g' \
         -e 's|CLAUDE\.local\.md|copilot-instructions.local.md|g' \
         -e 's|instructions/shogun\.md|instructions/generated/copilot-shogun.md|g' \
-        -e 's|instructions/karo\.md|instructions/generated/copilot-karo.md|g' \
-        -e 's|instructions/ashigaru\.md|instructions/generated/copilot-ashigaru.md|g' \
-        -e 's|instructions/gunshi\.md|instructions/generated/copilot-gunshi.md|g' \
+        -e 's|instructions/orchestrator\.md|instructions/generated/copilot-orchestrator.md|g' \
         -e 's|~/.claude/|~/.copilot/|g' \
         -e 's|\.claude\.json|.copilot/config.json|g' \
         -e 's|\.mcp\.json|.copilot/mcp-config.json|g' \
@@ -366,9 +336,7 @@ generate_kimi_instructions() {
         -e 's|CLAUDE\.md|agents/default/system.md|g' \
         -e 's|CLAUDE\.local\.md|agents/default/system.local.md|g' \
         -e 's|instructions/shogun\.md|instructions/generated/kimi-shogun.md|g' \
-        -e 's|instructions/karo\.md|instructions/generated/kimi-karo.md|g' \
-        -e 's|instructions/ashigaru\.md|instructions/generated/kimi-ashigaru.md|g' \
-        -e 's|instructions/gunshi\.md|instructions/generated/kimi-gunshi.md|g' \
+        -e 's|instructions/orchestrator\.md|instructions/generated/kimi-orchestrator.md|g' \
         -e 's|~/.claude/|~/.kimi/|g' \
         -e 's|\.claude\.json|.kimi/config.json|g' \
         -e 's|\.mcp\.json|.kimi/mcp.json|g' \
@@ -431,15 +399,11 @@ generate_opencode_agents() {
     # derive generated file names from git-ignored config/settings.yaml or
     # runtime queue/tasks state.
     local agent_ids
-    agent_ids="shogun karo gunshi ashigaru1 ashigaru2 ashigaru3 ashigaru4 ashigaru5 ashigaru6 ashigaru7 telegram"
+    agent_ids="shogun orchestrator explorer librarian oracle designer fixer observer council telegram"
 
     for agent_id in $agent_ids; do
-        # Determine role (all ashigaru share the same role template)
-        local role=""
-        case "$agent_id" in
-            ashigaru*) role="ashigaru" ;;
-            *)         role="$agent_id" ;;
-        esac
+        # Each v2 role has a 1:1 prompt file, so role == agent_id
+        local role="$agent_id"
 
         # Determine role title for description
         local role_title=""
@@ -447,18 +411,32 @@ generate_opencode_agents() {
             shogun)
                 role_title="Shogun — strategic oversight and command issuance"
                 ;;
-            karo)
-                role_title="Karo — task decomposition, assignment, and coordination"
+            orchestrator)
+                role_title="Orchestrator — task decomposition, assignment, and coordination"
                 ;;
-            gunshi)
-                role_title="Gunshi — strategic analysis and quality control"
+            explorer)
+                role_title="Explorer — code/structure reconnaissance"
+                ;;
+            librarian)
+                role_title="Librarian — documentation and external research"
+                ;;
+            oracle)
+                role_title="Oracle — deep analysis (Bloom L4-L6)"
+                ;;
+            designer)
+                role_title="Designer — UX/architecture planning"
+                ;;
+            fixer)
+                role_title="Fixer — implementation and code change"
+                ;;
+            observer)
+                role_title="Observer — runtime monitoring and verification"
+                ;;
+            council)
+                role_title="Council — multi-perspective evaluation (Bloom L5/EVAL)"
                 ;;
             telegram)
                 role_title="Telegram — handling side queries and utility commands"
-                ;;
-            ashigaru*)
-                local ashigaru_number="${agent_id#ashigaru}"
-                role_title="Ashigaru ${ashigaru_number} — front-line execution"
                 ;;
         esac
 
@@ -471,9 +449,8 @@ permissions_file = sys.argv[1]
 agent_id = sys.argv[2]
 
 def role_for_agent(agent_id: str) -> str:
-    if agent_id.startswith('ashigaru'):
-        return 'ashigaru'
-    if agent_id in {'shogun', 'karo', 'gunshi', 'telegram'}:
+    if agent_id in {'shogun', 'orchestrator', 'explorer', 'librarian', 'oracle',
+                    'designer', 'fixer', 'observer', 'council', 'telegram'}:
         return agent_id
     return ''
 
@@ -569,12 +546,18 @@ def normalize_opencode_model(model: str) -> str:
 def default_model_for(agent: str) -> str:
     if agent == "shogun":
         return "opus"
-    if agent == "karo":
-        return "sonnet"
-    if agent == "gunshi":
+    if agent == "orchestrator":
         return "opus"
+    if agent == "oracle":
+        return "opus"
+    if agent == "council":
+        return "opus"
+    if agent == "explorer":
+        return "haiku"
     if agent == "telegram":
         return "haiku"
+    if agent in ("librarian", "designer", "fixer", "observer"):
+        return "sonnet"
     return "sonnet"
 
 if not settings_path.exists():
@@ -622,16 +605,34 @@ PYEOF
 description: "${role_title}"
 mode: primary
 # Auto-generated by build_instructions.sh — do not edit manually.
-# Source: instructions/roles/${role}_role.md + instructions/common/* + instructions/cli_specific/opencode_tools.md
+# Source: instructions/${role}.md (v2 specialists are self-contained) OR
+#         instructions/roles/${role}_role.md + instructions/common/* (canonical 3)
 # grep intentionally inherits '*: allow'; OpenCode grep permission rules match the search regex, not file paths.
 ${permission_yaml}
 ---
 
 FRONTMATTER
 
-        # Append role-specific content (same pipeline as build_instruction_file)
+        # Append role-specific content
+        # Canonical 3 (shogun, orchestrator, telegram) use the legacy template
+        # at instructions/roles/<role>_role.md concatenated with common sections.
+        # v2 specialists use their self-contained prompt at instructions/<role>.md.
+        local role_body=""
+        case "$agent_id" in
+            explorer|librarian|oracle|designer|fixer|observer|council)
+                if [ -f "$ROOT_DIR/instructions/${agent_id}.md" ]; then
+                    role_body="$ROOT_DIR/instructions/${agent_id}.md"
+                else
+                    echo "  ⚠️  instructions/${agent_id}.md not found; skipping ${agent_id}" >&2
+                    continue
+                fi
+                ;;
+            *)
+                role_body="$PARTS_DIR/roles/${role}_role.md"
+                ;;
+        esac
         {
-            cat "$PARTS_DIR/roles/${role}_role.md"
+            cat "$role_body"
 
             echo ""
             cat <<EOF

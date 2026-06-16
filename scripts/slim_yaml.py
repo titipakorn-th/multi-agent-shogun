@@ -3,7 +3,7 @@
 YAML Slimming Utility
 
 Removes completed/archived items from YAML queue files to maintain performance.
-- For Karo: Archives completed task/report files and finished command queue entries.
+- For Orchestrator: Archives completed task/report files and finished command queue entries.
 - For all agents: Archives read: true messages from inbox files.
 """
 
@@ -15,8 +15,12 @@ from pathlib import Path
 
 import yaml
 
-CANONICAL_TASKS = {f'ashigaru{i}' for i in range(1, 9)} | {'gunshi'}
-CANONICAL_REPORTS = {f'ashigaru{i}_report' for i in range(1, 9)} | {'gunshi_report'}
+# v2 specialist team — 7 task-eligible specialists (excludes shogun, orchestrator)
+CANONICAL_TASKS = {
+    'explorer', 'librarian', 'oracle', 'designer',
+    'fixer', 'observer', 'council',
+}
+CANONICAL_REPORTS = {f'{r}_report' for r in CANONICAL_TASKS}
 IDLE_STUB = {'task': {'status': 'idle'}}
 TOP_LEVEL_IDLE_STUB = {'status': 'idle'}
 TERMINAL_STATUSES = {'done', 'cancelled', 'paused'}
@@ -104,9 +108,9 @@ def print_inventory(message):
 
 
 def get_active_cmd_ids():
-    """Return command IDs in shogun_to_karo that are not terminal."""
+    """Return command IDs in shogun_to_orchestrator that are not terminal."""
     queue_dir = get_queue_dir()
-    shogun_file = queue_dir / 'shogun_to_karo.yaml'
+    shogun_file = queue_dir / 'shogun_to_orchestrator.yaml'
     data = load_yaml(shogun_file)
 
     key = 'commands' if 'commands' in data else 'queue'
@@ -353,11 +357,11 @@ def slim_inbox(agent_id, dry_run=False):
     return True
 
 
-def slim_shugun_to_karo(dry_run=False):
-    """Archive done/cancelled commands from shogun_to_karo.yaml."""
+def slim_shogun_to_orchestrator(dry_run=False):
+    """Archive done/cancelled commands from shogun_to_orchestrator.yaml."""
     queue_dir = get_queue_dir()
     archive_dir = queue_dir / 'archive'
-    shogun_file = queue_dir / 'shogun_to_karo.yaml'
+    shogun_file = queue_dir / 'shogun_to_orchestrator.yaml'
 
     if not shogun_file.exists():
         print(f"Warning: {shogun_file} not found", file=sys.stderr)
@@ -393,7 +397,7 @@ def slim_shugun_to_karo(dry_run=False):
 
     # Write archived commands to timestamped file
     archive_timestamp = get_timestamp()
-    archive_file = archive_dir / f'shogun_to_karo_{archive_timestamp}.yaml'
+    archive_file = archive_dir / f'shogun_to_orchestrator_{archive_timestamp}.yaml'
 
     if dry_run:
         print(f"[DRY-RUN] would archive {len(archived)} commands from {shogun_file}")
@@ -478,9 +482,9 @@ def main():
     if not dry_run:
         archive_dir.mkdir(parents=True, exist_ok=True)
 
-    # Process shogun_to_karo if this is Karo
-    if agent_id == 'karo':
-        if not slim_shugun_to_karo(dry_run=dry_run):
+    # Process shogun_to_orchestrator if this is the orchestrator
+    if agent_id == 'orchestrator':
+        if not slim_shogun_to_orchestrator(dry_run=dry_run):
             sys.exit(1)
         if not migration(dry_run):
             sys.exit(1)

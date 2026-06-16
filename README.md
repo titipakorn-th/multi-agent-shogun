@@ -137,7 +137,7 @@ Shogun isn't locked to one vendor. The system supports 7 CLI tools, each with un
 | **Cursor** | Auto-loads `CLAUDE.md`/`AGENTS.md`/`.cursor/rules/`, built-in web search, `inbox-write` skill via `.cursor/skills/`, `/model` live switching, `--yolo` auto-run | Varies |
 | **Antigravity CLI** | Google Antigravity CLI integration via `agy`, host-managed auth, YOLO-style launch, `gemini`/`agy` legacy aliases | host default / last-used |
 
-OpenCode sessions load the agent-specific `.opencode/agents/<agent_id>.md` definition via `--agent` and keep automation resets on `/new`; model changes require a relaunch. Automation uses the repository-provided `config/opencode-tui.json` via `OPENCODE_TUI_CONFIG`, which disables `app_exit` and pins `session_interrupt`/`input_clear` to known bindings. Role boundaries are embedded in the generated agent frontmatter: Shogun can read `queue/reports/*` for oversight but cannot write them, Karo is limited to coordination files plus report aggregation, Ashigaru only touch their own task/report pair, and Gunshi reads ashigaru reports but only writes `gunshi_report.yaml`.
+OpenCode sessions load the agent-specific `.opencode/agents/<agent_id>.md` definition via `--agent` and keep automation resets on `/new`; model changes require a relaunch. Automation uses the repository-provided `config/opencode-tui.json` via `OPENCODE_TUI_CONFIG`, which disables `app_exit` and pins `session_interrupt`/`input_clear` to known bindings. Role boundaries are embedded in the generated agent frontmatter: Shogun can read `queue/reports/*` for oversight but cannot write them, Orchestrator is limited to coordination files plus report aggregation, and task-layer specialists (explorer/librarian/oracle/designer/fixer/observer/council) only touch their own task/report pair.
 
 Antigravity sessions launch with `agy --dangerously-skip-permissions`. Shogun treats `type: antigravity`, `type: agy`, and legacy `type: gemini` as Antigravity. Authentication and default model selection stay in the host user's Antigravity CLI setup; `settings.yaml` may optionally pass a concrete `model`, but `auto` uses the host default or last-used model.
 
@@ -151,7 +151,7 @@ instructions/
 │   ├── copilot_tools.md # GitHub Copilot CLI tools & features
 │   ├── opencode_tools.md # OpenCode tools, agent frontmatter, and permission model
 │   └── cursor_tools.md  # Cursor Agent tools, skills, and session rules
-└── roles/               # Role definitions (shogun, karo, ashigaru)
+└── roles/               # Role templates (shogun, telegram)
     ↓ build
 CLAUDE.md / AGENTS.md / .github/copilot-instructions.md / .opencode/agents/*.md / .cursor/rules/*.md
   ← Generated per CLI
@@ -527,13 +527,13 @@ The agent formation (which CLI each agent uses) lives in `config/settings.yaml`:
 ```yaml
 cli:
   agents:
-    ashigaru1:
+    explorer:
       type: codex          # codex / claude / copilot / kimi / opencode / antigravity
       model: gpt-5.5
-    ashigaru2:
+    fixer:
       type: claude
       model: claude-sonnet-4-6
-    # Same for ashigaru3-7, gunshi, karo
+    # Same for librarian, oracle, designer, observer, council, orchestrator
 ```
 
 OpenCode uses provider-qualified model IDs:
@@ -541,7 +541,7 @@ OpenCode uses provider-qualified model IDs:
 ```yaml
 cli:
   agents:
-    ashigaru3:
+    designer:
       type: opencode
       model: openrouter/openai/gpt-4o-mini
       variant: high  # optional provider-specific reasoning variant
@@ -559,9 +559,9 @@ When OpenCode is selected, `lib/cli_adapter.sh` launches it with `--agent <agent
 To switch on the fly, use `scripts/switch_cli.sh`:
 
 ```bash
-bash scripts/switch_cli.sh ashigaru3 --type claude --model claude-sonnet-4-6
-bash scripts/switch_cli.sh ashigaru3 --type opencode --model openrouter/openai/gpt-4o-mini
-bash scripts/switch_cli.sh ashigaru3 --type opencode --model openrouter/minimax/minimax-m2.5 --variant xhigh
+bash scripts/switch_cli.sh designer --type claude --model claude-sonnet-4-6
+bash scripts/switch_cli.sh designer --type opencode --model openrouter/openai/gpt-4o-mini
+bash scripts/switch_cli.sh designer --type opencode --model openrouter/minimax/minimax-m2.5 --variant xhigh
 ```
 
 #### 4. Switching or closing a project
@@ -657,14 +657,14 @@ Session 2: AI loads memory on startup
 Agents talk to each other by writing YAML files — like passing notes. **No polling loops, no wasted API calls.**
 
 ```
-Karo wants to wake Ashigaru 3:
+Orchestrator wants to wake Fixer:
 
 Step 1: Write the message          Step 2: Wake the agent up
 ┌──────────────────────┐           ┌──────────────────────────┐
 │ inbox_write.sh       │           │ inbox_watcher.sh         │
 │                      │           │                          │
 │ Writes full message  │  file     │ Detects file change      │
-│ to ashigaru3.yaml    │──change──▶│ (inotifywait, not poll)  │
+│ to fixer.yaml        │──change──▶│ (inotifywait, not poll)  │
 │ with flock (no race) │           │                          │
 └──────────────────────┘           │ Wakes agent via:         │
                                    │  1. Self-watch (skip)    │
@@ -674,7 +674,7 @@ Step 1: Write the message          Step 2: Wake the agent up
 
 Step 3: Agent reads its own inbox
 ┌──────────────────────────────────┐
-│ Ashigaru 3 reads ashigaru3.yaml  │
+│ Fixer reads fixer.yaml            │
 │ → Finds unread messages          │
 │ → Processes them                 │
 │ → Marks as read                  │
@@ -735,21 +735,21 @@ bash scripts/agent_status.sh --session mysession --lang en
 
 **Project mode output:**
 ```
-Agent      CLI     Pane      Task ID                                    Status     Inbox
----------- ------- --------- ------------------------------------------ ---------- -----
-karo       claude  idle      ---                                        ---        0
-ashigaru1  codex   busy      subtask_042a_research                      assigned   0
-ashigaru2  codex   idle      subtask_042b_review                        done       0
-gunshi     claude  busy      subtask_042c_analysis                      assigned   0
+Agent         CLI     Pane      Task ID                                    Status     Inbox
+------------ ------- --------- ------------------------------------------ ---------- -----
+orchestrator  claude  idle      ---                                        ---        0
+explorer      codex   busy      subtask_042a_research                      assigned   0
+fixer         codex   idle      subtask_042b_review                        done       0
+oracle        claude  busy      subtask_042c_analysis                      assigned   0
 ```
 
 **Standalone mode output** (no project config needed):
 ```
 Pane                           State      Agent ID
 ------------------------------ ---------- ----------
-multiagent:agents.0            IDLE       karo
-multiagent:agents.1            BUSY       ashigaru1
-multiagent:agents.8            BUSY       gunshi
+multiagent:ops.0               IDLE       orchestrator
+multiagent:ops.1               BUSY       fixer
+multiagent:research.2          BUSY       oracle
 ```
 
 Detection works for **Claude Code**, **Codex CLI**, and **OpenCode** by checking CLI-specific prompt/spinner patterns near the bottom of each tmux pane. The detection logic lives in `lib/agent_status.sh` — source it in your own scripts:
@@ -998,31 +998,31 @@ Behavioral psychology-driven motivation through your notification feed:
 Each tmux pane shows the agent's current task directly on its border:
 
 ```
-┌ ashigaru1 Sonnet+T VF requirements ──┬ ashigaru3 Opus+T API research ──────┐
+┌ explorer Sonnet+T VF requirements ──┬ designer Opus+T API research ─────────┐
 │                                      │                                     │
 │  Working on SayTask requirements     │  Researching REST API patterns      │
 │                                      │                                     │
-├ ashigaru2 Sonnet ───────────────────┼ ashigaru4 Spark DB schema design ───┤
+├ librarian Sonnet ───────────────────┼ fixer Spark DB schema design ────────┤
 │                                      │                                     │
 │  (idle — waiting for assignment)     │  Designing database schema          │
 │                                      │                                     │
 └──────────────────────────────────────┴─────────────────────────────────────┘
 ```
 
-- **Working**: `ashigaru1 Sonnet+T VF requirements` — agent name, model (with Thinking indicator), and task summary
-- **Idle**: `ashigaru2 Sonnet` — model name only, no task
+- **Working**: `explorer Sonnet+T VF requirements` — agent name, model (with Thinking indicator), and task summary
+- **Idle**: `librarian Sonnet` — model name only, no task
 - **Display names**: Sonnet, Opus, Haiku, Codex, Spark — `+T` suffix = Extended Thinking enabled
-- Updated automatically by the Karo when assigning or completing tasks
+- Updated automatically by the Orchestrator when assigning or completing tasks
 - Glance at all 9 panes to instantly know who's doing what
 
 ### 🔊 10. Shout Mode (Battle Cries)
 
-When an Ashigaru completes a task, it shouts a personalized battle cry in the tmux pane — a visual reminder that your army is working hard.
+When a specialist completes a task, it shouts a personalized battle cry in the tmux pane — a visual reminder that your army is working hard.
 
 ```
-┌ ashigaru1 (Sonnet) ──────────┬ ashigaru2 (Sonnet) ──────────┐
+┌ explorer (Sonnet) ──────────┬ librarian (Sonnet) ──────────┐
 │                               │                               │
-│  ⚔️ Ashigaru 1 took the lead!     │  🔥 Ashigaru 2 shows second-spear pride!   │
+│  ⚔️ Explorer took the lead!     │  🔥 Librarian shows second-spear pride!   │
 │  Hachiba Isshi!                   │  Hachiba Isshi!                   │
 │  ❯                            │  ❯                            │
 └───────────────────────────────┴───────────────────────────────┘
@@ -1178,14 +1178,14 @@ The Karo assigns each subtask a Bloom level and routes it to the appropriate age
 Tasks can declare dependencies on other tasks using `blockedBy`:
 
 ```yaml
-# queue/tasks/ashigaru2.yaml
+# queue/tasks/fixer.yaml
 task:
   task_id: subtask_010b
-  blockedBy: ["subtask_010a"]  # Waits for ashigaru1's task to complete
+  blockedBy: ["subtask_010a"]  # Waits for explorer's task to complete
   description: "Integrate the API client built by subtask_010a"
 ```
 
-When a blocking task completes, the Karo automatically unblocks dependent tasks and assigns them to available Ashigaru. This prevents idle waiting and enables efficient pipelining of dependent work.
+When a blocking task completes, the Orchestrator automatically unblocks dependent tasks and assigns them to available specialists. This prevents idle waiting and enables efficient pipelining of dependent work.
 
 ### Dynamic Model Routing (capability_tiers)
 
@@ -1264,7 +1264,7 @@ Why use files instead of direct messaging between agents?
 
 ### Agent Identification (@agent_id)
 
-Each pane has a `@agent_id` tmux user option (e.g., `karo`, `ashigaru1`). While `pane_index` can shift when panes are rearranged, `@agent_id` is set at startup by `shutsujin_departure.sh` and never changes.
+Each pane has a `@agent_id` tmux user option (e.g., `orchestrator`, `fixer`). While `pane_index` can shift when panes are rearranged, `@agent_id` is set at startup by `lib/agent_registry.sh` and never changes.
 
 Agent self-identification:
 ```bash
@@ -1600,14 +1600,18 @@ multi-agent-shogun/
 │  ┌──────────────── Setup Scripts ────────────────────┐
 ├── install.bat               # Windows: First-time setup
 ├── first_setup.sh            # Ubuntu/Mac: First-time setup
-├── shutsujin_departure.sh    # Daily deployment (auto-loads instructions)
 │  └──────────────────────────────────────────────────┘
 │
 ├── instructions/             # Agent behavior definitions
 │   ├── shogun.md             # Shogun instructions
-│   ├── karo.md               # Karo instructions
-│   ├── ashigaru.md           # Ashigaru instructions
-│   ├── gunshi.md             # Gunshi (strategist) instructions
+│   ├── orchestrator.md       # Orchestrator instructions
+│   ├── explorer.md           # Local code search
+│   ├── librarian.md          # External research
+│   ├── oracle.md             # Strategic advisor (read-only)
+│   ├── designer.md           # Plans / specs / designs
+│   ├── fixer.md              # Tactical implementation
+│   ├── observer.md           # Visual / media analysis
+│   ├── council.md            # Multi-model consensus
 │   └── cli_specific/         # CLI-specific tool descriptions
 │       ├── claude_tools.md   # Claude Code tools & features
 │       └── copilot_tools.md  # GitHub Copilot CLI tools & features
@@ -1634,12 +1638,12 @@ multi-agent-shogun/
 │   └── <project_id>.yaml    # Full info per project (clients, tasks, Notion links, etc.)
 │
 ├── queue/                    # Communication files
-│   ├── shogun_to_karo.yaml   # Shogun → Karo commands
+│   ├── shogun_to_orchestrator.yaml  # Shogun → Orchestrator commands
 │   ├── ntfy_inbox.yaml       # Incoming messages from phone (ntfy)
 │   ├── inbox/                # Per-agent inbox files
 │   │   ├── shogun.yaml       # Messages to Shogun
-│   │   ├── karo.yaml         # Messages to Karo
-│   │   └── ashigaru{1-8}.yaml # Messages to each Ashigaru
+│   │   ├── orchestrator.yaml # Messages to Orchestrator
+│   │   └── <role>.yaml       # Messages to each specialist (explorer/librarian/oracle/designer/fixer/observer/council)
 │   ├── tasks/                # Per-worker task files
 │   └── reports/              # Worker reports
 │

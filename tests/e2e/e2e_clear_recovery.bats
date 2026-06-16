@@ -46,17 +46,17 @@ setup() {
 # ═══════════════════════════════════════════════════════════════
 
 @test "E2E-003-A: /clear with assigned task triggers auto-recovery" {
-    # 1. Place task YAML for ashigaru1 (status: assigned)
+    # 1. Place task YAML for explorer (status: assigned)
     cp "$PROJECT_ROOT/tests/e2e/fixtures/task_ashigaru1_basic.yaml" \
-       "$E2E_QUEUE/queue/tasks/ashigaru1.yaml"
+       "$E2E_QUEUE/queue/tasks/explorer.yaml"
 
-    # 2. Send /clear to ashigaru1 (not inbox nudge — direct /clear)
+    # 2. Send /clear to explorer (not inbox nudge — direct /clear)
     local ashigaru1_pane
     ashigaru1_pane=$(pane_target 1)
     send_to_pane "$ashigaru1_pane" "/clear"
 
     # 3. Wait for task to complete (handle_clear detects assigned task)
-    run wait_for_yaml_value "$E2E_QUEUE/queue/tasks/ashigaru1.yaml" "task.status" "done" 30
+    run wait_for_yaml_value "$E2E_QUEUE/queue/tasks/explorer.yaml" "task.status" "done" 30
     assert_success
 
     # 4. Verify report was written
@@ -73,7 +73,7 @@ setup() {
 # ═══════════════════════════════════════════════════════════════
 
 @test "E2E-003-B: /clear without assigned task does not crash" {
-    # 1. No task YAML placed — ashigaru1 has nothing to do
+    # 1. No task YAML placed — explorer has nothing to do
 
     # 2. Send /clear
     local ashigaru1_pane
@@ -107,15 +107,15 @@ setup() {
 
     # 2. Now place task and send normal inbox nudge
     cp "$PROJECT_ROOT/tests/e2e/fixtures/task_ashigaru1_basic.yaml" \
-       "$E2E_QUEUE/queue/tasks/ashigaru1.yaml"
+       "$E2E_QUEUE/queue/tasks/explorer.yaml"
 
-    bash "$E2E_QUEUE/scripts/inbox_write.sh" "ashigaru1" \
-        "Read task YAML and start work." "task_assigned" "karo"
+    bash "$E2E_QUEUE/scripts/inbox_write.sh" "explorer" \
+        "Read task YAML and start work." "task_assigned" "orchestrator"
 
     send_to_pane "$ashigaru1_pane" "inbox1"
 
     # 3. Task should complete normally
-    run wait_for_yaml_value "$E2E_QUEUE/queue/tasks/ashigaru1.yaml" "task.status" "done" 30
+    run wait_for_yaml_value "$E2E_QUEUE/queue/tasks/explorer.yaml" "task.status" "done" 30
     assert_success
 
     # 4. Report should exist

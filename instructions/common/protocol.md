@@ -10,14 +10,14 @@ bash scripts/inbox_write.sh <target_agent> "<message>" <type> <from>
 
 Examples:
 ```bash
-# Shogun → Karo
-bash scripts/inbox_write.sh karo "Wrote cmd_048. Please execute." cmd_new shogun
+# Shogun → Orchestrator
+bash scripts/inbox_write.sh orchestrator "Wrote cmd_048. Please execute." cmd_new shogun
 
-# Ashigaru → Karo
-bash scripts/inbox_write.sh karo "Ashigaru 5, mission complete. Please verify report YAML." report_received ashigaru5
+# Specialist → Orchestrator
+bash scripts/inbox_write.sh orchestrator "Fixer, mission complete. Please verify report YAML." report_received fixer
 
-# Karo → Ashigaru
-bash scripts/inbox_write.sh ashigaru3 "Read the task YAML and start work." task_assigned karo
+# Orchestrator → Specialist
+bash scripts/inbox_write.sh designer "Read the task YAML and start work." task_assigned orchestrator
 ```
 
 Delivery is handled by `inbox_watcher.sh` (infrastructure layer).
@@ -64,7 +64,7 @@ Read-cost controls:
 | 2-4 min | Escape×2 + nudge | Copilot/Kimi use Escape×2 + Ctrl-C + nudge. Claude/Codex/OpenCode use a plain nudge instead |
 | 4 min+ | Context reset sent (max once per 5 min, skipped for Codex) | Force session reset + YAML re-read |
 
-## Inbox Processing Protocol (karo/ashigaru/gunshi)
+## Inbox Processing Protocol (orchestrator / specialists)
 
 When you receive `inboxN` (e.g. `inbox3`):
 1. `Read queue/inbox/{your_id}.yaml`
@@ -85,10 +85,10 @@ you will be stuck idle until the next nudge escalation or task reassignment.
 
 ## Redo Protocol
 
-When Karo determines a task needs to be redone:
+When the Orchestrator determines a task needs to be redone:
 
-1. Karo writes new task YAML with new task_id (e.g., `subtask_097d` → `subtask_097d2`), adds `redo_of` field
-2. Karo sends `clear_command` type inbox message (NOT `task_assigned`)
+1. Orchestrator writes new task YAML with new task_id (e.g., `subtask_097d` → `subtask_097d2`), adds `redo_of` field
+2. Orchestrator sends `clear_command` type inbox message (NOT `task_assigned`)
 3. inbox_watcher delivers context reset to the agent (Claude/Copilot/Kimi: `/clear`, Codex/OpenCode: `/new`) → session reset
 4. Agent recovers via Session Start procedure, reads new task YAML, starts fresh
 
@@ -98,9 +98,9 @@ Race condition is eliminated: context reset wipes old context. Agent re-reads YA
 
 | Direction | Method | Reason |
 |-----------|--------|--------|
-| Ashigaru/Gunshi → Karo | Report YAML + inbox_write | File-based notification |
-| Karo → Shogun/Lord | dashboard.md update + inbox_write | Report command completions/failures to Shogun; watcher suppresses send-keys if active |
-| Karo → Gunshi | YAML + inbox_write | Strategic task delegation |
+| Specialist → Orchestrator | Report YAML + inbox_write | File-based notification |
+| Orchestrator → Shogun/Lord | dashboard.md update + inbox_write | Report command completions/failures to Shogun; watcher suppresses send-keys if active |
+| Orchestrator → Oracle/Council | YAML + inbox_write | Strategic analysis delegation (Bloom L4-L6 / EVAL) |
 | Top → Down | YAML + inbox_write | Standard wake-up |
 
 ## File Operation Rule
@@ -119,10 +119,10 @@ bash scripts/inbox_write.sh <target> "<message>" <type> <from>
 
 ### Report Notification Protocol
 
-After writing report YAML, notify Karo:
+After writing report YAML, notify the Orchestrator:
 
 ```bash
-bash scripts/inbox_write.sh karo "Ashigaru {N}, mission complete. Please verify the report." report_received ashigaru{N}
+bash scripts/inbox_write.sh orchestrator "<specialist>, mission complete. Please verify the report." report_received <specialist>
 ```
 
 That's it. No state checking, no retry, no delivery verification.

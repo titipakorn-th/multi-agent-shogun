@@ -1,7 +1,7 @@
 # ═══════════════════════════════════════════════════════════════
 # inbox_watcher.sh — Mailbox monitoring & wake-up signal delivery
 # Usage: bash scripts/inbox_watcher.sh <agent_id> <pane_target> [cli_type]
-# Example: bash scripts/inbox_watcher.sh karo multiagent:0.0 claude
+# Example: bash scripts/inbox_watcher.sh orchestrator multiagent:ops.0 claude
 #
 # Design Philosophy:
 #   Message body is written to file (inbox YAML) = Reliable
@@ -721,11 +721,11 @@ send_context_reset() {
     effective_cli=$(get_effective_cli_type)
 
     # Safety: never auto-reset context for command-layer agents.
-    # Only ashigaru should receive automatic context resets (clear stale task context).
-    # Shogun (human-controlled), Karo (coordinator state), Gunshi (strategic state)
+    # Only specialists should receive automatic context resets (clear stale task context).
+    # Shogun (human-controlled), Orchestrator (coordinator state), Oracle/Council (strategic state)
     # all maintain complex running context that should not be wiped automatically.
-    if [ "$AGENT_ID" = "shogun" ] || [ "$AGENT_ID" = "karo" ] || [ "$AGENT_ID" = "gunshi" ]; then
-        echo "[$(date)] [SKIP] $AGENT_ID: suppressing context reset (command-layer agent)" >&2
+    if [ "$AGENT_ID" = "shogun" ] || [ "$AGENT_ID" = "orchestrator" ] || [ "$AGENT_ID" = "oracle" ] || [ "$AGENT_ID" = "council" ]; then
+        echo "[$(date)] [SKIP] $AGENT_ID: suppressing context reset (command/analysis-layer agent)" >&2
         return 0
     fi
 
@@ -1244,9 +1244,10 @@ for s in data.get('specials', []):
                     echo "[$(date)] ESCALATION Phase 3: $AGENT_ID unresponsive for ${age}s, but cli=codex — skipping /clear." >&2
                     FIRST_UNREAD_SEEN=$now  # Reset timer (no destructive action)
                     send_wakeup "$normal_count"
-                elif [ "$AGENT_ID" = "shogun" ] || [ "$AGENT_ID" = "karo" ] || [ "$AGENT_ID" = "gunshi" ]; then
-                    # Command-layer agents (karo/gunshi/shogun): suppress /clear even in Phase 3
-                    echo "[$(date)] [SKIP] ESCALATION Phase 3: $AGENT_ID suppressed (command-layer agent, ${age}s). Using Escape+nudge." >&2
+                elif [ "$AGENT_ID" = "shogun" ] || [ "$AGENT_ID" = "orchestrator" ] || [ "$AGENT_ID" = "oracle" ] || [ "$AGENT_ID" = "council" ]; then
+                    # Command-layer agents (orchestrator) and analysis-layer agents (oracle/council):
+                    # suppress /clear even in Phase 3
+                    echo "[$(date)] [SKIP] ESCALATION Phase 3: $AGENT_ID suppressed (command/analysis-layer agent, ${age}s). Using Escape+nudge." >&2
                     FIRST_UNREAD_SEEN=$now  # Reset timer
                     send_wakeup_with_escape "$normal_count"
                 else

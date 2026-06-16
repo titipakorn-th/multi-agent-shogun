@@ -5,7 +5,7 @@
 # When a Claude Code agent finishes its turn and is about to go idle,
 # this hook:
 #   1. Analyzes last_assistant_message to detect task completion/error
-#   2. Auto-notifies karo via inbox_write (background, non-blocking)
+#   2. Auto-notifies orchestrator via inbox_write (background, non-blocking)
 #   3. Checks the agent's inbox for unread messages
 #   4. If unread messages exist, BLOCKs the stop and feeds them back
 #
@@ -88,7 +88,7 @@ if [ "$STOP_HOOK_ACTIVE" = "True" ]; then
 fi
 
 # ─── Analyze last_assistant_message (v2.1.47+) ───
-# Shogun skips karo notification (shogun doesn't report to karo)
+# Shogun skips orchestrator notification (shogun doesn't report to orchestrator)
 # but still falls through to inbox check below.
 LAST_MSG=$(echo "$INPUT" | python3 -c "import sys,json; print(json.load(sys.stdin).get('last_assistant_message', ''))" 2>/dev/null || echo "")
 
@@ -106,10 +106,10 @@ if [ -n "$LAST_MSG" ]; then
         NOTIFY_CONTENT="${AGENT_ID}, stopped with error. Please check."
     fi
 
-    # Send notification to karo (background, non-blocking)
-    # Shogun doesn't report to karo — skip notification
+    # Send notification to orchestrator (background, non-blocking)
+    # Shogun doesn't report to orchestrator — skip notification
     if [ -n "$NOTIFY_TYPE" ] && [ "$AGENT_ID" != "shogun" ]; then
-        bash "$SCRIPT_DIR/scripts/inbox_write.sh" karo \
+        bash "$SCRIPT_DIR/scripts/inbox_write.sh" orchestrator \
             "$NOTIFY_CONTENT" \
             "$NOTIFY_TYPE" "$AGENT_ID" &
     fi

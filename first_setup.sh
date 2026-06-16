@@ -722,37 +722,39 @@ fi
 RESULTS+=("Configuration files: OK")
 
 # ============================================================
-# STEP 8: Initialize Ashigaru Task/Report Files
+# STEP 8: Initialize Specialist Task/Report Files (v2)
 # ============================================================
 log_step "STEP 8: Initialize Queue Files"
 
-# Dynamically retrieve Ashigaru count from settings.yaml (default 7 if not configured)
+# Read the v2 task-eligible roles from settings.yaml (the 7 specialists).
+# Falls back to the canonical 7 if settings.yaml is absent or malformed.
 _SETUP_VENV_PYTHON="$SCRIPT_DIR/.venv/bin/python3"
-_SETUP_ASHIGARU_COUNT=$(
+_SETUP_SPECIALIST_ROLES=$(
     if [[ -x "$_SETUP_VENV_PYTHON" ]]; then
         "$_SETUP_VENV_PYTHON" -c "
 import yaml
 try:
     with open('$SCRIPT_DIR/config/settings.yaml') as f:
         cfg = yaml.safe_load(f) or {}
-    agents = cfg.get('cli', {}).get('agents', {})
-    count = len([k for k in agents if k.startswith('ashigaru')])
-    print(count if count > 0 else 7)
+    roles = cfg.get('roles', {})
+    task_eligible = ['explorer', 'librarian', 'oracle', 'designer', 'fixer', 'observer', 'council']
+    found = [r for r in task_eligible if r in roles]
+    print(' '.join(found) if found else ' '.join(task_eligible))
 except Exception:
-    print(7)
+    print('explorer librarian oracle designer fixer observer council')
 " 2>/dev/null
     else
-        echo 7
+        echo "explorer librarian oracle designer fixer observer council"
     fi
 )
-_SETUP_ASHIGARU_COUNT=${_SETUP_ASHIGARU_COUNT:-7}
+_SETUP_SPECIALIST_ROLES=${_SETUP_SPECIALIST_ROLES:-"explorer librarian oracle designer fixer observer council"}
 
-# Create Ashigaru task files
-for i in $(seq 1 "$_SETUP_ASHIGARU_COUNT"); do
-    TASK_FILE="$SCRIPT_DIR/queue/tasks/ashigaru${i}.yaml"
+# Create specialist task files
+for role in $_SETUP_SPECIALIST_ROLES; do
+    TASK_FILE="$SCRIPT_DIR/queue/tasks/${role}.yaml"
     if [ ! -f "$TASK_FILE" ]; then
         cat > "$TASK_FILE" << EOF
-# Ashigaru ${i} Dedicated Task File
+# ${role} Dedicated Task File
 task:
   task_id: null
   parent_cmd: null
@@ -763,14 +765,14 @@ task:
 EOF
     fi
 done
-log_info "Verified/Created Ashigaru task files (1-${_SETUP_ASHIGARU_COUNT})"
+log_info "Verified/Created specialist task files (${_SETUP_SPECIALIST_ROLES})"
 
-# Create Ashigaru report files
-for i in $(seq 1 "$_SETUP_ASHIGARU_COUNT"); do
-    REPORT_FILE="$SCRIPT_DIR/queue/reports/ashigaru${i}_report.yaml"
+# Create specialist report files
+for role in $_SETUP_SPECIALIST_ROLES; do
+    REPORT_FILE="$SCRIPT_DIR/queue/reports/${role}_report.yaml"
     if [ ! -f "$REPORT_FILE" ]; then
         cat > "$REPORT_FILE" << EOF
-worker_id: ashigaru${i}
+worker_id: ${role}
 task_id: null
 timestamp: ""
 status: idle
@@ -778,7 +780,7 @@ result: null
 EOF
     fi
 done
-log_info "Verified/Created Ashigaru report files (1-${_SETUP_ASHIGARU_COUNT})"
+log_info "Verified/Created specialist report files (${_SETUP_SPECIALIST_ROLES})"
 
 RESULTS+=("Queue files: OK")
 
@@ -789,7 +791,6 @@ log_step "STEP 9: Set Execution Permissions"
 
 SCRIPTS=(
     "setup.sh"
-    "shutsujin_departure.sh"
     "first_setup.sh"
 )
 
@@ -1034,22 +1035,15 @@ echo "     * Once approved, it is saved in ~/.claude/ and not needed hereafter."
 echo ""
 echo "  ────────────────────────────────────────────────────────────────"
 echo ""
-echo "  DEPARTING FOR BATTLE (Start all agents):"
-echo "     ./shutsujin_departure.sh"
-echo ""
-echo "  Options:"
-echo "     ./shutsujin_departure.sh -s            # Setup only (Manual Claude launch)"
-echo "     ./shutsujin_departure.sh -t            # Open Windows Terminal tabs"
-echo "     ./shutsujin_departure.sh -shell bash   # Launch with bash prompt"
-echo "     ./shutsujin_departure.sh -shell zsh    # Launch with zsh prompt"
+echo "  DEPARTING FOR BATTLE (Start the v2 specialist team):"
+echo "     bash scripts/shutsujin_departure_v2.sh"
 echo ""
 echo "  ────────────────────────────────────────────────────────────────"
-echo "  TOPOLOGY (v2 specialist team — experimental):"
-echo "     Set 'topology: v2' in config/settings.yaml, then:"
-echo "       bash scripts/shutsujin_departure_v2.sh"
+echo "  TOPOLOGY (v2 specialist team — default):"
+echo "     The default topology is v2 (shogun + orchestrator + 7 specialists)."
+echo "     Pane layout: shogun:main.0 + multiagent:ops.{0..3} + multiagent:research.{0..3}."
 echo ""
-echo "     To roll back to v1, set 'topology: v1' (default)."
-echo "     See docs/superpowers/specs/2026-06-16-shogun-v2-topology-design.md"
+echo "     To customize roles, edit config/settings.yaml's `roles:` block."
 echo ""
 echo "  * Shell settings can also be modified in config/settings.yaml under 'shell:'"
 echo ""

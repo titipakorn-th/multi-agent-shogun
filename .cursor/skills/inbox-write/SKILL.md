@@ -16,16 +16,16 @@ bash scripts/inbox_write.sh <target_agent> "<message>" <type> <from>
 
 | type | Purpose |
 |------|------|
-| `cmd_new` | New command (shogun → karo) |
-| `task_assigned` | Task assignment (karo → ashigaru) |
-| `report_received` | Task completion report (ashigaru → karo/gunshi) |
+| `cmd_new` | New command (shogun → orchestrator) |
+| `task_assigned` | Task assignment (orchestrator → specialist) |
+| `report_received` | Task completion report (specialist → orchestrator) |
 | `clear_command` | Session reset directive |
 | `model_switch` | Model switch directive |
 
 ### Examples
 
 ```bash
-bash scripts/inbox_write.sh karo "Wrote cmd_048. Please execute." cmd_new shogun
-bash scripts/inbox_write.sh ashigaru3 "Read the task YAML and start work." task_assigned karo
-bash scripts/inbox_write.sh gunshi "Ashigaru 5, mission complete. Requesting quality check." report_received ashigaru5
+bash scripts/inbox_write.sh orchestrator "Wrote cmd_048. Please execute." cmd_new shogun
+bash scripts/inbox_write.sh fixer "Read the task YAML and start work." task_assigned orchestrator
+bash scripts/inbox_write.sh oracle "Mission complete. Requesting strategic review." report_received fixer
 ```

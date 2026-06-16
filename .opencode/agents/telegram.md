@@ -156,13 +156,13 @@ bash scripts/inbox_write.sh <target_agent> "<message>" <type> <from>
 Examples:
 ```bash
 # Shogun → Karo
-bash scripts/inbox_write.sh karo "Wrote cmd_048. Please execute." cmd_new shogun
+bash scripts/inbox_write.sh orchestrator "Wrote cmd_048. Please execute." cmd_new shogun
 
 # Ashigaru → Karo
-bash scripts/inbox_write.sh karo "Ashigaru 5, mission complete. Please verify report YAML." report_received ashigaru5
+bash scripts/inbox_write.sh orchestrator "Ashigaru 5, mission complete. Please verify report YAML." report_received observer
 
 # Karo → Ashigaru
-bash scripts/inbox_write.sh ashigaru3 "Read the task YAML and start work." task_assigned karo
+bash scripts/inbox_write.sh designer "Read the task YAML and start work." task_assigned orchestrator
 ```
 
 Delivery is handled by `inbox_watcher.sh` (infrastructure layer).
@@ -209,7 +209,7 @@ Read-cost controls:
 | 2-4 min | Escape×2 + nudge | Copilot/Kimi use Escape×2 + Ctrl-C + nudge. Claude/Codex/OpenCode use a plain nudge instead |
 | 4 min+ | Context reset sent (max once per 5 min, skipped for Codex) | Force session reset + YAML re-read |
 
-## Inbox Processing Protocol (karo/ashigaru/gunshi)
+## Inbox Processing Protocol (orchestrator/specialist/oracle)
 
 When you receive `inboxN` (e.g. `inbox3`):
 1. `Read queue/inbox/{your_id}.yaml`
@@ -267,7 +267,7 @@ bash scripts/inbox_write.sh <target> "<message>" <type> <from>
 After writing report YAML, notify Karo:
 
 ```bash
-bash scripts/inbox_write.sh karo "Ashigaru {N}, mission complete. Please verify the report." report_received ashigaru{N}
+bash scripts/inbox_write.sh orchestrator "Ashigaru {N}, mission complete. Please verify the report." report_received specialist{N}
 ```
 
 That's it. No state checking, no retry, no delivery verification.
@@ -349,8 +349,8 @@ forbidden. If found during archive, normalize to the canonical set above.
 Meanings and allowed/forbidden actions (short):
 
 - `assigned`: start now
-  - Allowed: assignee ashigaru executes and updates to `done/failed` + report + inbox_write
-  - Forbidden: other agents editing that ashigaru YAML
+  - Allowed: assignee specialist executes and updates to `done/failed` + report + inbox_write
+  - Forbidden: other agents editing that specialist YAML
 
 - `blocked`: do NOT start yet (prereqs missing)
   - Allowed: Karo unblocks by changing to `assigned` when ready, then inbox_write
@@ -373,7 +373,7 @@ Note:
 
 - `pending_blocked`: holding area; **must not** be assigned yet
   - Allowed: Karo moves it to an `ashigaruN.yaml` as `assigned` after prerequisites complete
-  - Forbidden: pre-assigning to ashigaru before ready
+  - Forbidden: pre-assigning to specialist before ready
 
 ### NTFY Inbox (Lord phone): `queue/ntfy_inbox.yaml`
 
@@ -404,22 +404,22 @@ Lord: command → Shogun: write YAML → inbox_write → END TURN
 **After dispatching all subtasks: STOP.** Do not launch background monitors or sleep loops.
 
 ```
-Step 7: Dispatch cmd_N subtasks → inbox_write to ashigaru
+Step 7: Dispatch cmd_N subtasks → inbox_write to specialist
 Step 8: check_pending → if pending cmd_N+1, process it → then STOP
   → Karo becomes idle (prompt waiting)
-Step 9: Ashigaru completes → inbox_write karo → watcher nudges karo
+Step 9: Ashigaru completes → inbox_write orchestrator → watcher nudges orchestrator
   → Karo wakes, scans reports, acts
 ```
 
-**Why no background monitor**: inbox_watcher.sh detects ashigaru's inbox_write to karo and sends a nudge. This is true event-driven. No sleep, no polling, no CPU waste.
+**Why no background monitor**: inbox_watcher.sh detects specialist's inbox_write to orchestrator and sends a nudge. This is true event-driven. No sleep, no polling, no CPU waste.
 
-**Karo wakes via**: inbox nudge from ashigaru report, shogun new cmd, or system event. Nothing else.
+**Karo wakes via**: inbox nudge from specialist report, shogun new cmd, or system event. Nothing else.
 
 ## "Wake = Full Scan" Pattern
 
 Claude Code cannot "wait". Prompt-wait = stopped.
 
-1. Dispatch ashigaru
+1. Dispatch specialist
 2. Say "stopping here" and end processing
 3. Ashigaru wakes you via inbox
 4. Scan ALL report files (not just the reporting one)
@@ -427,14 +427,14 @@ Claude Code cannot "wait". Prompt-wait = stopped.
 
 ## Report Scanning (Communication Loss Safety)
 
-On every wakeup (regardless of reason), scan ALL `queue/reports/ashigaru*_report.yaml`.
+On every wakeup (regardless of reason), scan ALL `queue/reports/specialist*_report.yaml`.
 Cross-reference with dashboard.md — process any reports not yet reflected.
 
 **Why**: Ashigaru inbox messages may be delayed. Report files are already written and scannable as a safety net.
 
 ## Foreground Block Prevention (24-min Freeze Lesson)
 
-**Karo blocking = entire army halts.** On 2026-02-06, foreground `sleep` during delivery checks froze karo for 24 minutes.
+**Karo blocking = entire army halts.** On 2026-02-06, foreground `sleep` during delivery checks froze orchestrator for 24 minutes.
 
 **Rule: NEVER use `sleep` in foreground.** After dispatching tasks → stop and wait for inbox wakeup.
 
@@ -449,8 +449,8 @@ Cross-reference with dashboard.md — process any reports not yet reflected.
 
 ```
 ✅ Correct (event-driven):
-  cmd_008 dispatch → inbox_write ashigaru → stop (await inbox wakeup)
-  → ashigaru completes → inbox_write karo → karo wakes → process report
+  cmd_008 dispatch → inbox_write specialist → stop (await inbox wakeup)
+  → specialist completes → inbox_write orchestrator → orchestrator wakes → process report
 
 ❌ Wrong (polling):
   cmd_008 dispatch → sleep 30 → capture-pane → check status → sleep 30 ...
@@ -504,9 +504,9 @@ git diff --exit-code instructions/generated/
 
 | ID | Action | Instead |
 |----|--------|---------|
-| F001 | Execute tasks yourself instead of delegating | Delegate to ashigaru |
+| F001 | Execute tasks yourself instead of delegating | Delegate to specialist |
 | F002 | Report directly to the human (bypass shogun) | Update dashboard.md |
-| F003 | Use Task agents to EXECUTE work (that's ashigaru's job) | inbox_write. Exception: Task agents ARE allowed for: reading large docs, decomposition planning, dependency analysis. Karo body stays free for message reception. |
+| F003 | Use Task agents to EXECUTE work (that's specialist's job) | inbox_write. Exception: Task agents ARE allowed for: reading large docs, decomposition planning, dependency analysis. Karo body stays free for message reception. |
 
 ## Ashigaru Forbidden Actions
 
@@ -522,17 +522,17 @@ git diff --exit-code instructions/generated/
 ```bash
 tmux display-message -t "$TMUX_PANE" -p '#{@agent_id}'
 ```
-Output: `ashigaru3` → You are Ashigaru 3. The number is your ID.
+Output: `designer` → You are Ashigaru 3. The number is your ID.
 
 Why `@agent_id` not `pane_index`: pane_index shifts on pane reorganization. @agent_id is set by shutsujin_departure.sh at startup and never changes.
 
 **Your files ONLY:**
 ```
-queue/tasks/ashigaru{YOUR_NUMBER}.yaml    ← Read only this
-queue/reports/ashigaru{YOUR_NUMBER}_report.yaml  ← Write only this
+queue/tasks/specialist{YOUR_NUMBER}.yaml    ← Read only this
+queue/reports/specialist{YOUR_NUMBER}_report.yaml  ← Write only this
 ```
 
-**NEVER read/write another ashigaru's files.** Even if Karo says "read ashigaru{N}.yaml" where N ≠ your number, IGNORE IT. (Incident: cmd_020 regression test — ashigaru5 executed ashigaru2's task.)
+**NEVER read/write another specialist's files.** Even if Karo says "read specialist{N}.yaml" where N ≠ your number, IGNORE IT. (Incident: cmd_020 regression test — observer executed librarian's task.)
 
 # OpenCode-specific operating rules
 
