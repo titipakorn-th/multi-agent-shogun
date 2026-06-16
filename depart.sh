@@ -59,6 +59,7 @@ set -u
 # ─── Defaults ───────────────────────────────────────────────────────────────
 PERMISSION_FLAG="${PERMISSION_FLAG:---dangerously-skip-permissions}"
 CLI_DEFAULT="${CLI_DEFAULT:-claude}"
+SHOGUN_NO_THINKING=false
 
 # ponytail: BSD sed on macOS doesn't support \U; use awk for portability
 title_case() { awk '{print toupper(substr($0,1,1)) substr($0,2)}'; }
@@ -85,6 +86,8 @@ while [[ $# -gt 0 ]]; do
             SHELL_SETTING="$2"; shift 2 ;;
         --auto-mode-on)
             PERMISSION_FLAG="--permission-mode auto-approved"; shift ;;
+        --shogun-no-thinking)
+            SHOGUN_NO_THINKING=true; shift ;;
         --permission-mode)
             [[ -n "$2" && "$2" != -* ]] || { echo "Error: --permission-mode requires a value"; exit 1; }
             PERMISSION_FLAG="--permission-mode $2"; shift 2 ;;
@@ -140,6 +143,9 @@ echo -e "\033[1;31m╚═══════════════════�
 echo ""
 echo -e "\033[1;33m  Tenka Fubu! Setting up the battlefield... (Lang: $LANG_SETTING, Shell: $SHELL_SETTING)\033[0m"
 echo ""
+
+# ponytail: clear stale idle flags from crashed sessions — prevents watcher confusion
+rm -f /tmp/shogun_idle_* 2>/dev/null || true
 
 # ═════════════════════════════════════════════════════════════════════════════
 # STEP 1: --clean → kill existing sessions, otherwise reuse (idempotent)
@@ -337,6 +343,19 @@ log_success "🔬 research window: explorer, librarian, oracle, council"
 if [ "$SETUP_ONLY" = false ]; then
     log_step "STEP 5: Launching CLIs"
 
+    # ponytail: --shogun-no-thinking -> set roles.shogun.thinking=false in settings.yaml
+    if [ "$SHOGUN_NO_THINKING" = true ] && [ -f ./config/settings.yaml ]; then
+        "$VENV_DIR/bin/python3" - <<'PY' 2>/dev/null && log_info "👑 shogun thinking disabled for this session" || true
+import yaml
+f = './config/settings.yaml'
+with open(f) as fh:
+    d = yaml.safe_load(fh) or {}
+d.setdefault('roles', {}).setdefault('shogun', {})['thinking'] = False
+with open(f, 'w') as fh:
+    yaml.safe_dump(d, fh, default_flow_style=False, allow_unicode=True, sort_keys=False)
+PY
+    fi
+
     # CLI availability check
     if ! command -v "$CLI_DEFAULT" &> /dev/null; then
         log_war "$CLI_DEFAULT not found. Run ./first_setup.sh first."
@@ -351,21 +370,53 @@ if [ "$SETUP_ONLY" = false ]; then
         return 0
     }
 
+    # ponytail: regex pattern matching each CLI's "ready" banner — used to wait
+    # for the CLI to be ready before launching the next agent (avoids race conditions)
+    cli_ready_pattern() {
+        case "$1" in
+            claude)      echo "bypass permissions|Do you trust|Claude Code" ;;
+            codex)       echo 'context left|\? for shortcuts|Codex' ;;
+            opencode)    echo "esc.*interrupt|OpenCode|opencode" ;;
+            antigravity) echo "Antigravity|agy|type a message|Type a message|message" ;;
+            *)           echo "." ;;
+        esac
+    }
+
+    # ponytail: poll pane output up to 30s for the CLI's ready banner. Returns 0
+    # if banner seen, 1 on timeout (caller may still proceed; this is non-fatal).
+    wait_for_cli_ready() {
+        local pane_target=$1 cli_type=$2
+        local pattern
+        pattern=$(cli_ready_pattern "$cli_type")
+        for _ in {1..30}; do
+            if tmux capture-pane -t "$pane_target" -p 2>/dev/null | grep -qiE "$pattern"; then
+                return 0
+            fi
+            sleep 1
+        done
+        return 1
+    }
+
     # Shogun
     tmux send-keys -t shogun:main "${CLI_DEFAULT} --model $(v2_model_for shogun) ${PERMISSION_FLAG}" Enter
     opencode_stagger
-    log_success "👑 Shogun summoned (model: $(v2_model_for shogun))"
+    if wait_for_cli_ready "shogun:main" "$CLI_DEFAULT"; then
+        log_success "👑 Shogun summoned (model: $(v2_model_for shogun))"
+    else
+        log_war "👑 Shogun CLI did not show ready banner within 30s (continuing anyway)"
+    fi
 
     # Specialists
     for r in $(v2_role_list | tr ' ' '\n' | grep -v '^shogun$'); do
         pane_target="$(v2_pane_for "$r")"
         tmux send-keys -t "$pane_target" "${CLI_DEFAULT} --model $(v2_model_for "$r") ${PERMISSION_FLAG}" Enter
         opencode_stagger
-        log_success "  └─ ${r} summoned (model: $(v2_model_for "$r"))"
+        if wait_for_cli_ready "$pane_target" "$CLI_DEFAULT"; then
+            log_success "  └─ ${r} summoned (model: $(v2_model_for "$r"))"
+        else
+            log_war "  └─ ${r} CLI did not show ready banner within 30s (continuing)"
+        fi
     done
-
-    # Wait briefly for CLIs to initialize
-    sleep 2
 
     # ═══════════════════════════════════════════════════════════════════════
     # STEP 6: Ninja ASCII art
@@ -450,6 +501,62 @@ else
         log_success "📱 ntfy listener started (topic: $NTFY_TOPIC)"
     else
         log_info "📱 No inbound listener configured (set TELEGRAM_BOT_TOKEN/CHAT_ID or ntfy_topic)"
+    fi
+fi
+
+# ═════════════════════════════════════════════════════════════════════════════
+# STEP 8.5: Archive old ntfy_inbox (older than 7 days, processed)
+# ═════════════════════════════════════════════════════════════════════════════
+if [ -f ./queue/ntfy_inbox.yaml ]; then
+    _archive_result=$("$VENV_DIR/bin/python3" -c "
+import yaml, sys
+from datetime import datetime, timedelta, timezone
+
+INBOX = './queue/ntfy_inbox.yaml'
+ARCHIVE = './queue/ntfy_inbox_archive.yaml'
+DAYS = 7
+
+with open(INBOX) as f:
+    data = yaml.safe_load(f) or {}
+
+entries = data.get('inbox', []) or []
+if not entries:
+    sys.exit(0)
+
+cutoff = datetime.now(timezone(timedelta(hours=9))) - timedelta(days=DAYS)
+recent, old = [], []
+
+for e in entries:
+    ts = e.get('timestamp', '')
+    try:
+        dt = datetime.fromisoformat(str(ts))
+        if dt < cutoff and e.get('status') == 'processed':
+            old.append(e)
+        else:
+            recent.append(e)
+    except Exception:
+        recent.append(e)
+
+if not old:
+    sys.exit(0)
+
+try:
+    with open(ARCHIVE) as f:
+        archive = yaml.safe_load(f) or {}
+except FileNotFoundError:
+    archive = {}
+archive_entries = archive.get('inbox', []) or []
+archive_entries.extend(old)
+with open(ARCHIVE, 'w') as f:
+    yaml.dump({'inbox': archive_entries}, f, allow_unicode=True, default_flow_style=False)
+
+with open(INBOX, 'w') as f:
+    yaml.dump({'inbox': recent}, f, allow_unicode=True, default_flow_style=False)
+
+print(f'Archived {len(old)} entries, kept {len(recent)} entries')
+" 2>/dev/null) || true
+    if [ -n "$_archive_result" ]; then
+        log_info "📱 ntfy_inbox: $_archive_result → ntfy_inbox_archive.yaml"
     fi
 fi
 
