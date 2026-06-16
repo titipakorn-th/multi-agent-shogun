@@ -22,7 +22,9 @@ PERMISSION_FLAG="${PERMISSION_FLAG:---dangerously-skip-permissions}"
 # Usage: start_specialist_pane <role> <session> <window> <pane_index> <model> <color> <cli>
 #
 # Idempotent: if a pane already exists at <pane_index> with the expected
-# @agent_id, this is a no-op. Otherwise split-window and configure.
+# @agent_id, this is a no-op. Otherwise configure the pane — split-window
+# only if no pane exists at the target index (so partial-state from a
+# previous broken run can be repaired by re-running depart.sh).
 start_specialist_pane() {
     local role=$1 session=$2 window=$3 pane_idx=$4 model=$5 color=$6 cli=$7
     local target="${session}:${window}.${pane_idx}"
@@ -36,8 +38,11 @@ start_specialist_pane() {
         return 0
     fi
 
-    # Split pane if not pane 0
-    if [ "$pane_idx" -gt 0 ]; then
+    # Split only if no pane exists at the target index
+    local pane_exists
+    pane_exists=$(tmux list-panes -t "${session}:${window}" -F '#{pane_index}' \
+        2>/dev/null | grep -w "^${pane_idx}$" || true)
+    if [ -z "$pane_exists" ]; then
         tmux split-window -h -t "${session}:${window}.0"
     fi
 
@@ -67,14 +72,12 @@ if ! tmux has-session -t multiagent 2>/dev/null; then
 fi
 
 # ─── Phase 3: Ops window panes ───────────────────────────────
-# Idempotency: count existing panes; if window already has 4 correctly
-# configured panes, skip. If it has MORE than 4 panes, warn and skip
-# (caller should reset via tmux kill-session).
+# Per-pane idempotency lives in start_specialist_pane, so we always
+# invoke it for each role. If there are MORE than 4 panes, warn and
+# skip (caller should run ./cleanup.sh first).
 OPS_EXISTING=$(tmux list-panes -t multiagent:ops 2>/dev/null | wc -l | tr -d ' ')
-if [ "${OPS_EXISTING:-0}" -eq 4 ]; then
-    echo "[shutsujin_v2] ops window: 4 panes already configured"
-elif [ "${OPS_EXISTING:-0}" -gt 4 ]; then
-    echo "[shutsujin_v2] WARNING: ops has $OPS_EXISTING panes (>4). Run on a fresh session." >&2
+if [ "${OPS_EXISTING:-0}" -gt 4 ]; then
+    echo "[shutsujin_v2] WARNING: ops has $OPS_EXISTING panes (>4). Run ./cleanup.sh first." >&2
 else
     OPS_ROLES=("orchestrator" "fixer" "designer" "observer")
     for idx in "${!OPS_ROLES[@]}"; do
@@ -90,10 +93,8 @@ fi
 
 # ─── Phase 4: Research window panes ──────────────────────────
 RESEARCH_EXISTING=$(tmux list-panes -t multiagent:research 2>/dev/null | wc -l | tr -d ' ')
-if [ "${RESEARCH_EXISTING:-0}" -eq 4 ]; then
-    echo "[shutsujin_v2] research window: 4 panes already configured"
-elif [ "${RESEARCH_EXISTING:-0}" -gt 4 ]; then
-    echo "[shutsujin_v2] WARNING: research has $RESEARCH_EXISTING panes (>4). Run on a fresh session." >&2
+if [ "${RESEARCH_EXISTING:-0}" -gt 4 ]; then
+    echo "[shutsujin_v2] WARNING: research has $RESEARCH_EXISTING panes (>4). Run ./cleanup.sh first." >&2
 else
     RESEARCH_ROLES=("explorer" "librarian" "oracle" "council")
     for idx in "${!RESEARCH_ROLES[@]}"; do
