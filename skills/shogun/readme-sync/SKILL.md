@@ -6,7 +6,7 @@ description: |
   Triggered by: "README update", "README sync", "readme sync".
 ---
 
-# /shogun-readme-sync - README English/Japanese Sync
+# /readme-sync - README English/Japanese Sync
 
 ## Overview
 

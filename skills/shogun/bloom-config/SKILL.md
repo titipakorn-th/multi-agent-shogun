@@ -7,7 +7,7 @@ description: >
   "routing config", "capability_tiers config", "model config", "subscription config", "model routing"
 ---
 
-# /shogun-bloom-config — Bloom Routing Wizard
+# /bloom-config — Bloom Routing Wizard
 
 ## Overview
 
@@ -24,7 +24,7 @@ Generates the optimal `capability_tiers` configuration in a ready-to-paste forma
 - Initial setup of `config/settings.yaml`
 - Reconfiguration after adding/changing subscriptions
 - "How should capability_tiers be configured?"
-- After checking the model list with `/shogun-model-list`
+- After checking the model list with `/model-list`
 
 ---
 

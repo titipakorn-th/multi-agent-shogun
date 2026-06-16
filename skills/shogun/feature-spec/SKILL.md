@@ -9,7 +9,7 @@ description: |
   Do NOT use for: Writing application code directly, executing task queues without scope definition, or running build checks.
 ---
 
-# /shogun-feature-spec - Software Development Project Scope Elicitation & Roadmap
+# /feature-spec - Software Development Project Scope Elicitation & Roadmap
 
 ## North Star
 **To establish a clear, structured, and agreed-upon project scope and roadmap before executing development, avoiding scope creep and optimizing model routing.**

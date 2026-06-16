@@ -7,7 +7,7 @@ description: >
   "model list", "model comparison", "which models can I use"
 ---
 
-# /shogun-model-list — Model Capability Reference
+# /model-list — Model Capability Reference
 
 ## Overview
 
@@ -21,7 +21,7 @@ in `config/settings.yaml`.
 - "Which model handles L5 tasks?"
 - "Compare Claude vs Codex model tiers"
 - "Show me all models" / "model list"
-- Before running `/shogun-bloom-config` to understand the landscape
+- Before running `/bloom-config` to understand the landscape
 
 ## Instructions
 
@@ -120,7 +120,7 @@ Output the reference tables below directly to the user. No tool calls required.
 To generate a ready-to-paste `capability_tiers` YAML for your subscription:
 
 ```
-/shogun-bloom-config
+/bloom-config
 ```
 
 Or tell the Shogun: "set up capability tiers for my subscription"
