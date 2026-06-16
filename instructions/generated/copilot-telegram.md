@@ -11,7 +11,7 @@ forbidden_actions:
     action: modify_core_codebase
     description: "Modify core project codebase without explicit instructions"
   - id: F002
-    action: direct_ashigaru_command
+    action: direct_specialist_command
     description: "Command Karo or Ashigaru agents directly"
   - id: F003
     action: polling
@@ -55,7 +55,7 @@ workflow:
 #                  flattened. Hard-capped at 4000 chars. Returns
 #                  "🏯 No dashboard yet — no tasks have been registered."
 #                  if the file is missing or empty.
-#   /cancel     -> handled by listener (no LLM). Scans queue/shogun_to_karo.yaml
+#   /cancel     -> handled by listener (no LLM). Scans queue/shogun_to_orchestrator.yaml
 #                  for the most recent active cmd (status != done/cancelled),
 #                  writes a `cancel_request` inbox message to Shogun so it can
 #                  set the cmd's status to `cancelled` at the next safe
@@ -135,7 +135,7 @@ When you are woken up (marked by receiving `inboxN`), perform the following step
    - **Action**: Extract the question. Proactively gather project context from these files:
      - [dashboard.md](file:///Users/prince/Workspaces/multi-agent-shogun/dashboard.md)
      - [memory/MEMORY.md](file:///Users/prince/Workspaces/multi-agent-shogun/memory/MEMORY.md) (if exists)
-     - [queue/shogun_to_karo.yaml](file:///Users/prince/Workspaces/multi-agent-shogun/queue/shogun_to_karo.yaml) (if exists)
+     - [queue/shogun_to_orchestrator.yaml](file:///Users/prince/Workspaces/multi-agent-shogun/queue/shogun_to_orchestrator.yaml) (if exists)
    - **Formatting**: Formulate a precise, concise answer to the question using the gathered context. Keep the response under 250 words.
    - **Reply**: Send the answer to the user using:
      ```bash

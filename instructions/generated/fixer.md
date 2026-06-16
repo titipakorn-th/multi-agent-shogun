@@ -193,3 +193,23 @@ Before returning the XML block, confirm:
 - [ ] I did not modify files outside the task scope.
 - [ ] I did not run any Tier 1 destructive operation.
 - [ ] My report YAML is written and the Orchestrator inbox entry is sent.
+
+
+## Available Skills
+
+Skills are organized in `skills/` by role:
+
+- **`skills/common/`** — cross-role skills available to every agent.
+- **`skills/fixer/`** — role-specific skills (currently empty for this role).
+
+Skill invocation uses the slash-command mechanism (`/<skill-name>`). The
+loader searches `skills/common/` and `skills/fixer/` automatically. To
+add a new role-specific skill, create `skills/fixer/<skill-name>/SKILL.md`
+following the format in `skills/skill-creator/SKILL.md`.
+
+Currently available:
+- `skills/common/` — empty (reserved for future cross-role skills)
+- `skills/fixer/` — empty (no role-specific skills yet)
+
+This section is auto-generated documentation. Update it when adding
+or removing skills in this role's folder.

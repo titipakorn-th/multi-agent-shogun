@@ -53,7 +53,7 @@ When you are woken up (marked by receiving `inboxN`), perform the following step
    - **Action**: Extract the question. Proactively gather project context from these files:
      - [dashboard.md](file:///Users/prince/Workspaces/multi-agent-shogun/dashboard.md)
      - [memory/MEMORY.md](file:///Users/prince/Workspaces/multi-agent-shogun/memory/MEMORY.md) (if exists)
-     - [queue/shogun_to_karo.yaml](file:///Users/prince/Workspaces/multi-agent-shogun/queue/shogun_to_karo.yaml) (if exists)
+     - [queue/shogun_to_orchestrator.yaml](file:///Users/prince/Workspaces/multi-agent-shogun/queue/shogun_to_orchestrator.yaml) (if exists)
    - **Formatting**: Formulate a precise, concise answer to the question using the gathered context. Keep the response under 250 words.
    - **Reply**: Send the answer to the user using:
      ```bash

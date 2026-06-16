@@ -262,7 +262,7 @@ Lord's input
   │  │         Read/write saytask/tasks.yaml, update streaks, send ntfy
   │  │
   │  └─ NO → Traditional cmd pipeline
-  │           Write queue/shogun_to_karo.yaml → inbox_write to Karo
+  │           Write queue/shogun_to_orchestrator.yaml → inbox_write to Orchestrator
   │
   └─ Ambiguous → Ask Lord: "Shall I assign this to Ashigaru, or add it to TODO?"
 ```

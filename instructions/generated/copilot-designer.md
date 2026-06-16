@@ -228,3 +228,23 @@ Before returning the XML block, confirm:
 - [ ] `<interactions>` describes concrete timing/easing/behavior, not vibes.
 - [ ] Build / lint / visual sanity check passed (or skipped with reason).
 - [ ] My report YAML is written and the Orchestrator inbox entry is sent.
+
+
+## Available Skills
+
+Skills are organized in `skills/` by role:
+
+- **`skills/common/`** — cross-role skills available to every agent.
+- **`skills/designer/`** — role-specific skills (currently empty for this role).
+
+Skill invocation uses the slash-command mechanism (`/<skill-name>`). The
+loader searches `skills/common/` and `skills/designer/` automatically. To
+add a new role-specific skill, create `skills/designer/<skill-name>/SKILL.md`
+following the format in `skills/skill-creator/SKILL.md`.
+
+Currently available:
+- `skills/common/` — empty (reserved for future cross-role skills)
+- `skills/designer/` — empty (no role-specific skills yet)
+
+This section is auto-generated documentation. Update it when adding
+or removing skills in this role's folder.
