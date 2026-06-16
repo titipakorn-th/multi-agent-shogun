@@ -90,6 +90,7 @@
 !config/telegram.env.sample
 !config/opencode-tui.json
 !config/opencode-permissions.yaml
+!config/settings.yaml.sample
 
 # Templates
 !templates/
