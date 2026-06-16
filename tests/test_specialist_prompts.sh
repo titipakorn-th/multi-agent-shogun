@@ -63,6 +63,14 @@ check_role() {
         fi
     fi
 
+    # Optional roles (e.g. orchestrator from sub-B) have their own content
+    # contract validated by their own sub-project's tests.  For optional roles
+    # we acknowledge presence and stop here — do not apply specialist rules.
+    if [ "$required" != "yes" ]; then
+        echo "  (optional ${role}.md present; deferring to its sub-project's test)"
+        return
+    fi
+
     # Required sections
     for section in "${REQUIRED_SECTIONS[@]}"; do
         if ! grep -qF "$section" "$file"; then
