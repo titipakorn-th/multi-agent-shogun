@@ -200,6 +200,52 @@ wait_for_shell_prompt() {
     return 1
 }
 
+# ponytail: poll ALL panes in parallel for CLI banner. Returns 0 if all
+# ready within 30s, 1 if any timed out. Stdout lists which panes are ready.
+wait_for_all_cli_ready() {
+    local cli_type=$1; shift
+    local panes=("$@")
+    local pattern
+    pattern=$(cli_ready_pattern "$cli_type")
+    local max_wait=30 waited=0
+    local ready_count=0 total=${#panes[@]}
+    while [ "$waited" -lt "$max_wait" ] && [ "$ready_count" -lt "$total" ]; do
+        ready_count=0
+        for p in "${panes[@]}"; do
+            if tmux capture-pane -t "$p" -p 2>/dev/null | grep -qiE "$pattern"; then
+                ready_count=$((ready_count + 1))
+            fi
+        done
+        if [ "$ready_count" -eq "$total" ]; then
+            return 0
+        fi
+        sleep 1
+        waited=$((waited + 1))
+    done
+    return 1
+}
+
+# ponytail: poll ALL panes in parallel for shell prompt.
+wait_for_all_shell_prompts() {
+    local panes=("$@")
+    local max_wait=10 waited=0
+    local ready_count=0 total=${#panes[@]}
+    while [ "$waited" -lt "$max_wait" ] && [ "$ready_count" -lt "$total" ]; do
+        ready_count=0
+        for p in "${panes[@]}"; do
+            if tmux capture-pane -t "$p" -p 2>/dev/null | grep -qE '[\$%#❯►] *$'; then
+                ready_count=$((ready_count + 1))
+            fi
+        done
+        if [ "$ready_count" -eq "$total" ]; then
+            return 0
+        fi
+        sleep 1
+        waited=$((waited + 1))
+    done
+    return 1
+}
+
 # ═════════════════════════════════════════════════════════════════════════════
 # STEP 1: Always kill + recreate our own sessions (fast restart)
 #
@@ -420,28 +466,33 @@ PY
         exit 1
     fi
 
-    # Shogun
-    wait_for_shell_prompt "shogun:main" || true
-    tmux send-keys -t shogun:main "${CLI_DEFAULT} --model $(v2_model_for shogun) ${PERMISSION_FLAG}" Enter
-    opencode_stagger
-    if wait_for_cli_ready "shogun:main" "$CLI_DEFAULT"; then
-        log_success "👑 Shogun summoned (model: $(v2_model_for shogun))"
-    else
-        log_war "👑 Shogun CLI did not show ready banner within 30s (continuing anyway)"
-    fi
-
-    # Specialists
+    # Phase A: collect all 8 pane targets + send claude command to each
+    # (fire-and-forget — no per-pane wait between sends).
+    declare -a ALL_PANES=()
+    declare -a ROLE_MODEL=()
+    ALL_PANES+=("shogun:main")
+    ROLE_MODEL+=("shogun")
     for r in $(v2_role_list | tr ' ' '\n' | grep -v '^shogun$'); do
-        pane_target="$(v2_pane_for "$r")"
-        wait_for_shell_prompt "$pane_target" || true
-        tmux send-keys -t "$pane_target" "${CLI_DEFAULT} --model $(v2_model_for "$r") ${PERMISSION_FLAG}" Enter
-        opencode_stagger
-        if wait_for_cli_ready "$pane_target" "$CLI_DEFAULT"; then
-            log_success "  └─ ${r} summoned (model: $(v2_model_for "$r"))"
-        else
-            log_war "  └─ ${r} CLI did not show ready banner within 30s (continuing)"
-        fi
+        pane="$(v2_pane_for "$r")"
+        ALL_PANES+=("$pane")
+        ROLE_MODEL+=("$r")
     done
+
+    # Phase B: wait for all 8 shells to be at a prompt (parallel poll, 10s).
+    wait_for_all_shell_prompts "${ALL_PANES[@]}" || log_war "Some shell prompts not detected within 10s"
+
+    # Phase C: fire the claude launch command at every pane in one pass.
+    for i in "${!ALL_PANES[@]}"; do
+        tmux send-keys -t "${ALL_PANES[$i]}" "${CLI_DEFAULT} --model $(v2_model_for "${ROLE_MODEL[$i]}") ${PERMISSION_FLAG}" Enter
+    done
+    opencode_stagger
+
+    # Phase D: wait for ALL 8 CLI banners in parallel (single 30s poll).
+    if wait_for_all_cli_ready "$CLI_DEFAULT" "${ALL_PANES[@]}"; then
+        log_success "👑 All 8 agents summoned ($(v2_model_for shogun) shogun + 7 specialists)"
+    else
+        log_war "Some CLIs did not show ready banner within 30s (continuing anyway)"
+    fi
 
     # ═══════════════════════════════════════════════════════════════════════
     # STEP 6: Ninja ASCII art
