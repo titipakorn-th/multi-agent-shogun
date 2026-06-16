@@ -85,6 +85,8 @@
 !first_setup.sh
 !setup.sh
 !install.bat
+!depart.sh
+!cleanup.sh
 
 # Development tooling
 !Makefile
