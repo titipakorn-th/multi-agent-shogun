@@ -122,13 +122,71 @@ EOFYAML
 # Build Claude Code instruction files
 build_instruction_file "claude" "shogun" "shogun.md"
 build_instruction_file "claude" "karo" "karo.md"
+build_instruction_file "claude" "orchestrator" "orchestrator.md"
 build_instruction_file "claude" "ashigaru" "ashigaru.md"
 build_instruction_file "claude" "gunshi" "gunshi.md"
 build_instruction_file "claude" "telegram" "telegram.md"
 
+# ============================================================
+# V2 topology: generate per-role + per-CLI variants from settings.yaml
+# ============================================================
+# Discovers all roles defined in config/settings.yaml's `roles:` block and
+# all CLI variants declared per role, then emits instructions/generated/{cli}-{role}.md
+# for every (cli, role) pair. This is the v2 specialist-team mechanism.
+# See docs/superpowers/specs/2026-06-16-shogun-v2-orchestrator-design.md (B.3).
+discover_v2_role_cli_pairs() {
+    local settings_file="${ROOT_DIR}/config/settings.yaml"
+
+    if [ ! -f "$settings_file" ]; then
+        echo "  ⚠️  config/settings.yaml not found; skipping v2 role/CLI discovery." >&2
+        return 1
+    fi
+
+    if ! command -v yq &>/dev/null; then
+        echo "  ⚠️  yq not installed; skipping v2 role/CLI discovery." >&2
+        return 1
+    fi
+
+    # Read roles in deterministic insertion order (yq preserves order)
+    local roles
+    roles=$(yq -r '.roles | keys | .[]' "$settings_file" 2>/dev/null) || return 1
+
+    if [ -z "$roles" ]; then
+        return 0
+    fi
+
+    # Read distinct CLI variants across roles
+    local clis
+    clis=$(yq -r '[.roles | to_entries[].value.cli_variant] | unique | .[]' \
+        "$settings_file" 2>/dev/null) || return 1
+
+    if [ -z "$clis" ]; then
+        return 0
+    fi
+
+    for role in $roles; do
+        for cli in $clis; do
+            local src="${PARTS_DIR}/${role}.md"
+            local dst="${OUTPUT_DIR}/${cli}-${role}.md"
+            if [ -f "$src" ]; then
+                # Copy the role file as a per-role + per-CLI variant. The existing
+                # build_instruction_file pipeline handles frontmatter + common
+                # sections + CLI-specific tooling for the canonical files; this
+                # loop ensures every (cli, role) combination exists as a plain
+                # copy so v2 specialists can be dispatched under any supported CLI.
+                cp "$src" "$dst"
+                echo "  ✅ Created: ${cli}-${role}.md (v2 role/CLI variant)"
+            fi
+        done
+    done
+}
+
+discover_v2_role_cli_pairs || echo "  (v2 role/CLI discovery skipped)"
+
 # Build Codex instruction files
 build_instruction_file "codex" "shogun" "codex-shogun.md"
 build_instruction_file "codex" "karo" "codex-karo.md"
+build_instruction_file "codex" "orchestrator" "codex-orchestrator.md"
 build_instruction_file "codex" "ashigaru" "codex-ashigaru.md"
 build_instruction_file "codex" "gunshi" "codex-gunshi.md"
 build_instruction_file "codex" "telegram" "codex-telegram.md"
@@ -136,6 +194,7 @@ build_instruction_file "codex" "telegram" "codex-telegram.md"
 # Build Copilot instruction files
 build_instruction_file "copilot" "shogun" "copilot-shogun.md"
 build_instruction_file "copilot" "karo" "copilot-karo.md"
+build_instruction_file "copilot" "orchestrator" "copilot-orchestrator.md"
 build_instruction_file "copilot" "ashigaru" "copilot-ashigaru.md"
 build_instruction_file "copilot" "gunshi" "copilot-gunshi.md"
 build_instruction_file "copilot" "telegram" "copilot-telegram.md"
@@ -143,6 +202,7 @@ build_instruction_file "copilot" "telegram" "copilot-telegram.md"
 # Build Kimi K2 instruction files
 build_instruction_file "kimi" "shogun" "kimi-shogun.md"
 build_instruction_file "kimi" "karo" "kimi-karo.md"
+build_instruction_file "kimi" "orchestrator" "kimi-orchestrator.md"
 build_instruction_file "kimi" "ashigaru" "kimi-ashigaru.md"
 build_instruction_file "kimi" "gunshi" "kimi-gunshi.md"
 build_instruction_file "kimi" "telegram" "kimi-telegram.md"
@@ -150,6 +210,7 @@ build_instruction_file "kimi" "telegram" "kimi-telegram.md"
 # Build OpenCode instruction files
 build_instruction_file "opencode" "shogun" "opencode-shogun.md"
 build_instruction_file "opencode" "karo" "opencode-karo.md"
+build_instruction_file "opencode" "orchestrator" "opencode-orchestrator.md"
 build_instruction_file "opencode" "ashigaru" "opencode-ashigaru.md"
 build_instruction_file "opencode" "gunshi" "opencode-gunshi.md"
 build_instruction_file "opencode" "telegram" "opencode-telegram.md"
@@ -157,6 +218,7 @@ build_instruction_file "opencode" "telegram" "opencode-telegram.md"
 # Build Cursor Agent instruction files
 build_instruction_file "cursor" "shogun" "cursor-shogun.md"
 build_instruction_file "cursor" "karo" "cursor-karo.md"
+build_instruction_file "cursor" "orchestrator" "cursor-orchestrator.md"
 build_instruction_file "cursor" "ashigaru" "cursor-ashigaru.md"
 build_instruction_file "cursor" "gunshi" "cursor-gunshi.md"
 build_instruction_file "cursor" "telegram" "cursor-telegram.md"
@@ -164,6 +226,7 @@ build_instruction_file "cursor" "telegram" "cursor-telegram.md"
 # Build Antigravity instruction files
 build_instruction_file "antigravity" "shogun" "antigravity-shogun.md"
 build_instruction_file "antigravity" "karo" "antigravity-karo.md"
+build_instruction_file "antigravity" "orchestrator" "antigravity-orchestrator.md"
 build_instruction_file "antigravity" "ashigaru" "antigravity-ashigaru.md"
 build_instruction_file "antigravity" "gunshi" "antigravity-gunshi.md"
 build_instruction_file "antigravity" "telegram" "antigravity-telegram.md"
