@@ -220,6 +220,22 @@ logs/
 !skills/shogun-clonedeps/SKILL.md
 !.shogun/clonedeps.json
 
+# Other untracked shogun skills (follow-up to per-agent skill folders migration)
+!skills/shogun-changelog/
+!skills/shogun-changelog/SKILL.md
+!skills/shogun-changelog/references/
+!skills/shogun-changelog/references/*.md
+!skills/shogun-changelog/scripts/
+!skills/shogun-changelog/scripts/*.py
+!skills/shogun-diagnose/
+!skills/shogun-diagnose/SKILL.md
+!skills/shogun-grill-with-docs/
+!skills/shogun-grill-with-docs/SKILL.md
+!skills/shogun-improve-codebase-architecture/
+!skills/shogun-improve-codebase-architecture/SKILL.md
+!skills/shogun-zoom-out/
+!skills/shogun-zoom-out/SKILL.md
+
 # Python venv (explicit deny — whitelist patterns like LICENSE leak through !*/)
 .venv/
 __pycache__/
