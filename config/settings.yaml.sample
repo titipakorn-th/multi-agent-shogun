@@ -1,0 +1,23 @@
+# multi-agent-shogun v2 settings sample
+# Copy to config/settings.yaml and customize.
+#
+# topology:
+#   v1 = original karo/ashigaru/gunshi panes (default)
+#   v2 = 1 orchestrator + 7 specialists (shutsujin_departure_v2.sh)
+
+language: en
+shell: bash
+
+# Topology version (v1 = original karo/ashigaru/gunshi, v2 = specialist team)
+topology: v1
+
+skill:
+  save_path: "~/.claude/skills/"
+  local_path: "./skills/"
+
+logging:
+  level: info
+  path: "./logs/"
+
+cli:
+  default: claude
