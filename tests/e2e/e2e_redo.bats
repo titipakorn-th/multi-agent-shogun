@@ -55,14 +55,14 @@ setup() {
 
     # 1. Place initial task and process via direct nudge
     cp "$PROJECT_ROOT/tests/e2e/fixtures/task_ashigaru1_basic.yaml" \
-       "$E2E_QUEUE/queue/tasks/ashigaru1.yaml"
+       "$E2E_QUEUE/queue/tasks/explorer.yaml"
 
-    bash "$E2E_QUEUE/scripts/inbox_write.sh" "ashigaru1" \
-        "First task started." "task_assigned" "karo"
+    bash "$E2E_QUEUE/scripts/inbox_write.sh" "explorer" \
+        "First task started." "task_assigned" "orchestrator"
     send_to_pane "$ashigaru1_pane" "inbox1"
 
     # 2. Wait for initial task to complete
-    run wait_for_yaml_value "$E2E_QUEUE/queue/tasks/ashigaru1.yaml" "task.status" "done" 30
+    run wait_for_yaml_value "$E2E_QUEUE/queue/tasks/explorer.yaml" "task.status" "done" 30
     assert_success
 
     # 3. Verify initial report
@@ -73,7 +73,7 @@ setup() {
     # ─── Phase 2: Redo ───
 
     # 4. Write redo task YAML (new task_id, redo_of field, status: assigned)
-    cat > "$E2E_QUEUE/queue/tasks/ashigaru1.yaml" <<'EOF'
+    cat > "$E2E_QUEUE/queue/tasks/explorer.yaml" <<'EOF'
 task:
   task_id: subtask_test_001a2
   parent_cmd: cmd_test_001
@@ -89,7 +89,7 @@ EOF
     send_to_pane "$ashigaru1_pane" "/clear"
 
     # 6. Wait for redo task to complete
-    run wait_for_yaml_value "$E2E_QUEUE/queue/tasks/ashigaru1.yaml" "task.status" "done" 30
+    run wait_for_yaml_value "$E2E_QUEUE/queue/tasks/explorer.yaml" "task.status" "done" 30
     assert_success
 
     # 7. Verify new report has new task_id
@@ -97,7 +97,7 @@ EOF
     assert_yaml_field "$E2E_QUEUE/queue/reports/ashigaru1_report.yaml" "status" "done"
 
     # 8. Verify redo_of field is preserved in task YAML
-    assert_yaml_field "$E2E_QUEUE/queue/tasks/ashigaru1.yaml" "task.redo_of" "subtask_test_001a"
+    assert_yaml_field "$E2E_QUEUE/queue/tasks/explorer.yaml" "task.redo_of" "subtask_test_001a"
 }
 
 # ═══════════════════════════════════════════════════════════════
@@ -110,20 +110,20 @@ EOF
 
     # 1. Complete initial task via direct nudge
     cp "$PROJECT_ROOT/tests/e2e/fixtures/task_ashigaru1_basic.yaml" \
-       "$E2E_QUEUE/queue/tasks/ashigaru1.yaml"
+       "$E2E_QUEUE/queue/tasks/explorer.yaml"
 
-    bash "$E2E_QUEUE/scripts/inbox_write.sh" "ashigaru1" \
-        "First task started." "task_assigned" "karo"
+    bash "$E2E_QUEUE/scripts/inbox_write.sh" "explorer" \
+        "First task started." "task_assigned" "orchestrator"
     send_to_pane "$ashigaru1_pane" "inbox1"
 
-    run wait_for_yaml_value "$E2E_QUEUE/queue/tasks/ashigaru1.yaml" "task.status" "done" 30
+    run wait_for_yaml_value "$E2E_QUEUE/queue/tasks/explorer.yaml" "task.status" "done" 30
     assert_success
 
     # 2. Save initial report task_id
     assert_yaml_field "$E2E_QUEUE/queue/reports/ashigaru1_report.yaml" "task_id" "subtask_test_001a"
 
     # 3. Write redo task YAML
-    cat > "$E2E_QUEUE/queue/tasks/ashigaru1.yaml" <<'EOF'
+    cat > "$E2E_QUEUE/queue/tasks/explorer.yaml" <<'EOF'
 task:
   task_id: subtask_test_001a2
   parent_cmd: cmd_test_001
@@ -139,12 +139,12 @@ EOF
     send_to_pane "$ashigaru1_pane" "/clear"
 
     # 5. Wait for redo task to complete
-    run wait_for_yaml_value "$E2E_QUEUE/queue/tasks/ashigaru1.yaml" "task.status" "done" 30
+    run wait_for_yaml_value "$E2E_QUEUE/queue/tasks/explorer.yaml" "task.status" "done" 30
     assert_success
 
     # 6. Report now has the NEW task_id (overwritten)
     assert_yaml_field "$E2E_QUEUE/queue/reports/ashigaru1_report.yaml" "task_id" "subtask_test_001a2"
 
     # 7. redo_of field preserved in task YAML
-    assert_yaml_field "$E2E_QUEUE/queue/tasks/ashigaru1.yaml" "task.redo_of" "subtask_test_001a"
+    assert_yaml_field "$E2E_QUEUE/queue/tasks/explorer.yaml" "task.redo_of" "subtask_test_001a"
 }

@@ -120,7 +120,7 @@ run_hook() {
     cat > "$TEST_HOOK_TMP/queue/inbox/test_idle_agent.yaml" << 'YAML'
 messages:
 - content: old message
-  from: karo
+  from: orchestrator
   id: msg_001
   read: true
   timestamp: '2026-01-01T00:00:00'
@@ -144,7 +144,7 @@ YAML
     cat > "$TEST_HOOK_TMP/queue/inbox/test_idle_agent.yaml" << 'YAML'
 messages:
 - content: new task
-  from: karo
+  from: orchestrator
   id: msg_002
   read: false
   timestamp: '2026-01-01T00:00:00'

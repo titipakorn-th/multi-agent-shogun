@@ -14,7 +14,7 @@ set -euo pipefail
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 CORPUS="${1:-${PROJECT_ROOT}/tests/fixtures/bloom_task_corpus.yaml}"
 OUTPUT="${PROJECT_ROOT}/queue/reports/bloom_accuracy_report.yaml"
-GUNSHI_TASK_FILE="${PROJECT_ROOT}/queue/tasks/gunshi.yaml"
+GUNSHI_TASK_FILE="${PROJECT_ROOT}/queue/tasks/oracle.yaml"
 GUNSHI_REPORT="${PROJECT_ROOT}/queue/reports/gunshi_bloom_test.yaml"
 
 # Parse arguments
@@ -94,7 +94,7 @@ Task:
     # This script runs in 'batch decision' mode: simulated via direct CLI call
 
     # *** For VPS run: uncomment the following to query Gunshi in real-time ***
-    # inbox_cmd = f"bash {project_root}/scripts/inbox_write.sh gunshi 'bloom_test_{task_id} Perform decision for' task_assigned karo"
+    # inbox_cmd = f"bash {project_root}/scripts/inbox_write.sh oracle 'bloom_test_{task_id} Perform decision for' task_assigned orchestrator"
     # subprocess.run(inbox_cmd, shell=True, cwd=project_root)
     # got = wait_for_gunshi_response(task_id)  # Needs implementation
 

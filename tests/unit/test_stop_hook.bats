@@ -40,7 +40,7 @@ teardown() {
 # Helper: run the REAL hook script with test overrides
 run_hook() {
     local json="$1"
-    local agent_id="${2:-ashigaru1}"
+    local agent_id="${2:-explorer}"
     __STOP_HOOK_SCRIPT_DIR="$TEST_TMP" \
     __STOP_HOOK_AGENT_ID="$agent_id" \
     run bash "$HOOK_SCRIPT" <<< "$json"
@@ -72,20 +72,20 @@ run_hook_no_agent() {
     [ -z "$output" ]
 }
 
-@test "T-HOOK-004: completion message triggers inbox_write to karo" {
+@test "T-HOOK-004: completion message triggers inbox_write to orchestrator" {
     run_hook '{"stop_hook_active": false, "last_assistant_message": "Task completed. report YAML updated."}'
     [ "$status" -eq 0 ]
     [ -f "$TEST_TMP/inbox_write_calls.log" ]
-    grep -q "karo" "$TEST_TMP/inbox_write_calls.log"
+    grep -q "orchestrator" "$TEST_TMP/inbox_write_calls.log"
     grep -q "report_completed" "$TEST_TMP/inbox_write_calls.log"
-    grep -q "ashigaru1" "$TEST_TMP/inbox_write_calls.log"
+    grep -q "explorer" "$TEST_TMP/inbox_write_calls.log"
 }
 
-@test "T-HOOK-005: error message triggers inbox_write to karo" {
+@test "T-HOOK-005: error message triggers inbox_write to orchestrator" {
     run_hook '{"stop_hook_active": false, "last_assistant_message": "File not found. Interrupted due to error."}'
     [ "$status" -eq 0 ]
     [ -f "$TEST_TMP/inbox_write_calls.log" ]
-    grep -q "karo" "$TEST_TMP/inbox_write_calls.log"
+    grep -q "orchestrator" "$TEST_TMP/inbox_write_calls.log"
     grep -q "error_report" "$TEST_TMP/inbox_write_calls.log"
 }
 
@@ -102,10 +102,10 @@ run_hook_no_agent() {
 }
 
 @test "T-HOOK-008: unread inbox messages produce block JSON" {
-    cat > "$TEST_TMP/queue/inbox/ashigaru1.yaml" << 'YAML'
+    cat > "$TEST_TMP/queue/inbox/explorer.yaml" << 'YAML'
 messages:
   - id: msg_001
-    from: karo
+    from: orchestrator
     type: task_assigned
     content: "This is a new task"
     read: false
@@ -117,10 +117,10 @@ YAML
 }
 
 @test "T-HOOK-009: no unread + completion message exits 0 with notification" {
-    cat > "$TEST_TMP/queue/inbox/ashigaru1.yaml" << 'YAML'
+    cat > "$TEST_TMP/queue/inbox/explorer.yaml" << 'YAML'
 messages:
   - id: msg_001
-    from: karo
+    from: orchestrator
     type: task_assigned
     content: "Old message"
     read: true
@@ -133,10 +133,10 @@ YAML
 }
 
 @test "T-HOOK-010: unread inbox + completion message blocks AND notifies" {
-    cat > "$TEST_TMP/queue/inbox/ashigaru1.yaml" << 'YAML'
+    cat > "$TEST_TMP/queue/inbox/explorer.yaml" << 'YAML'
 messages:
   - id: msg_001
-    from: karo
+    from: orchestrator
     type: task_assigned
     content: "Next task"
     read: false

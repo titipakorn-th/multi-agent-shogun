@@ -7,12 +7,12 @@ display_mode: silent
 cli:
   default: claude
   agents:
-    karo:
+    orchestrator:
       type: claude
       model: sonnet
-    ashigaru1:
+    explorer:
       type: codex
-    ashigaru2:
+    librarian:
       type: claude
       model: sonnet
   validation:

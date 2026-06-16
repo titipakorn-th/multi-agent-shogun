@@ -95,13 +95,13 @@ else
     fi
 fi
 
-# ─── Case 4: legacy v1 role (karo) with v2 settings → rejected
+# ─── Case 4: legacy v1 role (orchestrator) with v2 settings → rejected
 # (hard cutover — no legacy aliases per spec)
-if bash "$TMPDIR/scripts/inbox_write.sh" karo "legacy" task_assigned shogun 2>"$TMPDIR/err4.log"; then
-    echo "FAIL: legacy v1 role 'karo' was accepted in v2 settings" >&2
+if bash "$TMPDIR/scripts/inbox_write.sh" orchestrator "legacy" task_assigned shogun 2>"$TMPDIR/err4.log"; then
+    echo "FAIL: legacy v1 role 'orchestrator' was accepted in v2 settings" >&2
     FAIL=1
 else
-    echo "PASS: legacy v1 role 'karo' rejected in v2 (hard cutover)"
+    echo "PASS: legacy v1 role 'orchestrator' rejected in v2 (hard cutover)"
 fi
 
 # ─── Case 5: role not declared in v1 settings is accepted
@@ -112,7 +112,7 @@ cli:
   default: claude
 YAML
 
-if ! bash "$TMPDIR/scripts/inbox_write.sh" karo "legacy v1" task_assigned shogun 2>"$TMPDIR/err5.log"; then
+if ! bash "$TMPDIR/scripts/inbox_write.sh" orchestrator "legacy v1" task_assigned shogun 2>"$TMPDIR/err5.log"; then
     echo "FAIL: any role rejected under topology=v1 (legacy behavior)" >&2
     cat "$TMPDIR/err5.log" >&2
     FAIL=1

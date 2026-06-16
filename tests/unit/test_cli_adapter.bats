@@ -34,26 +34,26 @@ cli:
     shogun:
       type: claude
       model: opus
-    karo:
+    orchestrator:
       type: claude
       model: opus
-    ashigaru1:
+    explorer:
       type: claude
       model: sonnet
-    ashigaru2:
+    librarian:
       type: claude
       model: sonnet
-    ashigaru3:
+    designer:
       type: claude
       model: sonnet
-    ashigaru4:
+    fixer:
       type: claude
       model: sonnet
-    ashigaru5:
+    observer:
       type: codex
-    ashigaru6:
+    oracle:
       type: codex
-    ashigaru7:
+    council:
       type: copilot
     ashigaru8:
       type: copilot
@@ -64,8 +64,8 @@ YAML
 cli:
   default: claude
   agents:
-    ashigaru5: codex
-    ashigaru7: copilot
+    observer: codex
+    council: copilot
 YAML
 
     # Invalid CLI name
@@ -73,7 +73,7 @@ YAML
 cli:
   default: claudee
   agents:
-    ashigaru1: invalid_cli
+    explorer: invalid_cli
 YAML
 
     # Codex default
@@ -98,14 +98,14 @@ YAML
 cli:
   default: claude
   agents:
-    ashigaru1:
+    explorer:
       type: claude
       model: haiku
-    ashigaru5:
+    observer:
       type: codex
       model: gpt-5
 models:
-  karo: sonnet
+  orchestrator: sonnet
 YAML
 
     # kimi CLI settings
@@ -113,10 +113,10 @@ YAML
 cli:
   default: claude
   agents:
-    ashigaru3:
+    designer:
       type: kimi
       model: k2.5
-    ashigaru4:
+    fixer:
       type: kimi
 YAML
 
@@ -134,25 +134,25 @@ cli:
     shogun:
       type: opencode
       model: openai/gpt-5.4-mini
-    karo:
+    orchestrator:
       type: opencode
       model: gpt-5.4
-    gunshi:
+    oracle:
       type: opencode
       model: anthropic/claude-opus-4-6
-    ashigaru1:
+    explorer:
       type: opencode
       model: k2.5
-    ashigaru2:
+    librarian:
       type: opencode
       model: moonshot-k2.5
-    ashigaru3:
+    designer:
       type: opencode
       model: claude-sonnet-4-6
-    ashigaru4:
+    fixer:
       type: opencode
       model: gpt-5.3-codex-spark
-    ashigaru5:
+    observer:
       type: opencode
       model: openrouter/minimax/minimax-m2.5
       variant: xhigh
@@ -165,10 +165,10 @@ cli:
   agents:
     shogun:
       type: antigravity
-    karo:
+    orchestrator:
       type: agy
       model: gemini-latest
-    ashigaru1:
+    explorer:
       type: gemini
 YAML
 }
@@ -241,7 +241,7 @@ load_adapter_with() {
 
 @test "get_cli_type: claude only configuration -> claude" {
     load_adapter_with "${TEST_TMP}/settings_claude_only.yaml"
-    result=$(get_cli_type "ashigaru1")
+    result=$(get_cli_type "explorer")
     [ "$result" = "claude" ]
 }
 
@@ -251,51 +251,51 @@ load_adapter_with() {
     [ "$result" = "claude" ]
 }
 
-@test "get_cli_type: mixed config ashigaru5 -> codex" {
+@test "get_cli_type: mixed config observer -> codex" {
     load_adapter_with "${TEST_TMP}/settings_mixed.yaml"
-    result=$(get_cli_type "ashigaru5")
+    result=$(get_cli_type "observer")
     [ "$result" = "codex" ]
 }
 
-@test "get_cli_type: mixed config ashigaru7 -> copilot" {
+@test "get_cli_type: mixed config council -> copilot" {
     load_adapter_with "${TEST_TMP}/settings_mixed.yaml"
-    result=$(get_cli_type "ashigaru7")
+    result=$(get_cli_type "council")
     [ "$result" = "copilot" ]
 }
 
-@test "get_cli_type: mixed config ashigaru1 -> claude (individual config)" {
+@test "get_cli_type: mixed config explorer -> claude (individual config)" {
     load_adapter_with "${TEST_TMP}/settings_mixed.yaml"
-    result=$(get_cli_type "ashigaru1")
+    result=$(get_cli_type "explorer")
     [ "$result" = "claude" ]
 }
 
-@test "get_cli_type: string format ashigaru5 -> codex" {
+@test "get_cli_type: string format observer -> codex" {
     load_adapter_with "${TEST_TMP}/settings_string_agents.yaml"
-    result=$(get_cli_type "ashigaru5")
+    result=$(get_cli_type "observer")
     [ "$result" = "codex" ]
 }
 
-@test "get_cli_type: string format ashigaru7 -> copilot" {
+@test "get_cli_type: string format council -> copilot" {
     load_adapter_with "${TEST_TMP}/settings_string_agents.yaml"
-    result=$(get_cli_type "ashigaru7")
+    result=$(get_cli_type "council")
     [ "$result" = "copilot" ]
 }
 
-@test "get_cli_type: kimi config ashigaru3 -> kimi" {
+@test "get_cli_type: kimi config designer -> kimi" {
     load_adapter_with "${TEST_TMP}/settings_kimi.yaml"
-    result=$(get_cli_type "ashigaru3")
+    result=$(get_cli_type "designer")
     [ "$result" = "kimi" ]
 }
 
-@test "get_cli_type: kimi config ashigaru4 -> kimi (no model specified)" {
+@test "get_cli_type: kimi config fixer -> kimi (no model specified)" {
     load_adapter_with "${TEST_TMP}/settings_kimi.yaml"
-    result=$(get_cli_type "ashigaru4")
+    result=$(get_cli_type "fixer")
     [ "$result" = "kimi" ]
 }
 
 @test "get_cli_type: default settings kimi -> kimi" {
     load_adapter_with "${TEST_TMP}/settings_kimi_default.yaml"
-    result=$(get_cli_type "ashigaru1")
+    result=$(get_cli_type "explorer")
     [ "$result" = "kimi" ]
 }
 
@@ -314,14 +314,14 @@ load_adapter_with() {
 @test "get_cli_type: antigravity and legacy alias -> antigravity" {
     load_adapter_with "${TEST_TMP}/settings_antigravity.yaml"
     [ "$(get_cli_type shogun)" = "antigravity" ]
-    [ "$(get_cli_type karo)" = "antigravity" ]
-    [ "$(get_cli_type ashigaru1)" = "antigravity" ]
-    [ "$(get_cli_type ashigaru2)" = "antigravity" ]
+    [ "$(get_cli_type orchestrator)" = "antigravity" ]
+    [ "$(get_cli_type explorer)" = "antigravity" ]
+    [ "$(get_cli_type librarian)" = "antigravity" ]
 }
 
 @test "get_cli_type: undefined agent -> inherits default" {
     load_adapter_with "${TEST_TMP}/settings_codex_default.yaml"
-    result=$(get_cli_type "ashigaru3")
+    result=$(get_cli_type "designer")
     [ "$result" = "codex" ]
 }
 
@@ -333,15 +333,15 @@ load_adapter_with() {
 
 # --- All Ashigaru patterns ---
 
-@test "get_cli_type: mixed configuration ashigaru1-8 all patterns" {
+@test "get_cli_type: mixed configuration explorer-8 all patterns" {
     load_adapter_with "${TEST_TMP}/settings_mixed.yaml"
-    [ "$(get_cli_type ashigaru1)" = "claude" ]
-    [ "$(get_cli_type ashigaru2)" = "claude" ]
-    [ "$(get_cli_type ashigaru3)" = "claude" ]
-    [ "$(get_cli_type ashigaru4)" = "claude" ]
-    [ "$(get_cli_type ashigaru5)" = "codex" ]
-    [ "$(get_cli_type ashigaru6)" = "codex" ]
-    [ "$(get_cli_type ashigaru7)" = "copilot" ]
+    [ "$(get_cli_type explorer)" = "claude" ]
+    [ "$(get_cli_type librarian)" = "claude" ]
+    [ "$(get_cli_type designer)" = "claude" ]
+    [ "$(get_cli_type fixer)" = "claude" ]
+    [ "$(get_cli_type observer)" = "codex" ]
+    [ "$(get_cli_type oracle)" = "codex" ]
+    [ "$(get_cli_type council)" = "copilot" ]
     [ "$(get_cli_type ashigaru8)" = "copilot" ]
 }
 
@@ -349,13 +349,13 @@ load_adapter_with() {
 
 @test "get_cli_type: Invalid CLI name -> claude fallback" {
     load_adapter_with "${TEST_TMP}/settings_invalid_cli.yaml"
-    result=$(get_cli_type "ashigaru1")
+    result=$(get_cli_type "explorer")
     [ "$result" = "claude" ]
 }
 
 @test "get_cli_type: Invalid default -> claude fallback" {
     load_adapter_with "${TEST_TMP}/settings_invalid_cli.yaml"
-    result=$(get_cli_type "karo")
+    result=$(get_cli_type "orchestrator")
     [ "$result" = "claude" ]
 }
 
@@ -367,7 +367,7 @@ load_adapter_with() {
 
 @test "get_cli_type: YAML syntax error -> claude" {
     load_adapter_with "${TEST_TMP}/settings_broken.yaml"
-    result=$(get_cli_type "ashigaru1")
+    result=$(get_cli_type "explorer")
     [ "$result" = "claude" ]
 }
 
@@ -399,38 +399,38 @@ load_adapter_with() {
 cli:
   default: claude
   agents:
-    ashigaru1:
+    explorer:
       type: claude
       model: claude-opus-4-8
       effort: max
 YAML
     load_adapter_with "${TEST_TMP}/settings_claude_effort.yaml"
-    result=$(build_cli_command "ashigaru1")
+    result=$(build_cli_command "explorer")
     [ "$result" = "claude --model claude-opus-4-8 --effort max --dangerously-skip-permissions" ]
 }
 
 @test "build_cli_command: codex + default model → codex --model sonnet ..." {
     load_adapter_with "${TEST_TMP}/settings_mixed.yaml"
-    expected_prompt_arg=$(get_startup_prompt_arg "ashigaru5")
-    result=$(build_cli_command "ashigaru5")
+    expected_prompt_arg=$(get_startup_prompt_arg "observer")
+    result=$(build_cli_command "observer")
     [ "$result" = "codex --model sonnet --search --dangerously-bypass-approvals-and-sandbox --no-alt-screen $expected_prompt_arg" ]
 }
 
 @test "build_cli_command: copilot → copilot --yolo" {
     load_adapter_with "${TEST_TMP}/settings_mixed.yaml"
-    result=$(build_cli_command "ashigaru7")
+    result=$(build_cli_command "council")
     [ "$result" = "copilot --yolo" ]
 }
 
 @test "build_cli_command: kimi + model → kimi --yolo --model k2.5" {
     load_adapter_with "${TEST_TMP}/settings_kimi.yaml"
-    result=$(build_cli_command "ashigaru3")
+    result=$(build_cli_command "designer")
     [ "$result" = "kimi --yolo --model k2.5" ]
 }
 
 @test "build_cli_command: kimi (no model specified) -> kimi --yolo --model k2.5" {
     load_adapter_with "${TEST_TMP}/settings_kimi.yaml"
-    result=$(build_cli_command "ashigaru4")
+    result=$(build_cli_command "fixer")
     [ "$result" = "kimi --yolo --model k2.5" ]
 }
 
@@ -446,54 +446,54 @@ YAML
     [[ "$result" != *'--prompt'* ]]
 }
 
-@test "build_cli_command: opencode karo → --agent karo + pinned tui config" {
+@test "build_cli_command: opencode orchestrator → --agent orchestrator + pinned tui config" {
     load_adapter_with "${TEST_TMP}/settings_opencode.yaml"
-    result=$(build_cli_command "karo")
+    result=$(build_cli_command "orchestrator")
     expected_tui_config=$(_cli_adapter_shell_quote "${PROJECT_ROOT}/config/opencode-tui.json")
-    [[ "$result" == "OPENCODE_AGENT_ID=karo OPENCODE_TUI_CONFIG=$expected_tui_config"* ]]
-    [[ "$result" == *'opencode --model openai/gpt-5.4 --agent karo'* ]]
+    [[ "$result" == "OPENCODE_AGENT_ID=orchestrator OPENCODE_TUI_CONFIG=$expected_tui_config"* ]]
+    [[ "$result" == *'opencode --model openai/gpt-5.4 --agent orchestrator'* ]]
     [[ "$result" != *'OPENCODE_CONFIG_CONTENT'* ]]
     [[ "$result" != *'--prompt'* ]]
 }
 
-@test "build_cli_command: opencode ashigaru → --agent ashigaru1 + pinned tui config" {
+@test "build_cli_command: opencode specialist → --agent explorer + pinned tui config" {
     load_adapter_with "${TEST_TMP}/settings_opencode.yaml"
-    result=$(build_cli_command "ashigaru1")
+    result=$(build_cli_command "explorer")
     expected_tui_config=$(_cli_adapter_shell_quote "${PROJECT_ROOT}/config/opencode-tui.json")
-    [[ "$result" == "OPENCODE_AGENT_ID=ashigaru1 OPENCODE_TUI_CONFIG=$expected_tui_config"* ]]
-    [[ "$result" == *'opencode --model moonshot/kimi-k2.5 --agent ashigaru1'* ]]
+    [[ "$result" == "OPENCODE_AGENT_ID=explorer OPENCODE_TUI_CONFIG=$expected_tui_config"* ]]
+    [[ "$result" == *'opencode --model moonshot/kimi-k2.5 --agent explorer'* ]]
     [[ "$result" != *'OPENCODE_CONFIG_CONTENT'* ]]
     [[ "$result" != *'--prompt'* ]]
 }
 
-@test "build_cli_command: opencode gunshi → --agent gunshi + pinned tui config" {
+@test "build_cli_command: opencode oracle → --agent oracle + pinned tui config" {
     load_adapter_with "${TEST_TMP}/settings_opencode.yaml"
-    result=$(build_cli_command "gunshi")
+    result=$(build_cli_command "oracle")
     expected_tui_config=$(_cli_adapter_shell_quote "${PROJECT_ROOT}/config/opencode-tui.json")
-    [[ "$result" == "OPENCODE_AGENT_ID=gunshi OPENCODE_TUI_CONFIG=$expected_tui_config"* ]]
-    [[ "$result" == *'opencode --model anthropic/claude-opus-4-6 --agent gunshi'* ]]
+    [[ "$result" == "OPENCODE_AGENT_ID=oracle OPENCODE_TUI_CONFIG=$expected_tui_config"* ]]
+    [[ "$result" == *'opencode --model anthropic/claude-opus-4-6 --agent oracle'* ]]
     [[ "$result" != *'OPENCODE_CONFIG_CONTENT'* ]]
     [[ "$result" != *'--prompt'* ]]
 }
 
 @test "build_cli_command: opencode deterministic output" {
     load_adapter_with "${TEST_TMP}/settings_opencode.yaml"
-    first=$(build_cli_command "ashigaru3")
-    second=$(build_cli_command "ashigaru3")
+    first=$(build_cli_command "designer")
+    second=$(build_cli_command "designer")
     expected_tui_config=$(_cli_adapter_shell_quote "${PROJECT_ROOT}/config/opencode-tui.json")
     [[ "$first" == "$second" ]]
-    [[ "$first" == "OPENCODE_AGENT_ID=ashigaru3 OPENCODE_TUI_CONFIG=$expected_tui_config"* ]]
-    [[ "$first" == *'opencode --model anthropic/claude-sonnet-4-6 --agent ashigaru3'* ]]
+    [[ "$first" == "OPENCODE_AGENT_ID=designer OPENCODE_TUI_CONFIG=$expected_tui_config"* ]]
+    [[ "$first" == *'opencode --model anthropic/claude-sonnet-4-6 --agent designer'* ]]
     [[ "$first" != *'OPENCODE_CONFIG_CONTENT'* ]]
     [[ "$first" != *'--prompt'* ]]
 }
 
 @test "build_cli_command: opencode omits provider-specific variant from TUI args" {
     load_adapter_with "${TEST_TMP}/settings_opencode.yaml"
-    result=$(build_cli_command "ashigaru5")
+    result=$(build_cli_command "observer")
     expected_tui_config=$(_cli_adapter_shell_quote "${PROJECT_ROOT}/config/opencode-tui.json")
-    [[ "$result" == "OPENCODE_AGENT_ID=ashigaru5 OPENCODE_TUI_CONFIG=$expected_tui_config"* ]]
-    [[ "$result" == *'opencode --model openrouter/minimax/minimax-m2.5 --agent ashigaru5-runtime'* ]]
+    [[ "$result" == "OPENCODE_AGENT_ID=observer OPENCODE_TUI_CONFIG=$expected_tui_config"* ]]
+    [[ "$result" == *'opencode --model openrouter/minimax/minimax-m2.5 --agent observer-runtime'* ]]
     [[ "$result" != *'--variant'* ]]
     [[ "$result" != *'OPENCODE_CONFIG_CONTENT'* ]]
     [[ "$result" != *'--prompt'* ]]
@@ -507,7 +507,7 @@ YAML
 
 @test "build_cli_command: antigravity explicit model passes --model" {
     load_adapter_with "${TEST_TMP}/settings_antigravity.yaml"
-    result=$(build_cli_command "karo")
+    result=$(build_cli_command "orchestrator")
     [ "$result" = "agy --dangerously-skip-permissions --model gemini-latest" ]
 }
 
@@ -519,13 +519,13 @@ YAML
 
 @test "build_cli_command: no cli section -> claude fallback" {
     load_adapter_with "${TEST_TMP}/settings_none.yaml"
-    result=$(build_cli_command "ashigaru1")
+    result=$(build_cli_command "explorer")
     [[ "$result" == claude*--dangerously-skip-permissions ]]
 }
 
 @test "build_cli_command: settings read failed -> claude fallback" {
     load_adapter_with "/nonexistent/settings.yaml"
-    result=$(build_cli_command "ashigaru1")
+    result=$(build_cli_command "explorer")
     [[ "$result" == claude*--dangerously-skip-permissions ]]
 }
 
@@ -539,34 +539,34 @@ YAML
     [ "$result" = "instructions/shogun.md" ]
 }
 
-@test "get_instruction_file: karo + claude → instructions/karo.md" {
+@test "get_instruction_file: orchestrator + claude → instructions/orchestrator.md" {
     load_adapter_with "${TEST_TMP}/settings_mixed.yaml"
-    result=$(get_instruction_file "karo")
-    [ "$result" = "instructions/karo.md" ]
+    result=$(get_instruction_file "orchestrator")
+    [ "$result" = "instructions/orchestrator.md" ]
 }
 
-@test "get_instruction_file: ashigaru1 + claude → instructions/ashigaru.md" {
+@test "get_instruction_file: explorer + claude → instructions/specialist.md" {
     load_adapter_with "${TEST_TMP}/settings_mixed.yaml"
-    result=$(get_instruction_file "ashigaru1")
-    [ "$result" = "instructions/ashigaru.md" ]
+    result=$(get_instruction_file "explorer")
+    [ "$result" = "instructions/specialist.md" ]
 }
 
-@test "get_instruction_file: ashigaru5 + codex → instructions/codex-ashigaru.md" {
+@test "get_instruction_file: observer + codex → instructions/codex-specialist.md" {
     load_adapter_with "${TEST_TMP}/settings_mixed.yaml"
-    result=$(get_instruction_file "ashigaru5")
-    [ "$result" = "instructions/codex-ashigaru.md" ]
+    result=$(get_instruction_file "observer")
+    [ "$result" = "instructions/codex-specialist.md" ]
 }
 
-@test "get_instruction_file: ashigaru7 + copilot → .github/copilot-instructions-ashigaru.md" {
+@test "get_instruction_file: council + copilot → .github/copilot-instructions-specialist.md" {
     load_adapter_with "${TEST_TMP}/settings_mixed.yaml"
-    result=$(get_instruction_file "ashigaru7")
-    [ "$result" = ".github/copilot-instructions-ashigaru.md" ]
+    result=$(get_instruction_file "council")
+    [ "$result" = ".github/copilot-instructions-specialist.md" ]
 }
 
-@test "get_instruction_file: ashigaru3 + kimi → instructions/generated/kimi-ashigaru.md" {
+@test "get_instruction_file: designer + kimi → instructions/generated/kimi-specialist.md" {
     load_adapter_with "${TEST_TMP}/settings_kimi.yaml"
-    result=$(get_instruction_file "ashigaru3")
-    [ "$result" = "instructions/generated/kimi-ashigaru.md" ]
+    result=$(get_instruction_file "designer")
+    [ "$result" = "instructions/generated/kimi-specialist.md" ]
 }
 
 @test "get_instruction_file: shogun + kimi → instructions/generated/kimi-shogun.md" {
@@ -583,28 +583,28 @@ YAML
 
 @test "get_instruction_file: explicit spec via cli_type argument (copilot)" {
     load_adapter_with "${TEST_TMP}/settings_none.yaml"
-    result=$(get_instruction_file "karo" "copilot")
-    [ "$result" = ".github/copilot-instructions-karo.md" ]
+    result=$(get_instruction_file "orchestrator" "copilot")
+    [ "$result" = ".github/copilot-instructions-orchestrator.md" ]
 }
 
 @test "get_instruction_file: all CLI x all role combinations" {
     load_adapter_with "${TEST_TMP}/settings_none.yaml"
     # claude
     [ "$(get_instruction_file shogun claude)" = "instructions/shogun.md" ]
-    [ "$(get_instruction_file karo claude)" = "instructions/karo.md" ]
-    [ "$(get_instruction_file ashigaru1 claude)" = "instructions/ashigaru.md" ]
+    [ "$(get_instruction_file orchestrator claude)" = "instructions/orchestrator.md" ]
+    [ "$(get_instruction_file explorer claude)" = "instructions/specialist.md" ]
     # codex
     [ "$(get_instruction_file shogun codex)" = "instructions/codex-shogun.md" ]
-    [ "$(get_instruction_file karo codex)" = "instructions/codex-karo.md" ]
-    [ "$(get_instruction_file ashigaru3 codex)" = "instructions/codex-ashigaru.md" ]
+    [ "$(get_instruction_file orchestrator codex)" = "instructions/codex-orchestrator.md" ]
+    [ "$(get_instruction_file designer codex)" = "instructions/codex-specialist.md" ]
     # copilot
     [ "$(get_instruction_file shogun copilot)" = ".github/copilot-instructions-shogun.md" ]
-    [ "$(get_instruction_file karo copilot)" = ".github/copilot-instructions-karo.md" ]
-    [ "$(get_instruction_file ashigaru5 copilot)" = ".github/copilot-instructions-ashigaru.md" ]
+    [ "$(get_instruction_file orchestrator copilot)" = ".github/copilot-instructions-orchestrator.md" ]
+    [ "$(get_instruction_file observer copilot)" = ".github/copilot-instructions-specialist.md" ]
     # kimi
     [ "$(get_instruction_file shogun kimi)" = "instructions/generated/kimi-shogun.md" ]
-    [ "$(get_instruction_file karo kimi)" = "instructions/generated/kimi-karo.md" ]
-    [ "$(get_instruction_file ashigaru7 kimi)" = "instructions/generated/kimi-ashigaru.md" ]
+    [ "$(get_instruction_file orchestrator kimi)" = "instructions/generated/kimi-orchestrator.md" ]
+    [ "$(get_instruction_file council kimi)" = "instructions/generated/kimi-specialist.md" ]
 }
 
 @test "get_instruction_file: unknown agent_id -> empty string + return 1" {
@@ -635,21 +635,21 @@ YAML
     [ -z "$result" ]
 }
 
-@test "get_startup_prompt: opencode karo → empty (uses --agent, no prompt needed)" {
+@test "get_startup_prompt: opencode orchestrator → empty (uses --agent, no prompt needed)" {
     load_adapter_with "${TEST_TMP}/settings_opencode.yaml"
-    result=$(get_startup_prompt "karo")
+    result=$(get_startup_prompt "orchestrator")
     [ -z "$result" ]
 }
 
-@test "get_startup_prompt: opencode gunshi → empty (uses --agent, no prompt needed)" {
+@test "get_startup_prompt: opencode oracle → empty (uses --agent, no prompt needed)" {
     load_adapter_with "${TEST_TMP}/settings_opencode.yaml"
-    result=$(get_startup_prompt "gunshi")
+    result=$(get_startup_prompt "oracle")
     [ -z "$result" ]
 }
 
-@test "get_startup_prompt: opencode ashigaru1 → empty (uses --agent, no prompt needed)" {
+@test "get_startup_prompt: opencode explorer → empty (uses --agent, no prompt needed)" {
     load_adapter_with "${TEST_TMP}/settings_opencode.yaml"
-    result=$(get_startup_prompt "ashigaru1")
+    result=$(get_startup_prompt "explorer")
     [ -z "$result" ]
 }
 
@@ -665,7 +665,7 @@ YAML
 
 @test "get_startup_prompt_arg: codex → positional prompt" {
     load_adapter_with "${TEST_TMP}/settings_mixed.yaml"
-    result=$(get_startup_prompt_arg "ashigaru5")
+    result=$(get_startup_prompt_arg "observer")
     [[ "$result" != --prompt* ]]
     [[ "$result" == *"Session Start"* ]]
 }
@@ -795,39 +795,39 @@ YAML
     [ "$result" = "opus" ]
 }
 
-@test "get_agent_model: no cli section karo -> sonnet (default)" {
+@test "get_agent_model: no cli section orchestrator -> sonnet (default)" {
     load_adapter_with "${TEST_TMP}/settings_none.yaml"
-    result=$(get_agent_model "karo")
+    result=$(get_agent_model "orchestrator")
     [ "$result" = "sonnet" ]
 }
 
-@test "get_agent_model: no cli section ashigaru1 -> sonnet (default)" {
+@test "get_agent_model: no cli section explorer -> sonnet (default)" {
     load_adapter_with "${TEST_TMP}/settings_none.yaml"
-    result=$(get_agent_model "ashigaru1")
+    result=$(get_agent_model "explorer")
     [ "$result" = "sonnet" ]
 }
 
-@test "get_agent_model: no cli section ashigaru5 -> sonnet (default)" {
+@test "get_agent_model: no cli section observer -> sonnet (default)" {
     load_adapter_with "${TEST_TMP}/settings_none.yaml"
-    result=$(get_agent_model "ashigaru5")
+    result=$(get_agent_model "observer")
     [ "$result" = "sonnet" ]
 }
 
-@test "get_agent_model: YAML specified ashigaru1 -> haiku (override)" {
+@test "get_agent_model: YAML specified explorer -> haiku (override)" {
     load_adapter_with "${TEST_TMP}/settings_with_models.yaml"
-    result=$(get_agent_model "ashigaru1")
+    result=$(get_agent_model "explorer")
     [ "$result" = "haiku" ]
 }
 
-@test "get_agent_model: retrieved from models section karo -> sonnet" {
+@test "get_agent_model: retrieved from models section orchestrator -> sonnet" {
     load_adapter_with "${TEST_TMP}/settings_with_models.yaml"
-    result=$(get_agent_model "karo")
+    result=$(get_agent_model "orchestrator")
     [ "$result" = "sonnet" ]
 }
 
-@test "get_agent_model: codex agent model ashigaru5 -> gpt-5" {
+@test "get_agent_model: codex agent model observer -> gpt-5" {
     load_adapter_with "${TEST_TMP}/settings_with_models.yaml"
-    result=$(get_agent_model "ashigaru5")
+    result=$(get_agent_model "observer")
     [ "$result" = "gpt-5" ]
 }
 
@@ -837,15 +837,15 @@ YAML
     [ "$result" = "sonnet" ]
 }
 
-@test "get_agent_model: kimi CLI ashigaru3 -> k2.5 (YAML specified)" {
+@test "get_agent_model: kimi CLI designer -> k2.5 (YAML specified)" {
     load_adapter_with "${TEST_TMP}/settings_kimi.yaml"
-    result=$(get_agent_model "ashigaru3")
+    result=$(get_agent_model "designer")
     [ "$result" = "k2.5" ]
 }
 
-@test "get_agent_model: kimi CLI ashigaru4 -> k2.5 (default)" {
+@test "get_agent_model: kimi CLI fixer -> k2.5 (default)" {
     load_adapter_with "${TEST_TMP}/settings_kimi.yaml"
-    result=$(get_agent_model "ashigaru4")
+    result=$(get_agent_model "fixer")
     [ "$result" = "k2.5" ]
 }
 
@@ -855,9 +855,9 @@ YAML
     [ "$result" = "k2.5" ]
 }
 
-@test "get_agent_model: kimi CLI karo -> k2.5 (default)" {
+@test "get_agent_model: kimi CLI orchestrator -> k2.5 (default)" {
     load_adapter_with "${TEST_TMP}/settings_kimi_default.yaml"
-    result=$(get_agent_model "karo")
+    result=$(get_agent_model "orchestrator")
     [ "$result" = "k2.5" ]
 }
 
@@ -882,13 +882,13 @@ YAML
 cli:
   default: claude
   agents:
-    ashigaru1:
+    explorer:
       type: claude
       model: claude-sonnet-4-6
       thinking: true
 YAML
     load_adapter_with "${TEST_TMP}/settings_display.yaml"
-    result=$(get_model_display_name "ashigaru1")
+    result=$(get_model_display_name "explorer")
     [ "$result" = "Sonnet+T" ]
 }
 
@@ -897,13 +897,13 @@ YAML
 cli:
   default: claude
   agents:
-    gunshi:
+    oracle:
       type: claude
       model: claude-opus-4-6
       thinking: true
 YAML
     load_adapter_with "${TEST_TMP}/settings_display.yaml"
-    result=$(get_model_display_name "gunshi")
+    result=$(get_model_display_name "oracle")
     [ "$result" = "Opus+T" ]
 }
 
@@ -912,13 +912,13 @@ YAML
 cli:
   default: claude
   agents:
-    ashigaru1:
+    explorer:
       type: claude
       model: claude-opus-4-8
       effort: max
 YAML
     load_adapter_with "${TEST_TMP}/settings_display_effort.yaml"
-    result=$(get_model_display_name "ashigaru1")
+    result=$(get_model_display_name "explorer")
     [ "$result" = "Opus+max" ]
 }
 
@@ -927,13 +927,13 @@ YAML
 cli:
   default: claude
   agents:
-    ashigaru2:
+    librarian:
       type: claude
       model: claude-haiku-4-5-20251001
       thinking: false
 YAML
     load_adapter_with "${TEST_TMP}/settings_display.yaml"
-    result=$(get_model_display_name "ashigaru2")
+    result=$(get_model_display_name "librarian")
     [ "$result" = "Haiku" ]
 }
 
@@ -942,12 +942,12 @@ YAML
 cli:
   default: claude
   agents:
-    ashigaru3:
+    designer:
       type: claude
       model: claude-sonnet-4-6
 YAML
     load_adapter_with "${TEST_TMP}/settings_display.yaml"
-    result=$(get_model_display_name "ashigaru3")
+    result=$(get_model_display_name "designer")
     [ "$result" = "Sonnet+T" ]
 }
 
@@ -956,12 +956,12 @@ YAML
 cli:
   default: claude
   agents:
-    ashigaru4:
+    fixer:
       type: codex
       model: gpt-5.3-codex-spark
 YAML
     load_adapter_with "${TEST_TMP}/settings_display.yaml"
-    result=$(get_model_display_name "ashigaru4")
+    result=$(get_model_display_name "fixer")
     [ "$result" = "Spark" ]
 }
 
@@ -970,12 +970,12 @@ YAML
 cli:
   default: claude
   agents:
-    ashigaru5:
+    observer:
       type: codex
       model: gpt-5.3-codex
 YAML
     load_adapter_with "${TEST_TMP}/settings_display.yaml"
-    result=$(get_model_display_name "ashigaru5")
+    result=$(get_model_display_name "observer")
     [ "$result" = "Codex5.3" ]
 }
 
@@ -984,12 +984,12 @@ YAML
 cli:
   default: kimi
   agents:
-    ashigaru6:
+    oracle:
       type: kimi
       model: k2.5
 YAML
     load_adapter_with "${TEST_TMP}/settings_display.yaml"
-    result=$(get_model_display_name "ashigaru6")
+    result=$(get_model_display_name "oracle")
     [ "$result" = "Kimi" ]
 }
 
@@ -998,31 +998,31 @@ YAML
 cli:
   default: claude
   agents:
-    ashigaru1:
+    explorer:
       type: claude
       model: claude-sonnet-4-6
       thinking: true
-    ashigaru2:
+    librarian:
       type: claude
       model: claude-opus-4-6
       thinking: false
-    ashigaru3:
+    designer:
       type: claude
       model: claude-haiku-4-5-20251001
       thinking: true
-    ashigaru4:
+    fixer:
       type: codex
       model: gpt-5.3-codex-spark
-    ashigaru5:
+    observer:
       type: codex
       model: gpt-5.3-codex
 YAML
     load_adapter_with "${TEST_TMP}/settings_display_all.yaml"
-    [ "$(get_model_display_name ashigaru1)" = "Sonnet+T" ]
-    [ "$(get_model_display_name ashigaru2)" = "Opus" ]
-    [ "$(get_model_display_name ashigaru3)" = "Haiku+T" ]
-    [ "$(get_model_display_name ashigaru4)" = "Spark" ]
-    [ "$(get_model_display_name ashigaru5)" = "Codex5.3" ]
+    [ "$(get_model_display_name explorer)" = "Sonnet+T" ]
+    [ "$(get_model_display_name librarian)" = "Opus" ]
+    [ "$(get_model_display_name designer)" = "Haiku+T" ]
+    [ "$(get_model_display_name fixer)" = "Spark" ]
+    [ "$(get_model_display_name observer)" = "Codex5.3" ]
 }
 
 # =============================================================================
@@ -1034,13 +1034,13 @@ YAML
 cli:
   default: claude
   agents:
-    ashigaru1:
+    explorer:
       type: claude
       model: claude-sonnet-4-6
       thinking: true
 YAML
     load_adapter_with "${TEST_TMP}/settings_thinking.yaml"
-    result=$(build_cli_command "ashigaru1")
+    result=$(build_cli_command "explorer")
     [ "$result" = "claude --model claude-sonnet-4-6 --dangerously-skip-permissions" ]
 }
 
@@ -1049,13 +1049,13 @@ YAML
 cli:
   default: claude
   agents:
-    ashigaru1:
+    explorer:
       type: claude
       model: claude-opus-4-8
       effort: turbo
 YAML
     load_adapter_with "${TEST_TMP}/settings_effort_invalid.yaml"
-    run build_cli_command "ashigaru1"
+    run build_cli_command "explorer"
     [ "$status" -eq 0 ]
     [[ "$output" == *"claude --model claude-opus-4-8 --dangerously-skip-permissions"* ]]
     [[ "$output" != *"--effort turbo"* ]]
@@ -1066,13 +1066,13 @@ YAML
 cli:
   default: claude
   agents:
-    ashigaru1:
+    explorer:
       type: claude
       model: claude-sonnet-4-6
       thinking: false
 YAML
     load_adapter_with "${TEST_TMP}/settings_thinking.yaml"
-    result=$(build_cli_command "ashigaru1")
+    result=$(build_cli_command "explorer")
     [ "$result" = "MAX_THINKING_TOKENS=0 claude --model claude-sonnet-4-6 --dangerously-skip-permissions" ]
 }
 
@@ -1081,12 +1081,12 @@ YAML
 cli:
   default: claude
   agents:
-    ashigaru1:
+    explorer:
       type: claude
       model: claude-sonnet-4-6
 YAML
     load_adapter_with "${TEST_TMP}/settings_thinking.yaml"
-    result=$(build_cli_command "ashigaru1")
+    result=$(build_cli_command "explorer")
     [ "$result" = "claude --model claude-sonnet-4-6 --dangerously-skip-permissions" ]
 }
 
@@ -1095,13 +1095,13 @@ YAML
 cli:
   default: claude
   agents:
-    ashigaru5:
+    observer:
       type: codex
       model: gpt-5.3-codex
       thinking: false
 YAML
     load_adapter_with "${TEST_TMP}/settings_thinking.yaml"
-    result=$(build_cli_command "ashigaru5")
+    result=$(build_cli_command "observer")
     [[ "$result" != MAX_THINKING_TOKENS* ]]
     [[ "$result" == codex* ]]
 }

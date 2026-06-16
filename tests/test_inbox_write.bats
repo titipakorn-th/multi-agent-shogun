@@ -90,7 +90,7 @@ teardown() {
 # =============================================================================
 
 @test "T-002c: self-send (from==target) → exit 1 with REJECTED" {
-    run bash "$TEST_INBOX_WRITE" "karo" "self message" "cmd_new" "karo"
+    run bash "$TEST_INBOX_WRITE" "orchestrator" "self message" "cmd_new" "orchestrator"
     [ "$status" -eq 1 ]
     [[ "$output" =~ "REJECTED" ]]
 }

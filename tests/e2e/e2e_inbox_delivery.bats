@@ -47,20 +47,20 @@ setup() {
 # ═══════════════════════════════════════════════════════════════
 
 @test "E2E-002-A: inbox_write.sh creates message with correct fields" {
-    # 1. Write a message to ashigaru1's inbox
-    run bash "$E2E_QUEUE/scripts/inbox_write.sh" "ashigaru1" \
-        "test delivery message" "task_assigned" "karo"
+    # 1. Write a message to explorer's inbox
+    run bash "$E2E_QUEUE/scripts/inbox_write.sh" "explorer" \
+        "test delivery message" "task_assigned" "orchestrator"
     assert_success
 
     # 2. Verify YAML file exists and has correct structure
-    [ -f "$E2E_QUEUE/queue/inbox/ashigaru1.yaml" ]
+    [ -f "$E2E_QUEUE/queue/inbox/explorer.yaml" ]
 
     # 3. Verify message fields
-    run assert_inbox_message_exists "$E2E_QUEUE/queue/inbox/ashigaru1.yaml" "karo" "task_assigned"
+    run assert_inbox_message_exists "$E2E_QUEUE/queue/inbox/explorer.yaml" "orchestrator" "task_assigned"
     assert_success
 
     # 4. Verify message is unread
-    run assert_inbox_unread_count "$E2E_QUEUE/queue/inbox/ashigaru1.yaml" 1
+    run assert_inbox_unread_count "$E2E_QUEUE/queue/inbox/explorer.yaml" 1
     assert_success
 }
 
@@ -69,16 +69,16 @@ setup() {
 # ═══════════════════════════════════════════════════════════════
 
 @test "E2E-002-B: mock CLI reads and processes inbox after nudge" {
-    # 1. Place a task for ashigaru1
+    # 1. Place a task for explorer
     cp "$PROJECT_ROOT/tests/e2e/fixtures/task_ashigaru1_basic.yaml" \
-       "$E2E_QUEUE/queue/tasks/ashigaru1.yaml"
+       "$E2E_QUEUE/queue/tasks/explorer.yaml"
 
     # 2. Write task_assigned to inbox
-    bash "$E2E_QUEUE/scripts/inbox_write.sh" "ashigaru1" \
-        "Read task YAML and start work." "task_assigned" "karo"
+    bash "$E2E_QUEUE/scripts/inbox_write.sh" "explorer" \
+        "Read task YAML and start work." "task_assigned" "orchestrator"
 
     # 3. Verify 1 unread message
-    run assert_inbox_unread_count "$E2E_QUEUE/queue/inbox/ashigaru1.yaml" 1
+    run assert_inbox_unread_count "$E2E_QUEUE/queue/inbox/explorer.yaml" 1
     assert_success
 
     # 4. Send nudge to mock CLI
@@ -87,11 +87,11 @@ setup() {
     send_to_pane "$ashigaru1_pane" "inbox1"
 
     # 5. Wait for processing (task goes to done)
-    run wait_for_yaml_value "$E2E_QUEUE/queue/tasks/ashigaru1.yaml" "task.status" "done" 30
+    run wait_for_yaml_value "$E2E_QUEUE/queue/tasks/explorer.yaml" "task.status" "done" 30
     assert_success
 
     # 6. Verify all inbox messages are now read
-    run assert_inbox_unread_count "$E2E_QUEUE/queue/inbox/ashigaru1.yaml" 0
+    run assert_inbox_unread_count "$E2E_QUEUE/queue/inbox/explorer.yaml" 0
     assert_success
 }
 
@@ -100,16 +100,16 @@ setup() {
 # ═══════════════════════════════════════════════════════════════
 
 @test "E2E-002-C: multiple inbox messages are all marked as read" {
-    # 1. Write 3 messages to ashigaru1's inbox
-    bash "$E2E_QUEUE/scripts/inbox_write.sh" "ashigaru1" \
+    # 1. Write 3 messages to explorer's inbox
+    bash "$E2E_QUEUE/scripts/inbox_write.sh" "explorer" \
         "message1" "info" "system"
-    bash "$E2E_QUEUE/scripts/inbox_write.sh" "ashigaru1" \
+    bash "$E2E_QUEUE/scripts/inbox_write.sh" "explorer" \
         "message2" "info" "system"
-    bash "$E2E_QUEUE/scripts/inbox_write.sh" "ashigaru1" \
+    bash "$E2E_QUEUE/scripts/inbox_write.sh" "explorer" \
         "message3" "info" "system"
 
     # 2. Verify 3 unread
-    run assert_inbox_unread_count "$E2E_QUEUE/queue/inbox/ashigaru1.yaml" 3
+    run assert_inbox_unread_count "$E2E_QUEUE/queue/inbox/explorer.yaml" 3
     assert_success
 
     # 3. Send nudge
@@ -121,7 +121,7 @@ setup() {
     sleep 5
 
     # 5. All messages should be read
-    run assert_inbox_unread_count "$E2E_QUEUE/queue/inbox/ashigaru1.yaml" 0
+    run assert_inbox_unread_count "$E2E_QUEUE/queue/inbox/explorer.yaml" 0
     assert_success
 }
 
@@ -130,20 +130,20 @@ setup() {
 # ═══════════════════════════════════════════════════════════════
 
 @test "E2E-002-D: messages to different agents stay in separate inboxes" {
-    # 1. Write to karo and ashigaru1
-    bash "$E2E_QUEUE/scripts/inbox_write.sh" "karo" \
+    # 1. Write to orchestrator and explorer
+    bash "$E2E_QUEUE/scripts/inbox_write.sh" "orchestrator" \
         "message for Karo" "cmd_new" "shogun"
-    bash "$E2E_QUEUE/scripts/inbox_write.sh" "ashigaru1" \
-        "message for Ashigaru 1" "task_assigned" "karo"
+    bash "$E2E_QUEUE/scripts/inbox_write.sh" "explorer" \
+        "message for Ashigaru 1" "task_assigned" "orchestrator"
 
     # 2. Each inbox should have exactly 1 unread
-    run assert_inbox_unread_count "$E2E_QUEUE/queue/inbox/karo.yaml" 1
+    run assert_inbox_unread_count "$E2E_QUEUE/queue/inbox/orchestrator.yaml" 1
     assert_success
-    run assert_inbox_unread_count "$E2E_QUEUE/queue/inbox/ashigaru1.yaml" 1
+    run assert_inbox_unread_count "$E2E_QUEUE/queue/inbox/explorer.yaml" 1
     assert_success
 
-    # 3. ashigaru2 inbox should be empty (0 unread)
-    run assert_inbox_unread_count "$E2E_QUEUE/queue/inbox/ashigaru2.yaml" 0
+    # 3. librarian inbox should be empty (0 unread)
+    run assert_inbox_unread_count "$E2E_QUEUE/queue/inbox/librarian.yaml" 0
     assert_success
 }
 
@@ -151,27 +151,27 @@ setup() {
 # E2E-002-E: Report notification flows back via inbox
 # ═══════════════════════════════════════════════════════════════
 
-@test "E2E-002-E: ashigaru1 completion sends report_received to karo inbox" {
-    # 1. Place task for ashigaru1
+@test "E2E-002-E: explorer completion sends report_received to orchestrator inbox" {
+    # 1. Place task for explorer
     cp "$PROJECT_ROOT/tests/e2e/fixtures/task_ashigaru1_basic.yaml" \
-       "$E2E_QUEUE/queue/tasks/ashigaru1.yaml"
+       "$E2E_QUEUE/queue/tasks/explorer.yaml"
 
     # 2. Trigger processing
-    bash "$E2E_QUEUE/scripts/inbox_write.sh" "ashigaru1" \
-        "Read task YAML and start work." "task_assigned" "karo"
+    bash "$E2E_QUEUE/scripts/inbox_write.sh" "explorer" \
+        "Read task YAML and start work." "task_assigned" "orchestrator"
 
     local ashigaru1_pane
     ashigaru1_pane=$(pane_target 1)
     send_to_pane "$ashigaru1_pane" "inbox1"
 
     # 3. Wait for task completion
-    run wait_for_yaml_value "$E2E_QUEUE/queue/tasks/ashigaru1.yaml" "task.status" "done" 30
+    run wait_for_yaml_value "$E2E_QUEUE/queue/tasks/explorer.yaml" "task.status" "done" 30
     assert_success
 
     # 4. Wait a moment for inbox_write to complete
     sleep 2
 
-    # 5. Verify karo received report_received notification
-    run assert_inbox_message_exists "$E2E_QUEUE/queue/inbox/karo.yaml" "ashigaru1" "report_received"
+    # 5. Verify orchestrator received report_received notification
+    run assert_inbox_message_exists "$E2E_QUEUE/queue/inbox/orchestrator.yaml" "explorer" "report_received"
     assert_success
 }

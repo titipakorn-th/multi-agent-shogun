@@ -88,7 +88,7 @@ source_supervisor_functions() {
                 "$SUPERVISOR_SCRIPT"
         )"
 
-        start_watcher_if_missing "ashigaru1" "multiagent:agents.1" "/tmp/test_ws_001.log"
+        start_watcher_if_missing "explorer" "multiagent:agents.1" "/tmp/test_ws_001.log"
         result=$?
 
         [ "$result" -eq 0 ]
@@ -124,7 +124,7 @@ source_supervisor_functions() {
                 "$SUPERVISOR_SCRIPT"
         )"
 
-        start_watcher_if_missing "ashigaru1" "multiagent:agents.1" "/tmp/test_ws_002.log"
+        start_watcher_if_missing "explorer" "multiagent:agents.1" "/tmp/test_ws_002.log"
 
         # If launched_log was created, a duplicate was (incorrectly) started
         [ ! -f "$launched_log" ]
@@ -135,7 +135,7 @@ source_supervisor_functions() {
 # T-WS-003: lockfile path follows /tmp/shogun_watcher_start_{agent}.lock
 # ---------------------------------------------------------------------------
 @test "T-WS-003: lockfile path follows /tmp/shogun_watcher_start_{agent}.lock pattern" {
-    local agent="ashigaru3"
+    local agent="designer"
     local expected_lockfile="/tmp/shogun_watcher_start_${agent}.lock"
 
     # Confirm the script contains the expected lockfile pattern for any agent name

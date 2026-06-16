@@ -59,9 +59,9 @@
 #   T-SHOOK-001: Claude Code throttle uses 60s cooldown (stop-hook-supplementary)
 #   T-SHOOK-002: Claude Code count change bypasses throttle (stop-hook-supplementary)
 #   T-SHOOK-003: Non-Claude CLIs still bypass throttle on count change
-#   T-CRESET-001: send_context_reset — suppresses /clear for karo
-#   T-CRESET-002: send_context_reset — suppresses /clear for gunshi
-#   T-CRESET-003: send_context_reset — sends /clear for ashigaru
+#   T-CRESET-001: send_context_reset — suppresses /clear for orchestrator
+#   T-CRESET-002: send_context_reset — suppresses /clear for oracle
+#   T-CRESET-003: send_context_reset — sends /clear for specialist
 #   T-CRESET-004: send_context_reset — sends /new for opencode
 #   T-COPILOT-001: send_cli_command — copilot /clear → Ctrl-C + restart
 #   T-COPILOT-002: send_cli_command — copilot /model → skip
@@ -709,7 +709,7 @@ MOCK
         cat > "$INBOX" << "YAML"
 messages:
   - id: msg_clear
-    from: karo
+    from: orchestrator
     timestamp: "2026-02-10T14:00:00+09:00"
     type: clear_command
     content: redo
@@ -759,7 +759,7 @@ PY
         cat > "$INBOX" << "YAML"
 messages:
   - id: msg_clear
-    from: karo
+    from: orchestrator
     timestamp: "2026-05-22T03:22:46+09:00"
     type: clear_command
     content: refresh
@@ -1295,12 +1295,12 @@ YAML
     [ "$(grep -c "send-keys -t test:0.0 inbox1" "$MOCK_LOG")" -eq 1 ]
 }
 
-# --- T-CRESET-001: send_context_reset suppresses /clear for karo ---
+# --- T-CRESET-001: send_context_reset suppresses /clear for orchestrator ---
 
-@test "T-CRESET-001: send_context_reset suppresses /clear for karo" {
+@test "T-CRESET-001: send_context_reset suppresses /clear for orchestrator" {
     run bash -c '
         source "'"$TEST_HARNESS"'"
-        AGENT_ID="karo"
+        AGENT_ID="orchestrator"
         send_context_reset
     '
     [ "$status" -eq 0 ]
@@ -1309,15 +1309,15 @@ YAML
     ! grep -q "send-keys" "$MOCK_LOG"
 
     # SKIP message in stderr
-    echo "$output" | grep -q "SKIP.*karo"
+    echo "$output" | grep -q "SKIP.*orchestrator"
 }
 
-# --- T-CRESET-002: send_context_reset suppresses /clear for gunshi ---
+# --- T-CRESET-002: send_context_reset suppresses /clear for oracle ---
 
-@test "T-CRESET-002: send_context_reset suppresses /clear for gunshi" {
+@test "T-CRESET-002: send_context_reset suppresses /clear for oracle" {
     run bash -c '
         source "'"$TEST_HARNESS"'"
-        AGENT_ID="gunshi"
+        AGENT_ID="oracle"
         send_context_reset
     '
     [ "$status" -eq 0 ]
@@ -1326,15 +1326,15 @@ YAML
     ! grep -q "send-keys" "$MOCK_LOG"
 
     # SKIP message in stderr
-    echo "$output" | grep -q "SKIP.*gunshi"
+    echo "$output" | grep -q "SKIP.*oracle"
 }
 
-# --- T-CRESET-003: send_context_reset sends /clear for ashigaru ---
+# --- T-CRESET-003: send_context_reset sends /clear for specialist ---
 
-@test "T-CRESET-003: send_context_reset sends /clear for ashigaru" {
+@test "T-CRESET-003: send_context_reset sends /clear for specialist" {
     run bash -c '
         source "'"$TEST_HARNESS"'"
-        AGENT_ID="ashigaru3"
+        AGENT_ID="designer"
         CLI_TYPE="claude"
         send_context_reset
     '
@@ -1349,7 +1349,7 @@ YAML
 @test "T-CRESET-004: send_context_reset sends /new for opencode" {
     run bash -c '
         source "'"$TEST_HARNESS"'"
-        AGENT_ID="ashigaru3"
+        AGENT_ID="designer"
         CLI_TYPE="opencode"
         send_context_reset
     '

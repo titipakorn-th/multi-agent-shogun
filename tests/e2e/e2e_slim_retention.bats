@@ -87,7 +87,7 @@ seed_yaml() {
 
     python3 -c "import os, time; p1 = '$root/queue/reports/ashigaru1_cmd_test_report.yaml'; p2 = '$root/queue/reports/ashigaru1_report.yaml'; t = time.time() - 172800; os.utime(p1, (t, t)); os.utime(p2, (t, t))"
 
-    run run_slim_yaml "$root" karo
+    run run_slim_yaml "$root" orchestrator
     assert_success
 
     # Active parent_cmd means this report is kept.
@@ -110,7 +110,7 @@ seed_yaml() {
 
     python3 -c "import os, time; p1 = '$root/queue/reports/ashigaru1_cmd_test_report.yaml'; p2 = '$root/queue/reports/ashigaru1_report.yaml'; t = time.time() - 172800; os.utime(p1, (t, t)); os.utime(p2, (t, t))"
 
-    run run_slim_yaml "$root" karo
+    run run_slim_yaml "$root" orchestrator
     assert_success
 
     # Non-canonical report is archived.
@@ -132,7 +132,7 @@ seed_yaml() {
     seed_yaml "$root/queue/reports/ashigaru1_report.yaml" $'parent_cmd: cmd_done\nstatus: done\n'
     python3 -c "import os, time; p = '$root/queue/reports/ashigaru1_report.yaml'; t = time.time() - 172800; os.utime(p, (t, t))"
 
-    run run_slim_yaml "$root" karo
+    run run_slim_yaml "$root" orchestrator
     assert_success
 
     # Canonical report is always retained.
