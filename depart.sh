@@ -385,7 +385,6 @@ PY
     fi
 
     # CLI availability check
-    local unique_clis
     unique_clis=$(for r in $(v2_role_list); do get_cli_type "$r"; done | sort -u)
     for c in $unique_clis; do
         validate_cli_availability "$c" || exit 1
@@ -397,7 +396,6 @@ PY
     # Net: STEP 5 wall time = sum of send-keys + one sleep 1 (≈1s).
 
     # Shogun
-    local shogun_cmd
     shogun_cmd=$(build_cli_command shogun)
     tmux send-keys -t "${SHOGUN_SESSION}:main" "$shogun_cmd" Enter
     opencode_stagger shogun
@@ -405,7 +403,6 @@ PY
     # Specialists — fire all 7 in one pass (no per-pane wait)
     for r in $(v2_role_list | tr ' ' '\n' | grep -v '^shogun$'); do
         pane_target="$(v2_pane_for "$r")"
-        local spec_cmd
         spec_cmd=$(build_cli_command "$r")
         tmux send-keys -t "$pane_target" "$spec_cmd" Enter
         opencode_stagger "$r"
