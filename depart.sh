@@ -274,7 +274,6 @@ esac
 tmux send-keys -t "${SHOGUN_SESSION}:main" "cd \"$(pwd)\" && export PS1='${PS1_FORMAT}' && clear" Enter
 tmux select-pane -t "${SHOGUN_SESSION}:main" -P 'bg=#002b36'
 tmux set-option -p -t "${SHOGUN_SESSION}:main" @agent_id "shogun"
-local shogun_cli
 shogun_cli=$(get_cli_type "shogun")
 tmux set-option -p -t "${SHOGUN_SESSION}:main" @agent_cli "$shogun_cli"
 SHOGUN_MODEL_DISPLAY=$(get_agent_model shogun | title_case)
@@ -454,7 +453,6 @@ for role in $(v2_role_list); do
     pane_target="$(v2_pane_for "$role")"
     if ! pgrep -f "inbox_watcher.sh ${role} " >/dev/null 2>&1 \
        && ! pgrep -f "inbox_watcher.sh ${role}\$" >/dev/null 2>&1; then
-        local role_cli
         role_cli=$(get_cli_type "$role")
         nohup bash "$SCRIPT_DIR/scripts/inbox_watcher.sh" "$role" "$pane_target" "$role_cli" \
             >"${LOG_DIR}/inbox_watcher_${role}.log" 2>&1 &
