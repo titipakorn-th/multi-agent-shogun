@@ -52,7 +52,7 @@ PY
 }
 
 @test "dry-run does not mutate commands tasks reports inbox migration or create archive dir" {
-    write_yaml "$SHOGUN_QUEUE_DIR/shogun_to_karo.yaml" $'queue:\n- id: cmd_done\n  status: done\n- id: cmd_pending\n  status: pending\n'
+    write_yaml "$SHOGUN_QUEUE_DIR/shogun_to_orchestrator.yaml" $'queue:\n- id: cmd_done\n  status: done\n- id: cmd_pending\n  status: pending\n'
     write_yaml "$SHOGUN_QUEUE_DIR/tasks/explorer.yaml" $'worker_id: explorer\nstatus: done\n'
     write_yaml "$SHOGUN_QUEUE_DIR/reports/ashigaru1_cmd_done.yaml" $'parent_cmd: cmd_done\nstatus: done\n'
     python3 -c "import os, time; p = '$SHOGUN_QUEUE_DIR/reports/ashigaru1_cmd_done.yaml'; t = time.time() - 172800; os.utime(p, (t, t))"
@@ -73,14 +73,14 @@ PY
 }
 
 @test "wrapper dry-run does not create queue lock file" {
-    write_yaml "$SHOGUN_QUEUE_DIR/shogun_to_karo.yaml" $'queue:\n- id: cmd_done\n  status: done\n'
+    write_yaml "$SHOGUN_QUEUE_DIR/shogun_to_orchestrator.yaml" $'queue:\n- id: cmd_done\n  status: done\n'
 
     run run_slim_wrapper orchestrator --dry-run
     assert_success
 
     [ ! -e "$SHOGUN_QUEUE_DIR/.slim_yaml.lock" ]
-    [ "$(yaml_value "$SHOGUN_QUEUE_DIR/shogun_to_karo.yaml" "queue.0.id")" = "" ]
-    "$TEST_PYTHON" - "$SHOGUN_QUEUE_DIR/shogun_to_karo.yaml" <<'PY'
+    [ "$(yaml_value "$SHOGUN_QUEUE_DIR/shogun_to_orchestrator.yaml" "queue.0.id")" = "" ]
+    "$TEST_PYTHON" - "$SHOGUN_QUEUE_DIR/shogun_to_orchestrator.yaml" <<'PY'
 import sys, yaml
 data = yaml.safe_load(open(sys.argv[1], encoding="utf-8"))
 assert data["queue"][0]["id"] == "cmd_done"
@@ -88,24 +88,24 @@ PY
 }
 
 @test "archives terminal commands using canonical statuses and keeps non-terminal commands" {
-    write_yaml "$SHOGUN_QUEUE_DIR/shogun_to_karo.yaml" $'queue:\n- id: cmd_done\n  status: done\n- id: cmd_cancelled\n  status: cancelled\n- id: cmd_paused\n  status: paused\n- id: cmd_pending\n  status: pending\n- id: cmd_in_progress\n  status: in_progress\n- id: cmd_blocked\n  status: blocked\n'
+    write_yaml "$SHOGUN_QUEUE_DIR/shogun_to_orchestrator.yaml" $'queue:\n- id: cmd_done\n  status: done\n- id: cmd_cancelled\n  status: cancelled\n- id: cmd_paused\n  status: paused\n- id: cmd_pending\n  status: pending\n- id: cmd_in_progress\n  status: in_progress\n- id: cmd_blocked\n  status: blocked\n'
 
     run run_slim orchestrator
     assert_success
 
-    [ "$(yaml_value "$SHOGUN_QUEUE_DIR/shogun_to_karo.yaml" "queue.0.id")" = "" ]
-    "$TEST_PYTHON" - "$SHOGUN_QUEUE_DIR/shogun_to_karo.yaml" <<'PY'
+    [ "$(yaml_value "$SHOGUN_QUEUE_DIR/shogun_to_orchestrator.yaml" "queue.0.id")" = "" ]
+    "$TEST_PYTHON" - "$SHOGUN_QUEUE_DIR/shogun_to_orchestrator.yaml" <<'PY'
 import sys, yaml
 data = yaml.safe_load(open(sys.argv[1], encoding="utf-8"))
 ids = [item["id"] for item in data["queue"]]
 assert ids == ["cmd_pending", "cmd_in_progress", "cmd_blocked"], ids
 PY
-    archive_count="$(find "$SHOGUN_QUEUE_DIR/archive" -name 'shogun_to_karo_*.yaml' | wc -l)"
+    archive_count="$(find "$SHOGUN_QUEUE_DIR/archive" -name 'shogun_to_orchestrator_*.yaml' | wc -l)"
     [ "$archive_count" -eq 1 ]
 }
 
 @test "supports current top-level task status and resets canonical task to top-level idle" {
-    write_yaml "$SHOGUN_QUEUE_DIR/shogun_to_karo.yaml" "queue: []"
+    write_yaml "$SHOGUN_QUEUE_DIR/shogun_to_orchestrator.yaml" "queue: []"
     write_yaml "$SHOGUN_QUEUE_DIR/tasks/explorer.yaml" $'worker_id: explorer\ntask_id: subtask_done\nstatus: done\n'
     write_yaml "$SHOGUN_QUEUE_DIR/tasks/subtask_done.yaml" $'task_id: subtask_done\nstatus: done\n'
 
@@ -119,7 +119,7 @@ PY
 }
 
 @test "supports legacy task.status and preserves legacy idle shape" {
-    write_yaml "$SHOGUN_QUEUE_DIR/shogun_to_karo.yaml" "queue: []"
+    write_yaml "$SHOGUN_QUEUE_DIR/shogun_to_orchestrator.yaml" "queue: []"
     write_yaml "$SHOGUN_QUEUE_DIR/tasks/librarian.yaml" $'task:\n  task_id: subtask_legacy\n  status: done\n'
 
     run run_slim orchestrator
@@ -130,7 +130,7 @@ PY
 }
 
 @test "archives read inbox messages and preserves unread messages" {
-    write_yaml "$SHOGUN_QUEUE_DIR/shogun_to_karo.yaml" "queue: []"
+    write_yaml "$SHOGUN_QUEUE_DIR/shogun_to_orchestrator.yaml" "queue: []"
     write_yaml "$SHOGUN_QUEUE_DIR/inbox/orchestrator.yaml" $'messages:\n- id: read-msg\n  read: true\n- id: unread-msg\n  read: false\n'
 
     run run_slim orchestrator
@@ -142,12 +142,12 @@ data = yaml.safe_load(open(sys.argv[1], encoding="utf-8"))
 ids = [item["id"] for item in data["messages"]]
 assert ids == ["unread-msg"], ids
 PY
-    archive_count="$(find "$SHOGUN_QUEUE_DIR/archive" -name 'inbox_karo_*.yaml' | wc -l)"
+    archive_count="$(find "$SHOGUN_QUEUE_DIR/archive" -name 'inbox_orchestrator_*.yaml' | wc -l)"
     [ "$archive_count" -eq 1 ]
 }
 
 @test "ntfy inbox old pending entries are inventoried but not deleted" {
-    write_yaml "$SHOGUN_QUEUE_DIR/shogun_to_karo.yaml" "queue: []"
+    write_yaml "$SHOGUN_QUEUE_DIR/shogun_to_orchestrator.yaml" "queue: []"
     write_yaml "$SHOGUN_QUEUE_DIR/ntfy_inbox.yaml" $'inbox:\n- id: pending-old\n  status: pending\n  timestamp: "2000-01-01T00:00:00+09:00"\n- id: done-old\n  status: done\n  timestamp: "2000-01-01T00:00:00+09:00"\n'
 
     run run_slim orchestrator --dry-run

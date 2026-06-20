@@ -545,28 +545,28 @@ YAML
     [ "$result" = "instructions/orchestrator.md" ]
 }
 
-@test "get_instruction_file: explorer + claude → instructions/specialist.md" {
+@test "get_instruction_file: explorer + claude → instructions/explorer.md" {
     load_adapter_with "${TEST_TMP}/settings_mixed.yaml"
     result=$(get_instruction_file "explorer")
-    [ "$result" = "instructions/specialist.md" ]
+    [ "$result" = "instructions/explorer.md" ]
 }
 
-@test "get_instruction_file: observer + codex → instructions/codex-specialist.md" {
+@test "get_instruction_file: observer + codex → instructions/codex-observer.md" {
     load_adapter_with "${TEST_TMP}/settings_mixed.yaml"
     result=$(get_instruction_file "observer")
-    [ "$result" = "instructions/codex-specialist.md" ]
+    [ "$result" = "instructions/codex-observer.md" ]
 }
 
-@test "get_instruction_file: council + copilot → .github/copilot-instructions-specialist.md" {
+@test "get_instruction_file: council + copilot → .github/copilot-instructions-council.md" {
     load_adapter_with "${TEST_TMP}/settings_mixed.yaml"
     result=$(get_instruction_file "council")
-    [ "$result" = ".github/copilot-instructions-specialist.md" ]
+    [ "$result" = ".github/copilot-instructions-council.md" ]
 }
 
-@test "get_instruction_file: designer + kimi → instructions/generated/kimi-specialist.md" {
+@test "get_instruction_file: designer + kimi → instructions/generated/kimi-designer.md" {
     load_adapter_with "${TEST_TMP}/settings_kimi.yaml"
     result=$(get_instruction_file "designer")
-    [ "$result" = "instructions/generated/kimi-specialist.md" ]
+    [ "$result" = "instructions/generated/kimi-designer.md" ]
 }
 
 @test "get_instruction_file: shogun + kimi → instructions/generated/kimi-shogun.md" {
@@ -592,19 +592,19 @@ YAML
     # claude
     [ "$(get_instruction_file shogun claude)" = "instructions/shogun.md" ]
     [ "$(get_instruction_file orchestrator claude)" = "instructions/orchestrator.md" ]
-    [ "$(get_instruction_file explorer claude)" = "instructions/specialist.md" ]
+    [ "$(get_instruction_file explorer claude)" = "instructions/explorer.md" ]
     # codex
     [ "$(get_instruction_file shogun codex)" = "instructions/codex-shogun.md" ]
     [ "$(get_instruction_file orchestrator codex)" = "instructions/codex-orchestrator.md" ]
-    [ "$(get_instruction_file designer codex)" = "instructions/codex-specialist.md" ]
+    [ "$(get_instruction_file designer codex)" = "instructions/codex-designer.md" ]
     # copilot
     [ "$(get_instruction_file shogun copilot)" = ".github/copilot-instructions-shogun.md" ]
     [ "$(get_instruction_file orchestrator copilot)" = ".github/copilot-instructions-orchestrator.md" ]
-    [ "$(get_instruction_file observer copilot)" = ".github/copilot-instructions-specialist.md" ]
+    [ "$(get_instruction_file observer copilot)" = ".github/copilot-instructions-observer.md" ]
     # kimi
     [ "$(get_instruction_file shogun kimi)" = "instructions/generated/kimi-shogun.md" ]
     [ "$(get_instruction_file orchestrator kimi)" = "instructions/generated/kimi-orchestrator.md" ]
-    [ "$(get_instruction_file council kimi)" = "instructions/generated/kimi-specialist.md" ]
+    [ "$(get_instruction_file council kimi)" = "instructions/generated/kimi-council.md" ]
 }
 
 @test "get_instruction_file: unknown agent_id -> empty string + return 1" {
@@ -795,16 +795,16 @@ YAML
     [ "$result" = "opus" ]
 }
 
-@test "get_agent_model: no cli section orchestrator -> sonnet (default)" {
+@test "get_agent_model: no cli section orchestrator -> opus (default)" {
     load_adapter_with "${TEST_TMP}/settings_none.yaml"
     result=$(get_agent_model "orchestrator")
-    [ "$result" = "sonnet" ]
+    [ "$result" = "opus" ]
 }
 
-@test "get_agent_model: no cli section explorer -> sonnet (default)" {
+@test "get_agent_model: no cli section explorer -> haiku (default)" {
     load_adapter_with "${TEST_TMP}/settings_none.yaml"
     result=$(get_agent_model "explorer")
-    [ "$result" = "sonnet" ]
+    [ "$result" = "haiku" ]
 }
 
 @test "get_agent_model: no cli section observer -> sonnet (default)" {

@@ -13,7 +13,10 @@
 
 set -eo pipefail
 
-SESSIONS=("shogun" "multiagent")
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "${SCRIPT_DIR}/scripts/shutsujin_v2_constants.sh" 2>/dev/null || true
+
+SESSIONS=("${SHOGUN_SESSION:-shogun}" "${MULTIAGENT_SESSION:-multiagent}")
 
 for s in "${SESSIONS[@]}"; do
     if tmux has-session -t "$s" 2>/dev/null; then

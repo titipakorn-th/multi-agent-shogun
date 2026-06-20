@@ -72,24 +72,26 @@ usage() {
 resolve_pane() {
     local agent_id="$1"
 
-    # Phase 1: Dynamic search from @agent_id metadata
-    local pane_count
-    pane_count=$(tmux list-panes -t "multiagent:agents" 2>/dev/null | wc -l)
-    if [[ "$pane_count" -gt 0 ]]; then
-        for i in $(seq 0 $((pane_count - 1))); do
-            local aid
-            aid=$(tmux display-message -t "multiagent:agents.$i" -p '#{@agent_id}' 2>/dev/null)
-            if [[ "$aid" == "$agent_id" ]]; then
-                echo "multiagent:agents.$i"
-                return 0
-            fi
-        done
-        log "WARN: @agent_id=$agent_id not found in any pane. Falling back to fixed mapping."
-    fi
+    # Sourcing shutsujin_v2_constants.sh defines SHOGUN_SESSION, MULTIAGENT_SESSION, and SHOGUN_SUFFIX
+    source "${PROJECT_ROOT}/scripts/shutsujin_v2_constants.sh" 2>/dev/null || true
+
+    # Phase 1: Dynamic search from @agent_id metadata across our sessions
+    for session in "$SHOGUN_SESSION" "$MULTIAGENT_SESSION" "telegram${SHOGUN_SUFFIX:-}"; do
+        if tmux has-session -t "$session" 2>/dev/null; then
+            while IFS= read -r pane_target; do
+                local aid
+                aid=$(tmux display-message -t "$pane_target" -p '#{@agent_id}' 2>/dev/null)
+                if [[ "$aid" == "$agent_id" ]]; then
+                    echo "$pane_target"
+                    return 0
+                fi
+            done < <(tmux list-panes -s -t "$session" -F '#{session_name}:#{window_name}.#{pane_index}' 2>/dev/null)
+        fi
+    done
 
     # Phase 2: Fallback (resolve based on settings.yaml ordering)
     local pane_base
-    pane_base=$(tmux show-options -t multiagent -v @pane_base 2>/dev/null || echo "0")
+    pane_base=$(tmux show-options -t "$MULTIAGENT_SESSION" -v @pane_base 2>/dev/null || echo "0")
 
     if agent_registry_multiagent_pane_for_agent "$agent_id" "$pane_base"; then
         return 0

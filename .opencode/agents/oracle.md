@@ -8,7 +8,6 @@ mode: primary
 permission:
   '*': allow
   edit: &id002
-    '*': deny
     .github/copilot-instructions.md: deny
     .opencode/agents/*.md: deny
     AGENTS.md: deny
@@ -16,8 +15,17 @@ permission:
     agents/default/system.md: deny
     config/opencode-permissions.yaml: deny
     config/opencode-tui.json: deny
+    dashboard.md: deny
     instructions/generated/*: deny
     queue/inbox/*.yaml: deny
+    queue/ntfy_inbox.yaml: deny
+    queue/reports/*: deny
+    queue/reports/oracle_report.yaml: allow
+    queue/shogun_to_orchestrator.yaml: deny
+    queue/shogun_to_orchestrator_archive.yaml: deny
+    queue/tasks/*: deny
+    queue/tasks/oracle.yaml: allow
+    saytask/*: deny
   glob: &id001
     context/*: allow
     dashboard.md: deny
@@ -25,11 +33,11 @@ permission:
     queue/inbox/oracle.yaml: allow
     queue/ntfy_inbox.yaml: deny
     queue/reports/*: deny
-    queue/reports/*_report.yaml: allow
+    queue/reports/oracle_report.yaml: allow
     queue/shogun_to_orchestrator.yaml: allow
     queue/shogun_to_orchestrator_archive.yaml: deny
     queue/tasks/*: deny
-    queue/tasks/*.yaml: allow
+    queue/tasks/oracle.yaml: allow
     saytask/*: deny
   list: *id001
   patch: *id002
@@ -183,7 +191,7 @@ This section describes how you integrate with the YAML-inbox runtime.
 
 3. Mark the inbox entry `read: true` using the Edit tool.
 
-### Inbox check after task
+### MANDATORY Post-Task Inbox Check
 
 Before going idle, re-read `queue/inbox/oracle.yaml`. If new `read: false` entries appeared while you worked, process them. Only then idle.
 

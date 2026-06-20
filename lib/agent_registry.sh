@@ -114,7 +114,7 @@ agent_registry_multiagent_pane_for_agent() {
     while IFS= read -r agent; do
         if [ "$agent" = "$wanted" ]; then
             # Prefer the v2 layout if available
-            if declare -f v2_pane_for >/dev/null 2>&1; then
+            if [ "${DISABLE_V2_LAYOUT:-}" != "1" ] && declare -f v2_pane_for >/dev/null 2>&1; then
                 local v2_target
                 v2_target=$(v2_pane_for "$wanted")
                 if [ -n "$v2_target" ]; then
@@ -123,7 +123,7 @@ agent_registry_multiagent_pane_for_agent() {
                 fi
             fi
             # Fallback: positional layout (legacy fallback)
-            printf 'multiagent:agents.%s\n' "$((pane_base + idx))"
+            printf '%s:agents.%s\n' "${MULTIAGENT_SESSION:-multiagent}" "$((pane_base + idx))"
             return 0
         fi
         idx=$((idx + 1))
@@ -137,12 +137,12 @@ agent_registry_pane_for_agent() {
     local pane_base="${2:-0}"
 
     if [ "$agent" = "shogun" ]; then
-        printf 'shogun:main.%s\n' "$pane_base"
+        printf '%s:main.%s\n' "${SHOGUN_SESSION:-shogun}" "$pane_base"
         return 0
     fi
 
     if [ "$agent" = "telegram" ]; then
-        printf 'telegram:main.%s\n' "$pane_base"
+        printf 'telegram%s:main.%s\n' "${SHOGUN_SUFFIX:-}" "$pane_base"
         return 0
     fi
 

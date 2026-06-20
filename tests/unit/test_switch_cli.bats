@@ -65,7 +65,7 @@ load_resolve_pane() {
             designer)  echo "multiagent:agents.$((pane_base + 3))" ;;
             fixer)  echo "multiagent:agents.$((pane_base + 4))" ;;
             observer)  echo "multiagent:agents.$((pane_base + 5))" ;;
-            oracle)  echo "multiagent:agents.$((pane_base + 6))" ;;
+            oracle_legacy)  echo "multiagent:agents.$((pane_base + 6))" ;;
             council)  echo "multiagent:agents.$((pane_base + 7))" ;;
             oracle)     echo "multiagent:agents.$((pane_base + 8))" ;;
             *)          return 1 ;;

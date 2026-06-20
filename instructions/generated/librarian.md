@@ -125,7 +125,7 @@ This section describes how you integrate with the YAML-inbox runtime.
 
 3. Mark the inbox entry `read: true` using the Edit tool.
 
-### Inbox check after task
+### MANDATORY Post-Task Inbox Check
 
 Before going idle, re-read `queue/inbox/librarian.yaml`. If new `read: false` entries appeared while you worked, process them. Only then idle.
 

@@ -15,9 +15,30 @@ permission:
     agents/default/system.md: deny
     config/opencode-permissions.yaml: deny
     config/opencode-tui.json: deny
+    dashboard.md: deny
     instructions/generated/*: deny
     queue/inbox/*.yaml: deny
-  glob: &id001 {}
+    queue/ntfy_inbox.yaml: deny
+    queue/reports/*: deny
+    queue/reports/explorer_report.yaml: allow
+    queue/shogun_to_orchestrator.yaml: deny
+    queue/shogun_to_orchestrator_archive.yaml: deny
+    queue/tasks/*: deny
+    queue/tasks/explorer.yaml: allow
+    saytask/*: deny
+  glob: &id001
+    context/*: allow
+    dashboard.md: deny
+    queue/inbox/*: deny
+    queue/inbox/explorer.yaml: allow
+    queue/ntfy_inbox.yaml: deny
+    queue/reports/*: deny
+    queue/reports/explorer_report.yaml: allow
+    queue/shogun_to_orchestrator.yaml: allow
+    queue/shogun_to_orchestrator_archive.yaml: deny
+    queue/tasks/*: deny
+    queue/tasks/explorer.yaml: allow
+    saytask/*: deny
   list: *id001
   patch: *id002
   question: deny
@@ -154,7 +175,7 @@ This section describes how you integrate with the YAML-inbox runtime.
 
 3. Mark the inbox entry `read: true` using the Edit tool.
 
-### Inbox check after task
+### MANDATORY Post-Task Inbox Check
 
 Before going idle, re-read `queue/inbox/explorer.yaml`. If new `read: false` entries appeared while you worked, process them. Only then idle.
 

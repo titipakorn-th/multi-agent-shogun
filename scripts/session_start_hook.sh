@@ -95,7 +95,12 @@ esac
 # This is a one-time nudge per check; the function can be called repeatedly
 # (e.g. on every turn end) and will only fire when the marker is missing.
 lint_lord_marker() {
-    local target="${SHOGUN_TMUX_TARGET:-multiagent:0.0}"
+    # Dynamically source suffix and session details
+    local script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    source "${script_dir}/shutsujin_v2_constants.sh" 2>/dev/null || true
+
+    local default_target="${SHOGUN_SESSION:-shogun}:main.0"
+    local target="${SHOGUN_TMUX_TARGET:-${TMUX_PANE:-$default_target}}"
     local pane
     pane="$(tmux capture-pane -t "$target" -p -S -500 2>/dev/null || true)"
     [[ -z "$pane" ]] && return 0

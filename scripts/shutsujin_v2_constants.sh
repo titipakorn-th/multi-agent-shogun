@@ -11,19 +11,53 @@ v2_role_list() {
     echo "shogun orchestrator explorer librarian oracle designer fixer observer council"
 }
 
+# ─── Dynamic tmux session suffix detection ───────────────────
+if [ -n "${BASH_SOURCE[0]:-}" ]; then
+    CONSTANTS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    PROJECT_ROOT_DIR="$(cd "${CONSTANTS_DIR}/.." && pwd)"
+elif [ -n "${AGENT_REGISTRY_PROJECT_ROOT:-}" ]; then
+    PROJECT_ROOT_DIR="$AGENT_REGISTRY_PROJECT_ROOT"
+elif [ -n "${PROJECT_ROOT:-}" ]; then
+    PROJECT_ROOT_DIR="$PROJECT_ROOT"
+else
+    PROJECT_ROOT_DIR="$(pwd)"
+fi
+
+PROJECT_DIR_NAME=$(basename "$PROJECT_ROOT_DIR")
+
+# Determine suffix from setting in settings.yaml if present, otherwise auto-detect
+TMUX_SUFFIX_SETTING="auto"
+if [ -f "${PROJECT_ROOT_DIR}/config/settings.yaml" ]; then
+    TMUX_SUFFIX_SETTING=$(grep "^tmux_session_suffix:" "${PROJECT_ROOT_DIR}/config/settings.yaml" 2>/dev/null | awk '{print $2}' | tr -d '"'\'' ' || echo "auto")
+fi
+
+SHOGUN_SUFFIX=""
+if [ "$TMUX_SUFFIX_SETTING" != "auto" ] && [ -n "$TMUX_SUFFIX_SETTING" ]; then
+    SHOGUN_SUFFIX="$TMUX_SUFFIX_SETTING"
+else
+    if echo "$PROJECT_DIR_NAME" | grep -qE '^multi-agent-shogun[-_].+'; then
+        SHOGUN_SUFFIX="_$(echo "$PROJECT_DIR_NAME" | sed -E 's/^multi-agent-shogun[-_]//')"
+    elif [ "$PROJECT_DIR_NAME" != "multi-agent-shogun" ]; then
+        SHOGUN_SUFFIX="_$PROJECT_DIR_NAME"
+    fi
+fi
+
+SHOGUN_SESSION="shogun${SHOGUN_SUFFIX}"
+MULTIAGENT_SESSION="multiagent${SHOGUN_SUFFIX}"
+
 # ─── Read pane target for a role ─────────────────────────────
 v2_pane_for() {
     local role=$1
     case "$role" in
-        shogun)        echo "shogun:main.0" ;;
-        orchestrator)  echo "multiagent:ops.0" ;;
-        fixer)         echo "multiagent:ops.1" ;;
-        designer)      echo "multiagent:ops.2" ;;
-        observer)      echo "multiagent:ops.3" ;;
-        explorer)      echo "multiagent:research.0" ;;
-        librarian)     echo "multiagent:research.1" ;;
-        oracle)        echo "multiagent:research.2" ;;
-        council)       echo "multiagent:research.3" ;;
+        shogun)        echo "${SHOGUN_SESSION}:main.0" ;;
+        orchestrator)  echo "${MULTIAGENT_SESSION}:ops.0" ;;
+        fixer)         echo "${MULTIAGENT_SESSION}:ops.1" ;;
+        designer)      echo "${MULTIAGENT_SESSION}:ops.2" ;;
+        observer)      echo "${MULTIAGENT_SESSION}:ops.3" ;;
+        explorer)      echo "${MULTIAGENT_SESSION}:research.0" ;;
+        librarian)     echo "${MULTIAGENT_SESSION}:research.1" ;;
+        oracle)        echo "${MULTIAGENT_SESSION}:research.2" ;;
+        council)       echo "${MULTIAGENT_SESSION}:research.3" ;;
         *)             echo "" ;;
     esac
 }

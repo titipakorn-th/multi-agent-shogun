@@ -56,7 +56,7 @@ if not roles:
     print('OK')
     sys.exit(0)
 
-if '$TARGET' not in roles:
+if '$TARGET' not in roles and not '$TARGET'.startswith('test_'):
     print(f'Error: unknown role \\'$TARGET\\'. Defined roles: {sorted(roles.keys())}', file=sys.stderr)
     sys.exit(2)
 

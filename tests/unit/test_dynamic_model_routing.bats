@@ -249,9 +249,6 @@ cli:
     council:
       type: claude
       model: claude-opus-4-6
-    oracle:
-      type: claude
-      model: opus
 capability_tiers:
   gpt-5.3-codex-spark:
     max_bloom: 3
@@ -761,28 +758,28 @@ load_adapter_with() {
 
 @test "TC-DMR-200: FR-07 Normal YAML - all fields defined" {
     load_adapter_with "${TEST_TMP}/settings_with_tiers.yaml"
-    run validate_gunshi_analysis "${TEST_TMP}/analysis_valid.yaml"
+    run validate_oracle_analysis "${TEST_TMP}/analysis_valid.yaml"
     [ "$status" -eq 0 ]
     [ "$output" = "valid" ]
 }
 
 @test "TC-DMR-201: FR-07 #48 fields omitted - no parse error" {
     load_adapter_with "${TEST_TMP}/settings_with_tiers.yaml"
-    run validate_gunshi_analysis "${TEST_TMP}/analysis_no48.yaml"
+    run validate_oracle_analysis "${TEST_TMP}/analysis_no48.yaml"
     [ "$status" -eq 0 ]
     [ "$output" = "valid" ]
 }
 
 @test "TC-DMR-202: FR-07 bloom_level out of range(0,7) — validation error" {
     load_adapter_with "${TEST_TMP}/settings_with_tiers.yaml"
-    run validate_gunshi_analysis "${TEST_TMP}/analysis_bad_bloom.yaml"
+    run validate_oracle_analysis "${TEST_TMP}/analysis_bad_bloom.yaml"
     [ "$status" -eq 1 ]
     [[ "$output" == *"bloom_level"* ]]
 }
 
 @test "TC-DMR-203: FR-07 confidence out of range(-1, 2.0) — validation error" {
     load_adapter_with "${TEST_TMP}/settings_with_tiers.yaml"
-    run validate_gunshi_analysis "${TEST_TMP}/analysis_bad_confidence.yaml"
+    run validate_oracle_analysis "${TEST_TMP}/analysis_bad_confidence.yaml"
     [ "$status" -eq 1 ]
     [[ "$output" == *"confidence"* ]]
 }
@@ -1031,7 +1028,7 @@ print(len(doc.get('history', [])))
     result=$(find_agent_for_model "gpt-5.1-codex-max")
     # No exact match -> returns Ashigaru with smallest index as fallback
     [ -n "$result" ]
-    [[ "$result" =~ ^specialist[0-9]+$ ]]
+    [[ "$result" =~ ^(explorer|librarian|designer|fixer|observer|oracle|council)$ ]]
 }
 
 @test "TC-FAM-005: No arguments -> exit code 1" {
@@ -1065,7 +1062,7 @@ print(len(doc.get('history', [])))
     result=$(find_agent_for_model "claude-sonnet-4-5-20250929")
     # Karo (claude-sonnet-4-5-20250929) is not included in the candidates
     # Fallback because no other Ashigaru has this model
-    [[ "$result" =~ ^specialist[0-9]+$ ]]
+    [[ "$result" =~ ^(explorer|librarian|designer|fixer|observer|oracle|council)$ ]]
 }
 
 # =============================================================================

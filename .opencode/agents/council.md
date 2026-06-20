@@ -19,10 +19,12 @@ permission:
     instructions/generated/*: deny
     queue/inbox/*.yaml: deny
     queue/ntfy_inbox.yaml: deny
+    queue/reports/*: deny
     queue/reports/council_report.yaml: allow
     queue/shogun_to_orchestrator.yaml: deny
     queue/shogun_to_orchestrator_archive.yaml: deny
     queue/tasks/*: deny
+    queue/tasks/council.yaml: allow
     saytask/*: deny
   glob: &id001
     context/*: allow
@@ -30,11 +32,12 @@ permission:
     queue/inbox/*: deny
     queue/inbox/council.yaml: allow
     queue/ntfy_inbox.yaml: deny
-    queue/reports/*_report.yaml: allow
+    queue/reports/*: deny
+    queue/reports/council_report.yaml: allow
     queue/shogun_to_orchestrator.yaml: allow
     queue/shogun_to_orchestrator_archive.yaml: deny
     queue/tasks/*: deny
-    queue/tasks/*.yaml: allow
+    queue/tasks/council.yaml: allow
     saytask/*: deny
   list: *id001
   patch: *id002
@@ -183,7 +186,7 @@ This section describes how you integrate with the YAML-inbox runtime.
 
 3. Mark the inbox entry `read: true` using the Edit tool.
 
-### Inbox check after task
+### MANDATORY Post-Task Inbox Check
 
 Before going idle, re-read `queue/inbox/council.yaml`. If new `read: false` entries appeared while you worked, process them. Only then idle.
 

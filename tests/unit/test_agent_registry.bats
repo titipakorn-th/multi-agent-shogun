@@ -4,6 +4,7 @@
 setup() {
     TEST_TMP="$(mktemp -d)"
     PROJECT_ROOT="$(cd "$(dirname "$BATS_TEST_FILENAME")/../.." && pwd)"
+    export DISABLE_V2_LAYOUT=1
 }
 
 teardown() {
@@ -63,7 +64,7 @@ join_lines() {
     load_registry_with "$settings"
 
     result=$(agent_registry_multiagent_agents | join_lines)
-    [ "$result" = "orchestrator explorer librarian designer fixer observer oracle council oracle" ]
+    [ "$result" = "orchestrator explorer librarian oracle designer fixer observer council" ]
 }
 
 @test "agent_registry: pane mapping follows configured order and pane base" {
@@ -105,13 +106,13 @@ join_lines() {
     council:
       type: codex'
 
-    run env AGENT_REGISTRY_SETTINGS="$settings" SHOGUN_PANE_BASE=1 \
+    run env AGENT_REGISTRY_SETTINGS="$settings" SHOGUN_PANE_BASE=1 DISABLE_V2_LAYOUT=1 \
         bash "$PROJECT_ROOT/scripts/watcher_supervisor.sh" --print-watchers
 
     [ "$status" -eq 0 ]
     [[ "$output" == *$'shogun\tshogun:main.1\tlogs/inbox_watcher_shogun.log'* ]]
-    [[ "$output" == *$'orchestrator\tmultiagent:agents.1\tlogs/inbox_watcher_karo.log'* ]]
-    [[ "$output" == *$'designer\tmultiagent:agents.2\tlogs/inbox_watcher_ashigaru3.log'* ]]
-    [[ "$output" == *$'oracle\tmultiagent:agents.3\tlogs/inbox_watcher_gunshi.log'* ]]
-    [[ "$output" == *$'council\tmultiagent:agents.4\tlogs/inbox_watcher_gunshi2.log'* ]]
+    [[ "$output" == *$'orchestrator\tmultiagent:agents.1\tlogs/inbox_watcher_orchestrator.log'* ]]
+    [[ "$output" == *$'designer\tmultiagent:agents.2\tlogs/inbox_watcher_designer.log'* ]]
+    [[ "$output" == *$'oracle\tmultiagent:agents.3\tlogs/inbox_watcher_oracle.log'* ]]
+    [[ "$output" == *$'council\tmultiagent:agents.4\tlogs/inbox_watcher_council.log'* ]]
 }

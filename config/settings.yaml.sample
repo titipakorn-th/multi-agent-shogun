@@ -14,6 +14,12 @@
 language: en
 shell: bash
 topology: v2
+# Suffix for tmux sessions (e.g. shogun_suffix, multiagent_suffix).
+# Options:
+#   "auto"  - Auto-detect from folder name suffix (e.g. multi-agent-shogun-safepay -> _safepay)
+#   ""      - Force no suffix (uses "shogun" and "multiagent")
+#   "_name" - Force a specific suffix
+tmux_session_suffix: auto
 
 skill:
   save_path: "~/.claude/skills/"

@@ -13,7 +13,10 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=lib/shogun_telegram_relay_extract.sh
 source "$SCRIPT_DIR/lib/shogun_telegram_relay_extract.sh"
 
-TMUX_TARGET="${SHOGUN_TMUX_TARGET:-multiagent:0.0}"
+# Sourcing shutsujin_v2_constants.sh defines v2_pane_for and session details
+source "$SCRIPT_DIR/shutsujin_v2_constants.sh" 2>/dev/null || true
+
+TMUX_TARGET="${SHOGUN_TMUX_TARGET:-$(v2_pane_for shogun)}"
 POLL_INTERVAL="${SHOGUN_RELAY_POLL_INTERVAL:-2}"
 PANE_HISTORY_LINES="${SHOGUN_RELAY_PANE_LINES:-200}"
 DEDUP_LOG="/tmp/shogun_telegram_relay_dedup_$(id -u).log"

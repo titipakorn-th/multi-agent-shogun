@@ -449,9 +449,10 @@ permissions_file = sys.argv[1]
 agent_id = sys.argv[2]
 
 def role_for_agent(agent_id: str) -> str:
-    if agent_id in {'shogun', 'orchestrator', 'explorer', 'librarian', 'oracle',
-                    'designer', 'fixer', 'observer', 'council', 'telegram'}:
+    if agent_id in {'shogun', 'orchestrator', 'telegram'}:
         return agent_id
+    if agent_id in {'explorer', 'librarian', 'oracle', 'designer', 'fixer', 'observer', 'council'}:
+        return 'specialist'
     return ''
 
 def expand(pattern: str) -> str:

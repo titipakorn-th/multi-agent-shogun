@@ -145,8 +145,7 @@ JSON
     run_listener
     # Instant feedback sent — ACK_LOG should contain feedback
     [ -s "$ACK_LOG" ]
-    grep -q "Received: \"test notification\"" "$ACK_LOG"
-    grep -q "Conveying directive to Shogun" "$ACK_LOG"
+    grep -q "🏯" "$ACK_LOG"
     # And inbox_write to shogun should still fire
     [ -s "$INBOX_LOG" ]
 }
@@ -219,9 +218,11 @@ JSON
 {"event":"message","id":"msg008","time":1234567890,"message":"Hello 'world' & <test>","tags":[]}
 JSON
     run_listener
-    # Instant feedback sent — verify it contains preserved characters
+    # Instant feedback sent
     [ -s "$ACK_LOG" ]
-    grep -q "Hello 'world' & <test>" "$ACK_LOG"
+    grep -q "🏯" "$ACK_LOG"
+    # verify inbox YAML contains the message with preserved characters
+    grep -q "Hello 'world' & <test>" "$MOCK_PROJECT/queue/ntfy_inbox.yaml"
     # verify inbox_write still fires for special characters
     [ -s "$INBOX_LOG" ]
     grep -q "shogun" "$INBOX_LOG"

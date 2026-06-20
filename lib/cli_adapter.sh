@@ -1354,7 +1354,7 @@ try:
         cfg = yaml.safe_load(f) or {}
     cli_cfg = cfg.get('cli', {})
     agents = cli_cfg.get('agents', {})
-    task_eligible = {'explorer', 'librarian', 'oracle', 'designer', 'fixer', 'observer', 'council'}
+    task_eligible = ['explorer', 'librarian', 'oracle', 'designer', 'fixer', 'observer', 'council']
 
     results = []
     for agent_id, spec in agents.items():
