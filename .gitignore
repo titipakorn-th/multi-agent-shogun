@@ -123,6 +123,7 @@
 scripts/seo_qc.py
 scripts/seo_qc.sh
 !scripts/stop_hook_inbox.sh
+!scripts/shogun_stop_telegram_forward.sh
 !scripts/session_start_hook.sh
 !scripts/agent_status.sh
 !scripts/ratelimit_check.sh
