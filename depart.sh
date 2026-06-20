@@ -174,8 +174,12 @@ opencode_stagger() {
 # ═════════════════════════════════════════════════════════════════════════════
 log_step "STEP 1: Session setup"
 log_info "♻️  Restarting $SHOGUN_SESSION + $MULTIAGENT_SESSION sessions (we own them)..."
+# ponytail: -t "=$s" forces exact-name match. Without '=', tmux falls back
+# from exact → unique-prefix → substring, so `tmux kill-session -t shogun`
+# would silently kill `shogun_safepay` (other project) when only that
+# suffixed session exists. The `=` is the documented exact-match flag.
 for s in "$SHOGUN_SESSION" "$MULTIAGENT_SESSION"; do
-    tmux kill-session -t "$s" 2>/dev/null && log_info "  └─ killed: $s" || log_info "  └─ not found: $s"
+    tmux kill-session -t "=$s" 2>/dev/null && log_info "  └─ killed: $s" || log_info "  └─ not found: $s"
 done
 if [ "$CLEAN_MODE" = true ]; then
     log_info "🧹 --clean: also resetting queue + dashboard..."
@@ -264,7 +268,8 @@ fi
 # STEP 3: Shogun session
 # ═════════════════════════════════════════════════════════════════════════════
 log_step "STEP 3: Shogun main camp"
-if ! tmux has-session -t "$SHOGUN_SESSION" 2>/dev/null; then
+# ponytail: -t "=$SHOGUN_SESSION" forces exact-name match (see STEP 1 comment).
+if ! tmux has-session -t "=$SHOGUN_SESSION" 2>/dev/null; then
     tmux new-session -d -s "$SHOGUN_SESSION" -n main
 fi
 tmux set-option -g window-size latest
@@ -294,7 +299,8 @@ log_success "👑 Shogun main camp established"
 # ═════════════════════════════════════════════════════════════════════════════
 log_step "STEP 4: Multiagent camps (ops + research)"
 
-if ! tmux has-session -t "$MULTIAGENT_SESSION" 2>/dev/null; then
+# ponytail: -t "=$MULTIAGENT_SESSION" forces exact-name match (see STEP 1 comment).
+if ! tmux has-session -t "=$MULTIAGENT_SESSION" 2>/dev/null; then
     tmux new-session -d -s "$MULTIAGENT_SESSION" -n ops
     tmux new-window -t "$MULTIAGENT_SESSION" -n research
 fi
