@@ -54,7 +54,8 @@ start_watcher_if_missing() {
             trap 'rmdir "$lockdir" 2>/dev/null || true' EXIT
         fi
 
-        if pgrep -f "scripts/inbox_watcher.sh ${agent} ${pane}( |$)" >/dev/null 2>&1; then
+        if pgrep -f "scripts/inbox_watcher.sh ${agent} ${pane} " >/dev/null 2>&1 \
+           || pgrep -f "scripts/inbox_watcher.sh ${agent} ${pane}$" >/dev/null 2>&1; then
             return 0
         fi
 
