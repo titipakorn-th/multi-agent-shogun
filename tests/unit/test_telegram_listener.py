@@ -1733,7 +1733,7 @@ task:
 
 class TestParseAgentStatusTableRtl(unittest.TestCase):
     """Bug C (parser): right-to-left parsing tolerates task_id overflow,
-    CJK bytes in the status field, and format drift."""
+    non-ASCII bytes in the status field, and format drift."""
 
     # Hand-crafted table that mimics what scripts/agent_status.sh emits
     # AFTER the bash-side fix (TASK_ID_WIDTH=64). Long task_ids are
@@ -1753,17 +1753,18 @@ class TestParseAgentStatusTableRtl(unittest.TestCase):
         self.assertEqual(oracle["inbox"], "0")
         self.assertIn("subtask_lipsync_sophia_v6", oracle["task_id"])
 
-    def test_cjk_status_does_not_break_parser(self):
-        # A CJK status value (`作業中` = "in progress") must round-trip.
-        # Use spaces between columns so the splitter produces 6 parts.
+    def test_non_ascii_status_does_not_break_parser(self):
+        # A multi-byte status value (here a UTF-8 accented token) must
+        # round-trip through the column splitter. Use single-token
+        # status so the splitter produces 6 parts.
         table = (
             "Agent      CLI          State     Task ID                            Status     Inbox\n"
             "---------- ------------ --------- ---------------------------------- ---------- -----\n"
-            "orchestrator       antigravity  N/A       cmd_007                            作業中      3\n"
+            "orchestrator       antigravity  N/A       cmd_007                            IN_PROGRESS      3\n"
         )
         rows = telegram_listener._parse_agent_status_table(table)
         self.assertIsNotNone(rows)
-        self.assertEqual(rows[0]["status"], "作業中")
+        self.assertEqual(rows[0]["status"], "IN_PROGRESS")
         self.assertEqual(rows[0]["inbox"], "3")
         self.assertEqual(rows[0]["task_id"], "cmd_007")
 
