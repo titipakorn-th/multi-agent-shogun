@@ -1601,21 +1601,44 @@ def main():
                     if "message" in update:
                         msg = update["message"]
                         msg_chat_id = msg.get("chat", {}).get("id")
-                        
+
                         if str(msg_chat_id) != str(chat_id):
                             continue
-                            
+
+                        msg_text = msg.get("text", "").strip()
+
                         # Check if this message is a reply/answer to the active question
                         is_reply_to_question = False
                         reply_to = msg.get("reply_to_message", {})
                         if active_question and active_question.get("status") != "answered":
                             is_reply = reply_to.get("message_id") == active_question.get("message_id")
                             is_waiting = active_question.get("status") == "waiting_for_free_text"
-                            if is_reply or is_waiting:
+                            # Plain text arriving while a question is `pending`
+                            # is also an answer: the Lord often types rather than
+                            # tapping a button or using Telegram's Reply UI. Slash
+                            # commands and bare diagnostic keywords are exempt so
+                            # /status, /cancel, etc. still pass through while a
+                            # question is open. ponytail: keep the exemption list
+                            # in sync with the slash-command + bare-keyword
+                            # handlers below; extend when new listener-direct
+                            # commands are added.
+                            lower_msg = msg_text.lower()
+                            is_slash_or_keyword = (
+                                msg_text.startswith("/")
+                                or lower_msg in ("status", "status?", "dashboard",
+                                                 "cancel", "help", "btw")
+                                or lower_msg.startswith("btw ")
+                            )
+                            is_pending_answer = (
+                                active_question.get("status") == "pending"
+                                and bool(msg_text)
+                                and not is_slash_or_keyword
+                            )
+                            if is_reply or is_waiting or is_pending_answer:
                                 is_reply_to_question = True
-                                
+
                         if is_reply_to_question:
-                            reply_text = msg.get("text", "").strip()
+                            reply_text = msg_text
                             if reply_text:
                                 # Confirm receipt by editing the original message to show the reply
                                 new_text = f"❓ *Question:*\n{active_question.get('question')}\n\n✅ *Reply:* {reply_text}"
@@ -1625,7 +1648,7 @@ def main():
                                     "text": new_text,
                                     "parse_mode": "Markdown"
                                 })
-                                
+
                                 # Update JSON to answered
                                 active_question["status"] = "answered"
                                 active_question["response"] = reply_text
@@ -1634,7 +1657,7 @@ def main():
                                         json.dump(active_question, qf, indent=2, ensure_ascii=False)
                                 except Exception:
                                     pass
-                                
+
                                 # Wake up Orchestrator via inbox
                                 try:
                                     inbox_write_path = os.path.join(script_dir, "inbox_write.sh")
@@ -1646,15 +1669,14 @@ def main():
                                 except Exception as e:
                                     print(f"[telegram_listener] Error nudging Orchestrator: {e}", file=sys.stderr)
                             continue
-                            
+
                         # Ignore replies (handled by reply check above)
                         if "reply_to_message" in msg:
                             continue
-                            
-                        msg_text = msg.get("text", "").strip()
+
                         if not msg_text:
                             continue
-                            
+
                         msg_id = msg.get("message_id")
                         print(f"[telegram_listener] Received command: {msg_text}")
                         

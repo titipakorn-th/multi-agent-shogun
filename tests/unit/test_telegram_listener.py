@@ -83,6 +83,208 @@ class TestTelegramListener(unittest.TestCase):
         self.assertEqual(len(sent_messages), 0)
 
 
+class TestPlainTextAnswerToPendingQuestion(unittest.TestCase):
+    """Regression: a plain text message arriving while a question is in
+    `pending` status must be treated as the answer to the question — not
+    forwarded to Shogun as a new command.
+
+    Before the fix, the listener's `is_reply_to_question` check (around
+    telegram_listener.py:1611) only matched if (a) the message was a
+    Telegram Reply (reply_to_message), or (b) the user had already tapped
+    the "Other (free text)" button (status == "waiting_for_free_text").
+    A plain text reply while status was still `pending` fell through to
+    the buffer-and-forward path, leaving lord_ask.sh to time out.
+
+    Slash commands (/status, /cancel, /progress, /dashboard, /help, /btw)
+    must still pass through — they're not answers to the question.
+    """
+
+    def setUp(self):
+        self.script_dir = os.path.dirname(os.path.abspath(telegram_listener.__file__))
+        self.question_file = os.path.abspath(
+            os.path.join(self.script_dir, "../queue/current_question.json")
+        )
+        self.offset_file = os.path.abspath(
+            os.path.join(self.script_dir, "../config/telegram_offset.txt")
+        )
+        for p in (self.question_file, self.offset_file):
+            if os.path.exists(p):
+                os.remove(p)
+        os.environ["TELEGRAM_BOT_TOKEN"] = "123456:mock_token"
+        os.environ["TELEGRAM_CHAT_ID"] = "12345"
+
+    def tearDown(self):
+        for p in (self.question_file, self.offset_file):
+            if os.path.exists(p):
+                os.remove(p)
+
+    @patch('telegram_listener.make_telegram_request')
+    @patch('subprocess.run')
+    @patch('time.sleep')
+    @patch('time.time')
+    def test_plain_text_answers_pending_question(
+        self, mock_time, mock_sleep, mock_subprocess, mock_request,
+    ):
+        # Pre-create an active question in `pending` state.
+        os.makedirs(os.path.dirname(self.question_file), exist_ok=True)
+        with open(self.question_file, "w", encoding="utf-8") as f:
+            json.dump({
+                "question": "Continue with deployment?",
+                "options": ["Yes", "No"],
+                "message_id": 5001,
+                "timestamp": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
+                "status": "pending",
+            }, f)
+
+        # Frozen time so buffer flush (1.5s) never fires — only the
+        # explicit KeyboardInterrupt path stops the loop.
+        mock_time.side_effect = lambda: 1000.0
+
+        # Mock request responses, in order of arrival:
+        #   1. setMyCommands
+        #   2. bootstrap getUpdates (offset check) -> empty
+        #   3. main-loop getUpdates with our plain text message
+        #   4. editMessageText (the answer confirmation OR the blinker)
+        #   5+. any further getUpdates (loop continues until sleep interrupts)
+        responses = [
+            {"ok": True},  # setMyCommands
+            {"ok": True, "result": []},  # bootstrap getUpdates
+            {"ok": True, "result": [{
+                "update_id": 100,
+                "message": {
+                    "message_id": 2001,
+                    "chat": {"id": 12345},
+                    "text": "yes proceed",  # plain text, NO reply_to_message
+                }
+            }]},
+            {"ok": True, "result": []},  # next poll, no new updates
+        ]
+        mock_request.side_effect = (
+            lambda token, method, payload=None: responses.pop(0)
+            if responses
+            else {"ok": True, "result": []}
+        )
+
+        # Stop the loop after the question is answered, or after a hard
+        # iteration cap so the test bails out if the bug is present.
+        call_count = {"n": 0}
+
+        def stop_after_answer_or_limit(*args, **kwargs):
+            call_count["n"] += 1
+            if call_count["n"] > 5:
+                raise KeyboardInterrupt("Test iteration cap reached")
+            try:
+                with open(self.question_file, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                if data.get("status") == "answered":
+                    raise KeyboardInterrupt("Question answered, stop loop")
+            except FileNotFoundError:
+                pass
+
+        mock_sleep.side_effect = stop_after_answer_or_limit
+
+        try:
+            telegram_listener.main()
+        except KeyboardInterrupt:
+            pass
+
+        # 1. The question file must be marked answered with the reply text.
+        with open(self.question_file, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        self.assertEqual(
+            data["status"], "answered",
+            "Question should be marked answered after plain-text reply, "
+            f"got status={data.get('status')!r}",
+        )
+        self.assertEqual(
+            data["response"], "yes proceed",
+            "Response should be the user's plain text",
+        )
+
+        # 2. Orchestrator must be nudged exactly once via inbox_write.sh
+        #    (bash <path> orchestrator "..." telegram_answer telegram_listener).
+        nudged = [
+            c for c in mock_subprocess.call_args_list
+            if c[0]
+            and isinstance(c[0][0], list)
+            and len(c[0][0]) >= 5
+            and c[0][0][2] == "orchestrator"
+            and c[0][0][4] == "telegram_answer"
+        ]
+        self.assertEqual(
+            len(nudged), 1,
+            "Orchestrator should be nudged exactly once via inbox_write.sh "
+            f"(saw {len(nudged)} call(s))",
+        )
+
+    @patch('telegram_listener.make_telegram_request')
+    @patch('subprocess.run')
+    @patch('time.sleep')
+    @patch('time.time')
+    def test_slash_command_does_not_answer_pending_question(
+        self, mock_time, mock_sleep, mock_subprocess, mock_request,
+    ):
+        """Sanity: slash commands (e.g., /status) must NOT be consumed by
+        the answer path — they need to pass through to their handlers
+        so the Lord can still run diagnostics while a question is open.
+        """
+        os.makedirs(os.path.dirname(self.question_file), exist_ok=True)
+        with open(self.question_file, "w", encoding="utf-8") as f:
+            json.dump({
+                "question": "Continue with deployment?",
+                "options": ["Yes", "No"],
+                "message_id": 5001,
+                "timestamp": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
+                "status": "pending",
+            }, f)
+
+        mock_time.side_effect = lambda: 1000.0
+
+        responses = [
+            {"ok": True},  # setMyCommands
+            {"ok": True, "result": []},  # bootstrap getUpdates
+            {"ok": True, "result": [{
+                "update_id": 100,
+                "message": {
+                    "message_id": 2001,
+                    "chat": {"id": 12345},
+                    "text": "/status",
+                }
+            }]},
+            {"ok": True, "result": []},  # next poll
+        ]
+        mock_request.side_effect = (
+            lambda token, method, payload=None: responses.pop(0)
+            if responses
+            else {"ok": True, "result": []}
+        )
+
+        call_count = {"n": 0}
+
+        def stop_after_limit(*args, **kwargs):
+            call_count["n"] += 1
+            if call_count["n"] > 5:
+                raise KeyboardInterrupt("Test iteration cap reached")
+
+        mock_sleep.side_effect = stop_after_limit
+
+        try:
+            telegram_listener.main()
+        except KeyboardInterrupt:
+            pass
+
+        # The /status handler runs sendMessage directly; the answer path
+        # does NOT fire, so the question file must remain pending.
+        with open(self.question_file, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        self.assertEqual(
+            data["status"], "pending",
+            "Slash commands must not be consumed as answers; "
+            f"got status={data.get('status')!r}",
+        )
+        self.assertNotIn("response", data, "Pending question must not be marked answered by /status")
+
+
 class TestBuildProgressSummary(unittest.TestCase):
     """Tests for the priority-2 'Awaiting Shogun' state when
     queue/inbox/shogun.yaml contains an unread entry. The summary now reads
