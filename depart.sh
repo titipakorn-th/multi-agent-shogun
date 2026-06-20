@@ -53,12 +53,13 @@ set -eo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 source "${SCRIPT_DIR}/scripts/shutsujin_v2_constants.sh"
+source "${SCRIPT_DIR}/lib/cli_adapter.sh"
 
 set -u
 
 # ─── Defaults ───────────────────────────────────────────────────────────────
 PERMISSION_FLAG="${PERMISSION_FLAG:---dangerously-skip-permissions}"
-CLI_DEFAULT="${CLI_DEFAULT:-claude}"
+CLI_DEFAULT=$(get_cli_type shogun)
 SHOGUN_NO_THINKING=false
 
 # ponytail: BSD sed on macOS doesn't support \U; use awk for portability
@@ -152,7 +153,8 @@ rm -f /tmp/shogun_idle_* 2>/dev/null || true
 # ponytail: must always return 0 — `[ ... ]` returning false (1) under set -e
 # would silently exit the whole script before any CLI launches.
 opencode_stagger() {
-    [ "$CLI_DEFAULT" = "opencode" ] && sleep 0.1
+    local r="$1"
+    [ "$(get_cli_type "$r")" = "opencode" ] && sleep 0.1
     return 0
 }
 
@@ -272,7 +274,10 @@ esac
 tmux send-keys -t "${SHOGUN_SESSION}:main" "cd \"$(pwd)\" && export PS1='${PS1_FORMAT}' && clear" Enter
 tmux select-pane -t "${SHOGUN_SESSION}:main" -P 'bg=#002b36'
 tmux set-option -p -t "${SHOGUN_SESSION}:main" @agent_id "shogun"
-SHOGUN_MODEL_DISPLAY=$(v2_model_for shogun | title_case)
+local shogun_cli
+shogun_cli=$(get_cli_type "shogun")
+tmux set-option -p -t "${SHOGUN_SESSION}:main" @agent_cli "$shogun_cli"
+SHOGUN_MODEL_DISPLAY=$(get_agent_model shogun | title_case)
 tmux set-option -p -t "${SHOGUN_SESSION}:main" @model_name "$SHOGUN_MODEL_DISPLAY"
 tmux set-option -p -t "${SHOGUN_SESSION}:main" @current_task ""
 
@@ -332,11 +337,13 @@ start_specialist_pane() {
     fi
 
     # Configure
-    local model color model_display
-    model=$(v2_model_for "$role")
+    local model color model_display agent_cli
+    model=$(get_agent_model "$role")
     color=$(v2_color_for "$role")
     model_display=$(echo "$model" | title_case)
+    agent_cli=$(get_cli_type "$role")
     tmux set-option -p -t "$target" @agent_id "$role"
+    tmux set-option -p -t "$target" @agent_cli "$agent_cli"
     tmux set-option -p -t "$target" @model_name "$model_display"
     tmux set-option -p -t "$target" @current_task ""
     tmux select-pane -t "$target" -T "$role"
@@ -379,10 +386,11 @@ PY
     fi
 
     # CLI availability check
-    if ! command -v "$CLI_DEFAULT" &> /dev/null; then
-        log_war "$CLI_DEFAULT not found. Run ./first_setup.sh first."
-        exit 1
-    fi
+    local unique_clis
+    unique_clis=$(for r in $(v2_role_list); do get_cli_type "$r"; done | sort -u)
+    for c in $unique_clis; do
+        validate_cli_availability "$c" || exit 1
+    done
 
     # ponytail: v1-style fire-and-forget. tmux send-keys buffers into the pane's
     # TTY — the shell processes the command when it's ready, no race risk. Skip
@@ -390,18 +398,22 @@ PY
     # Net: STEP 5 wall time = sum of send-keys + one sleep 1 (≈1s).
 
     # Shogun
-    tmux send-keys -t "${SHOGUN_SESSION}:main" "${CLI_DEFAULT} --model $(v2_model_for shogun) ${PERMISSION_FLAG}" Enter
-    opencode_stagger
+    local shogun_cmd
+    shogun_cmd=$(build_cli_command shogun)
+    tmux send-keys -t "${SHOGUN_SESSION}:main" "$shogun_cmd" Enter
+    opencode_stagger shogun
 
     # Specialists — fire all 7 in one pass (no per-pane wait)
     for r in $(v2_role_list | tr ' ' '\n' | grep -v '^shogun$'); do
         pane_target="$(v2_pane_for "$r")"
-        tmux send-keys -t "$pane_target" "${CLI_DEFAULT} --model $(v2_model_for "$r") ${PERMISSION_FLAG}" Enter
-        opencode_stagger
+        local spec_cmd
+        spec_cmd=$(build_cli_command "$r")
+        tmux send-keys -t "$pane_target" "$spec_cmd" Enter
+        opencode_stagger "$r"
     done
 
     sleep 1  # let shells begin processing the buffered commands
-    log_success "👑 All 8 agents summoned (claude launching in parallel — check panes)"
+    log_success "👑 All 8 agents summoned (launching in parallel — check panes)"
 
     # ═══════════════════════════════════════════════════════════════════════
     # STEP 6: Ninja ASCII art
@@ -442,7 +454,9 @@ for role in $(v2_role_list); do
     pane_target="$(v2_pane_for "$role")"
     if ! pgrep -f "inbox_watcher.sh ${role} " >/dev/null 2>&1 \
        && ! pgrep -f "inbox_watcher.sh ${role}\$" >/dev/null 2>&1; then
-        nohup bash "$SCRIPT_DIR/scripts/inbox_watcher.sh" "$role" "$pane_target" "$CLI_DEFAULT" \
+        local role_cli
+        role_cli=$(get_cli_type "$role")
+        nohup bash "$SCRIPT_DIR/scripts/inbox_watcher.sh" "$role" "$pane_target" "$role_cli" \
             >"${LOG_DIR}/inbox_watcher_${role}.log" 2>&1 &
         log_success "  └─ watcher started: $role"
     else
