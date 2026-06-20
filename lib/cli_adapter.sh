@@ -169,7 +169,7 @@ _cli_adapter_is_valid_cli() {
 
 # get_cli_type(agent_id)
 # Returns the CLI type that the specified agent should use
-# Fallback: cli.agents.{id}.type -> cli.agents.{id} (string) -> cli.default -> "claude"
+# Fallback: cli.agents.{id}.type -> cli.agents.{id} (string) -> roles.{id}.cli_variant -> cli.default -> "claude"
 get_cli_type() {
     local agent_id="$1"
     if [[ -z "$agent_id" ]]; then
@@ -206,6 +206,18 @@ try:
         t = normalize_cli(agent_cfg)
         if t in allowed:
             print(t); sys.exit(0)
+    # Per-role override via roles.{id}.cli_variant. Validated by
+    # scripts/validate_settings.sh:102 but previously ignored at runtime.
+    # Without this lookup, a user setting cli.default: claude and
+    # roles.shogun.cli_variant: antigravity gets claude for shogun,
+    # silently. The validator comment about defaulting to cli.default
+    # finally matches reality.
+    roles = cfg.get('roles', {}) or {}
+    role_cfg = roles.get('${agent_id}') or {}
+    if isinstance(role_cfg, dict):
+        rv = normalize_cli(role_cfg.get('cli_variant', ''))
+        if rv in allowed:
+            print(rv); sys.exit(0)
     default = normalize_cli(cli.get('default', 'claude'))
     if default in allowed:
         print(default)

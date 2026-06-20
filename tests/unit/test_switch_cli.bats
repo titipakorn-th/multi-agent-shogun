@@ -314,3 +314,96 @@ YAML
     result=$(get_model_display_name "observer")
     [ "$result" = "Opus+T" ]
 }
+
+# =============================================================================
+# get_cli_type precedence tests
+# =============================================================================
+# Precedence: cli.agents.{id}.type > cli.agents.{id} (string) >
+#             roles.{id}.cli_variant > cli.default > "claude"
+# Bug: roles.{id}.cli_variant is validated but never read at runtime.
+# See scripts/validate_settings.sh:102 (accepts) vs lib/cli_adapter.sh:172-218
+# (does not consult). The "shogun on antigravity while cli.default: claude"
+# use case is the canonical regression.
+# =============================================================================
+
+@test "get_cli_type: roles.{id}.cli_variant overrides cli.default" {
+    cat > "${TEST_TMP}/settings_roles_override.yaml" << 'YAML'
+cli:
+  default: claude
+
+roles:
+  shogun:
+    cli_variant: antigravity
+    model: "Gemini 3.5 Flash (High)"
+YAML
+    export CLI_ADAPTER_SETTINGS="${TEST_TMP}/settings_roles_override.yaml"
+    source "${PROJECT_ROOT}/lib/cli_adapter.sh"
+
+    result=$(get_cli_type "shogun")
+    [ "$result" = "antigravity" ]
+}
+
+@test "get_cli_type: cli.agents.{id}.type wins over roles.{id}.cli_variant" {
+    cat > "${TEST_TMP}/settings_agents_beats_roles.yaml" << 'YAML'
+cli:
+  default: claude
+
+roles:
+  shogun:
+    cli_variant: antigravity
+    model: "Gemini 3.5 Flash (High)"
+
+  orchestrator:
+    cli_variant: antigravity
+
+cli_agents_block:
+  # NOTE: this is illustrative — the real cli.agents block lives under cli.
+  # The test below puts it under cli.agents so the comparison is real.
+YAML
+    # Rewrite with the real cli.agents block (YAML heredoc above can't
+    # express two top-level keys with the same name cleanly).
+    cat > "${TEST_TMP}/settings_agents_beats_roles.yaml" << 'YAML'
+cli:
+  default: claude
+  agents:
+    shogun:
+      type: codex
+
+roles:
+  shogun:
+    cli_variant: antigravity
+YAML
+    export CLI_ADAPTER_SETTINGS="${TEST_TMP}/settings_agents_beats_roles.yaml"
+    source "${PROJECT_ROOT}/lib/cli_adapter.sh"
+
+    result=$(get_cli_type "shogun")
+    [ "$result" = "codex" ]
+}
+
+@test "get_cli_type: roles.{id}.cli_variant supports 'gemini' alias" {
+    cat > "${TEST_TMP}/settings_gemini_alias.yaml" << 'YAML'
+cli:
+  default: claude
+
+roles:
+  shogun:
+    cli_variant: gemini
+YAML
+    export CLI_ADAPTER_SETTINGS="${TEST_TMP}/settings_gemini_alias.yaml"
+    source "${PROJECT_ROOT}/lib/cli_adapter.sh"
+
+    result=$(get_cli_type "shogun")
+    [ "$result" = "antigravity" ]
+}
+
+@test "get_cli_type: falls back to cli.default when roles block absent" {
+    cat > "${TEST_TMP}/settings_no_roles.yaml" << 'YAML'
+cli:
+  default: codex
+YAML
+    export CLI_ADAPTER_SETTINGS="${TEST_TMP}/settings_no_roles.yaml"
+    source "${PROJECT_ROOT}/lib/cli_adapter.sh"
+
+    result=$(get_cli_type "shogun")
+    [ "$result" = "codex" ]
+}
