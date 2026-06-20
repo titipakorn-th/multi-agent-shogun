@@ -5,7 +5,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash scripts/session_start_hook.sh",
+            "command": "git_dir=$(git rev-parse --show-toplevel 2>/dev/null || pwd) && bash \"$git_dir/scripts/session_start_hook.sh\"",
             "timeout": 10
           }
         ]
@@ -16,12 +16,12 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash scripts/stop_hook_inbox.sh",
+            "command": "git_dir=$(git rev-parse --show-toplevel 2>/dev/null || pwd) && bash \"$git_dir/scripts/stop_hook_inbox.sh\"",
             "timeout": 60
           },
           {
             "type": "command",
-            "command": "bash scripts/shogun_stop_telegram_forward.sh",
+            "command": "git_dir=$(git rev-parse --show-toplevel 2>/dev/null || pwd) && bash \"$git_dir/scripts/shogun_stop_telegram_forward.sh\"",
             "timeout": 15
           }
         ]
