@@ -54,17 +54,17 @@ start_watcher_if_missing() {
             trap 'rmdir "$lockdir" 2>/dev/null || true' EXIT
         fi
 
-        if pgrep -f "scripts/inbox_watcher.sh ${agent} ${pane} " >/dev/null 2>&1 \
-           || pgrep -f "scripts/inbox_watcher.sh ${agent} ${pane}$" >/dev/null 2>&1; then
+        if pgrep -f "${SCRIPT_DIR}/scripts/inbox_watcher.sh ${agent} ${pane} " >/dev/null 2>&1 \
+           || pgrep -f "${SCRIPT_DIR}/scripts/inbox_watcher.sh ${agent} ${pane}$" >/dev/null 2>&1; then
             return 0
         fi
 
-        if pgrep -f "scripts/inbox_watcher.sh ${agent} " >/dev/null 2>&1; then
+        if pgrep -f "${SCRIPT_DIR}/scripts/inbox_watcher.sh ${agent} " >/dev/null 2>&1; then
             echo "[$(date '+%Y-%m-%d %H:%M:%S')] [WARN] stale watcher detected for ${agent}; starting watcher for expected pane ${pane}" >&2
         fi
 
         cli=$(tmux show-options -p -t "$pane" -v @agent_cli 2>/dev/null || echo "codex")
-        nohup bash scripts/inbox_watcher.sh "$agent" "$pane" "$cli" >> "$log_file" 2>&1 &
+        nohup bash "${SCRIPT_DIR}/scripts/inbox_watcher.sh" "$agent" "$pane" "$cli" >> "$log_file" 2>&1 &
         echo "[$(date '+%Y-%m-%d %H:%M:%S')] [START] inbox_watcher started for ${agent} pane=${pane} PID=$!" >&2
     ) 9>"$lockfile"
 }

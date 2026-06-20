@@ -21,6 +21,9 @@
 set -euo pipefail
 
 SCRIPT_DIR="${__STOP_HOOK_SCRIPT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
+PROJECT_NAME=$(basename "$SCRIPT_DIR")
+export IDLE_FLAG_DIR="${IDLE_FLAG_DIR:-/tmp/shogun_idle_${PROJECT_NAME}}"
+mkdir -p "$IDLE_FLAG_DIR"
 
 # ─── Read stdin (hook input JSON) ───
 INPUT=$(cat)

@@ -38,6 +38,10 @@ if [ "${__INBOX_WATCHER_TESTING__:-}" != "1" ]; then
     INBOX="$SCRIPT_DIR/queue/inbox/${AGENT_ID}.yaml"
     LOCKFILE="${INBOX}.lock"
 
+    PROJECT_NAME=$(basename "$SCRIPT_DIR")
+    export IDLE_FLAG_DIR="${IDLE_FLAG_DIR:-/tmp/shogun_idle_${PROJECT_NAME}}"
+    mkdir -p "$IDLE_FLAG_DIR"
+
     if [ -z "$AGENT_ID" ] || [ -z "$PANE_TARGET" ]; then
         echo "Usage: inbox_watcher.sh <agent_id> <pane_target> [cli_type]" >&2
         exit 1
@@ -826,7 +830,7 @@ agent_has_self_watch() {
             found=0  # found an inotifywait NOT from our process group
             break
         fi
-    done < <(pgrep -f "inotifywait.*inbox/${AGENT_ID}.yaml" 2>/dev/null)
+    done < <(pgrep -f "inotifywait.*${INBOX}" 2>/dev/null)
     return $found
 }
 

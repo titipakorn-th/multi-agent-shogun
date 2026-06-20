@@ -145,8 +145,12 @@ echo ""
 echo -e "\033[1;33m  Tenka Fubu! Setting up the battlefield... (Lang: $LANG_SETTING, Shell: $SHELL_SETTING)\033[0m"
 echo ""
 
+PROJECT_NAME=$(basename "$SCRIPT_DIR")
+export IDLE_FLAG_DIR="${IDLE_FLAG_DIR:-/tmp/shogun_idle_${PROJECT_NAME}}"
+mkdir -p "$IDLE_FLAG_DIR"
+
 # ponytail: clear stale idle flags from crashed sessions — prevents watcher confusion
-rm -f /tmp/shogun_idle_* 2>/dev/null || true
+rm -f "$IDLE_FLAG_DIR"/shogun_idle_* 2>/dev/null || true
 
 # ─── CLI helper functions (top-level — used by STEP 3 + STEP 5) ──────────────
 # Stagger OpenCode launches (SIGILL on WSL2 if launched too fast)
@@ -441,7 +445,7 @@ fi
 log_step "STEP 7: Inbox watchers"
 
 # Kill any leftover watcher processes (idempotent for re-runs)
-pkill -f "inbox_watcher.sh" 2>/dev/null || true
+pkill -f "$SCRIPT_DIR/scripts/inbox_watcher.sh" 2>/dev/null || true
 sleep 0.5
 
 LOG_DIR="$SCRIPT_DIR/logs"
@@ -460,7 +464,7 @@ for role in $(v2_role_list); do
 done
 
 # Shogun → Telegram relay (outbound)
-pkill -f "shogun_telegram_relay.sh" 2>/dev/null || true
+pkill -f "$SCRIPT_DIR/scripts/shogun_telegram_relay.sh" 2>/dev/null || true
 nohup bash "$SCRIPT_DIR/scripts/shogun_telegram_relay.sh" \
     >>"$LOG_DIR/shogun_telegram_relay.log" 2>&1 &
 log_success "  └─ shogun_telegram_relay started (pid $!)"
@@ -482,14 +486,14 @@ if [ -f "$TELEGRAM_ENV" ]; then
 fi
 
 if [ "$TELEGRAM_CONFIGURED" = true ]; then
-    pkill -f "telegram_listener.py" 2>/dev/null || true
+    pkill -f "$SCRIPT_DIR/scripts/telegram_listener.py" 2>/dev/null || true
     nohup "$VENV_DIR/bin/python3" "$SCRIPT_DIR/scripts/telegram_listener.py" \
         >>"$LOG_DIR/telegram_listener.log" 2>&1 &
     log_success "📱 Telegram listener started (pid $!)"
 else
     NTFY_TOPIC=$(grep 'ntfy_topic:' ./config/settings.yaml 2>/dev/null | awk '{print $2}' | tr -d '"' || true)
     if [ -n "$NTFY_TOPIC" ]; then
-        pkill -f "ntfy_listener.sh" 2>/dev/null || true
+        pkill -f "$SCRIPT_DIR/scripts/ntfy_listener.sh" 2>/dev/null || true
         nohup bash "$SCRIPT_DIR/scripts/ntfy_listener.sh" &>/dev/null &
         disown
         log_success "📱 ntfy listener started (topic: $NTFY_TOPIC)"

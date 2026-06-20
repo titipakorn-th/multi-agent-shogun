@@ -66,7 +66,9 @@ LISTENER_STDERR="$LOG_DIR/telegram_listener.err"
 PID_FILE="$LOG_DIR/listener.pid"
 PAUSE_SENTINEL="$SCRIPT_DIR/queue/.listener_paused"
 DISABLED_FLAG="$LOG_DIR/.listener_watchdog.disabled"
-LOCKFILE="/tmp/listener_watchdog.lock"
+
+PROJECT_NAME=$(basename "$SCRIPT_DIR")
+LOCKFILE="/tmp/listener_watchdog_${PROJECT_NAME}.lock"
 
 # Tunables (override via env if needed)
 POLL_INTERVAL="${LISTENER_WATCHDOG_POLL:-30}"
@@ -131,14 +133,14 @@ listener_is_alive() {
         pid=$(cat "$PID_FILE" 2>/dev/null || echo "")
         if [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null; then
             # Cross-check pgrep so a recycled PID doesn't trick us.
-            if pgrep -f "scripts/telegram_listener\.py" >/dev/null 2>&1; then
+            if pgrep -f "${SCRIPT_DIR}/scripts/telegram_listener\.py" >/dev/null 2>&1; then
                 return 0
             fi
         fi
         # Stale PID file — clear it.
         rm -f "$PID_FILE"
     fi
-    pgrep -f "scripts/telegram_listener\.py" >/dev/null 2>&1
+    pgrep -f "${SCRIPT_DIR}/scripts/telegram_listener\.py" >/dev/null 2>&1
 }
 
 # Trim a state file to the last HOUR_WINDOW_SEC of entries (one timestamp per
@@ -185,7 +187,7 @@ restart_listener() {
     fi
 
     # Clean up any leftover process. pkill is best-effort.
-    pkill -f "scripts/telegram_listener\.py" 2>/dev/null || true
+    pkill -f "${SCRIPT_DIR}/scripts/telegram_listener\.py" 2>/dev/null || true
     sleep 1
 
     # Spawn detached. nohup + & + disown, so the watchdog exit does not take
@@ -206,7 +208,7 @@ print_status() {
         echo "listener: PAUSED (sentinel at $PAUSE_SENTINEL)"
     elif listener_is_alive; then
         local pid
-        pid=$(pgrep -f "scripts/telegram_listener\.py" | head -1)
+        pid=$(pgrep -f "${SCRIPT_DIR}/scripts/telegram_listener\.py" | head -1)
         echo "listener: ALIVE pid=$pid"
     else
         echo "listener: DEAD"
