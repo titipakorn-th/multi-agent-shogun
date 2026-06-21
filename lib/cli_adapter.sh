@@ -378,7 +378,7 @@ get_instruction_file() {
     case "$cli_type" in
         claude)  echo "instructions/${role}.md" ;;
         codex)   echo "instructions/codex-${role}.md" ;;
-        copilot) echo ".github/copilot-instructions-${role}.md" ;;
+        copilot) echo "instructions/generated/copilot-${role}.md" ;;
         kimi)    echo "instructions/generated/kimi-${role}.md" ;;
         opencode) echo "instructions/generated/opencode-${role}.md" ;;
         cursor)  echo "instructions/generated/cursor-${role}.md" ;;

@@ -557,10 +557,10 @@ YAML
     [ "$result" = "instructions/codex-observer.md" ]
 }
 
-@test "get_instruction_file: council + copilot → .github/copilot-instructions-council.md" {
+@test "get_instruction_file: council + copilot → instructions/generated/copilot-council.md" {
     load_adapter_with "${TEST_TMP}/settings_mixed.yaml"
     result=$(get_instruction_file "council")
-    [ "$result" = ".github/copilot-instructions-council.md" ]
+    [ "$result" = "instructions/generated/copilot-council.md" ]
 }
 
 @test "get_instruction_file: designer + kimi → instructions/generated/kimi-designer.md" {
@@ -584,7 +584,7 @@ YAML
 @test "get_instruction_file: explicit spec via cli_type argument (copilot)" {
     load_adapter_with "${TEST_TMP}/settings_none.yaml"
     result=$(get_instruction_file "orchestrator" "copilot")
-    [ "$result" = ".github/copilot-instructions-orchestrator.md" ]
+    [ "$result" = "instructions/generated/copilot-orchestrator.md" ]
 }
 
 @test "get_instruction_file: all CLI x all role combinations" {
@@ -598,9 +598,9 @@ YAML
     [ "$(get_instruction_file orchestrator codex)" = "instructions/codex-orchestrator.md" ]
     [ "$(get_instruction_file designer codex)" = "instructions/codex-designer.md" ]
     # copilot
-    [ "$(get_instruction_file shogun copilot)" = ".github/copilot-instructions-shogun.md" ]
-    [ "$(get_instruction_file orchestrator copilot)" = ".github/copilot-instructions-orchestrator.md" ]
-    [ "$(get_instruction_file observer copilot)" = ".github/copilot-instructions-observer.md" ]
+    [ "$(get_instruction_file shogun copilot)" = "instructions/generated/copilot-shogun.md" ]
+    [ "$(get_instruction_file orchestrator copilot)" = "instructions/generated/copilot-orchestrator.md" ]
+    [ "$(get_instruction_file observer copilot)" = "instructions/generated/copilot-observer.md" ]
     # kimi
     [ "$(get_instruction_file shogun kimi)" = "instructions/generated/kimi-shogun.md" ]
     [ "$(get_instruction_file orchestrator kimi)" = "instructions/generated/kimi-orchestrator.md" ]
@@ -611,6 +611,25 @@ YAML
     load_adapter_with "${TEST_TMP}/settings_none.yaml"
     run get_instruction_file "unknown_agent"
     [ "$status" -eq 1 ]
+}
+
+@test "get_instruction_file: copilot paths resolve to existing files (regression: bug #1)" {
+    # Regression for the cli_adapter.sh path bug: copilot used to return
+    # .github/copilot-instructions-{role}.md, which the build never created.
+    # The path now must point at instructions/generated/copilot-{role}.md,
+    # which build_instructions.sh actually emits.
+    load_adapter_with "${TEST_TMP}/settings_mixed.yaml"
+    for role in shogun orchestrator explorer librarian oracle designer fixer observer council telegram; do
+        result=$(get_instruction_file "$role" "copilot")
+        [ "$result" = "instructions/generated/copilot-${role}.md" ] || {
+            echo "FAIL: role=$role got=$result"
+            return 1
+        }
+        [ -f "${PROJECT_ROOT}/${result}" ] || {
+            echo "FAIL: file missing for role=$role: ${result}"
+            return 1
+        }
+    done
 }
 
 @test "get_instruction_file: opencode + any role → instructions/generated/opencode-shogun.md" {
