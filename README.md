@@ -17,14 +17,9 @@ Run 10 AI coding agents in parallel — **Claude Code, OpenAI Codex, GitHub Copi
 
 </div>
 
-<p align="center">
-  <img src="images/screenshots/hero/latest-translucent-20260210-190453.png" alt="Latest translucent command session in the Shogun pane" width="940">
-</p>
+<p align="center"><i>Latest translucent command session in the Shogun pane.</i></p>
 
-<p align="center">
-  <img src="images/screenshots/hero/latest-translucent-20260208-084602.png" alt="Quick natural-language command in the Shogun pane" width="420">
-  <img src="images/company-creed-all-panes.png" alt="Orchestrator and Specialist panes reacting in parallel" width="520">
-</p>
+<p align="center"><i>Quick natural-language command in the Shogun pane · Orchestrator and Specialist panes reacting in parallel.</i></p>
 
 <p align="center"><i>One Orchestrator (manager) coordinating 7 specialists + Oracle (advisor) + Council (consensus) — real session, no mock data.</i></p>
 
@@ -606,9 +601,7 @@ The Orchestrator breaks the task into subtasks:
 
 All 5 Specialist research simultaneously. You can watch them work in real time:
 
-<p align="center">
-  <img src="images/company-creed-all-panes.png" alt="Specialist agents working in parallel across tmux panes" width="900">
-</p>
+<p align="center"><i>Specialist agents working in parallel across tmux panes.</i></p>
 
 Results appear in `dashboard.md` as they complete.
 
@@ -967,23 +960,13 @@ The listener automatically reconnects if the connection drops. `depart.sh` start
 | Duplicate notifications | Normal on reconnect — Shogun deduplicates by message ID |
 | Changed topic name but no notifications | The listener must be restarted: `pkill -f ntfy_listener.sh && nohup bash scripts/ntfy_listener.sh &>/dev/null &` |
 
-**Real-world notification screenshots:**
+**Notification examples:**
 
-<p align="center">
-  <img src="images/screenshots/masked/ntfy_saytask_rename.jpg" alt="Bidirectional phone communication" width="300">
-  &nbsp;&nbsp;
-  <img src="images/screenshots/masked/ntfy_cmd043_progress.jpg" alt="Progress notification" width="300">
-</p>
 <p align="center"><i>Left: Bidirectional phone ↔ Shogun communication · Right: Real-time progress report from Specialist</i></p>
 
-<p align="center">
-  <img src="images/screenshots/masked/ntfy_bloom_oc_test.jpg" alt="Command completion notification" width="300">
-  &nbsp;&nbsp;
-  <img src="images/screenshots/masked/ntfy_persona_eval_complete.jpg" alt="8-agent parallel completion" width="300">
-</p>
 <p align="center"><i>Left: Command completion notification · Right: All 8 Specialist completing in parallel</i></p>
 
-> *Note: Topic names shown in screenshots are examples. Use your own unique topic name.*
+> *Note: Use your own unique ntfy topic name.*
 
 #### SayTask Notifications
 
