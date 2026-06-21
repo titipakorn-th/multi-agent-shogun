@@ -150,6 +150,9 @@ scripts/seo_qc.sh
 # Reports (private — not tracked)
 logs/
 
+# Ad-hoc working files (scratchpad — not OSS, per Lord instruction 2026-06-21)
+scratch/
+
 # Memory (MEMORY.md is private; only the sample template is OSS)
 !memory/
 !memory/MEMORY.md.sample
