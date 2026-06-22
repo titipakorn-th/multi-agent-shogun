@@ -258,13 +258,43 @@ When a message arrives in `queue/inbox/shogun.yaml` (signaled by `inboxN` typed 
      4. Send this report to the Lord via `ntfy.sh`. (You are now the primary reporter; Karo has been silenced for these events).
    - **Action Required** (`type: action_required`) →
      1. Print the action required details in the CLI/terminal.
-     2. **Strategic Telegram Inquiry**: Parse the message for `ACTION_REQUIRED: {Topic} | CHOICES: {A}, {B}`.
-     3. Trigger the interactive dialogue on Telegram:
+     2. **Auto-Resolve Branch** *(NEW — auto_prompt)*: When Lord-facing choices
+        carry an unambiguous `(Recommended)` marker, skip the Telegram dialog
+        and resolve locally. Breaks the project-wide ask-Lord-then-wait cycle
+        for routine decisions.
+        1. Read `config/settings.yaml` → `auto_prompt.enabled` via yq:
+           `auto_prompt_enabled=$(yq -r '.auto_prompt.enabled // false' config/settings.yaml)`
+        2. If `auto_prompt_enabled == "true"` AND the message body contains
+           a `CHOICES:` line with a literal `(Recommended)` marker, run:
+           ```bash
+           source scripts/lib/auto_prompt_resolve_action.sh
+           msg_file="queue/inbox/${your_id}.yaml"   # the inbox file holding this entry
+           resolution=$(auto_prompt_resolve_action "$msg_file") \
+               || resolution_exit=$?
+           ```
+           Expected exit codes (see `scripts/lib/auto_prompt_resolve_action.sh`
+           header doc): `0`=resolved, `2`=no Recommended marker, `3`=parse error.
+        3. On `exit 0`: write `queue/current_question.json` with
+           `status: "answered"` and `response: "$resolution"`, send the
+           resolved notification:
+           ```bash
+           bash scripts/ntfy.sh "🏯 Auto-resolved cmd_XXX: $resolution"
+           ```
+           Then **SKIP the Strategic Telegram Inquiry branch** (jump to the
+           "Active Blocker Feedback" step below). The action is done — no
+           further Lord interaction is required for this entry.
+        4. On `exit 2` (no marker) or `exit 3` (parse error): fall through
+           to the Strategic Telegram Inquiry branch as the else-case. The
+           auto-resolve attempt is silent — no Lord notification on fallthrough.
+     3. **Strategic Telegram Inquiry** *(else-branch — preserved verbatim when
+        auto-resolve does not apply)*: Parse the message for
+        `ACTION_REQUIRED: {Topic} | CHOICES: {A}, {B}`.
+     4. Trigger the interactive dialogue on Telegram:
         ```bash
         # Parse and execute (example)
         python3 scripts/telegram_ask.py --question "{Topic}" --options "{A}" "{B}" --no-wait
         ```
-     4. Follow the "Active Blocker Feedback" protocol below to ensure the terminal session is aware of the block.
+     5. Follow the "Active Blocker Feedback" protocol below to ensure the terminal session is aware of the block.
    - **Cancel Request** (`type: cancel_request`, sent by `telegram_listener` when the Lord issues `/cancel`) →
      1. Read the message body — it identifies the active cmd id (e.g. `cmd_xxx`).
      2. **Do NOT abort mid-write.** Wait for the next safe checkpoint (between subtasks, after a file is fully written, after a `git push` boundary, etc.). The active agents will see the cancel at their next YAML re-read.

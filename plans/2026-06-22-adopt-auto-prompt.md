@@ -7,11 +7,11 @@ auto_continue: true
 
 ## Status
 
-- [ ] Task 1: Add plans/README.md format spec
-- [ ] Task 2: Add auto_prompt section to instructions/shogun.md
-- [ ] Task 3: Add auto_prompt block to config/settings.yaml
-- [ ] Task 4: Initialize queue/auto_prompt_state.yaml
-- [ ] Task 5: Write tests/unit/test_auto_prompt.bats
+- [x] Task 1: Add plans/README.md format spec
+- [x] Task 2: Add auto_prompt section to instructions/shogun.md
+- [x] Task 3: Add auto_prompt block to config/settings.yaml
+- [x] Task 4: Initialize queue/auto_prompt_state.yaml
+- [x] Task 5: Write tests/unit/test_auto_prompt.bats
 - [ ] Task 6: Run bats suite, verify green, commit, push
 
 ## Problem
