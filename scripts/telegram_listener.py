@@ -181,6 +181,58 @@ def fire_due_pings(script_dir):
         print(f"[telegram_listener] fire_due_pings error: {e}", file=sys.stderr)
 
 
+def _shogun_pane_has_lord_marker(script_dir):
+    """Return True if the Shogun pane contains a `### To Lord` marker in
+    its recent history. Used by watch_stale_inbox as a fallback signal:
+    if Shogun emitted a Telegram reply but forgot to mark the inbox
+    entry read, the marker proves the message was handled and the
+    stale-inbox warning should be suppressed.
+
+    Pane target comes from scripts/shutsujin_v2_constants.sh so suffixed
+    projects (e.g. multi-agent-shogun-safepay) resolve to the right
+    session. Returns False on any error (tmux missing, session down,
+    etc.) — caller falls through to the normal warning path.
+
+    ponytail: subprocess + 200-line capture is cheap (one tmux call per
+    stale entry per poll cycle, not per poll).
+    """
+    try:
+        constants = os.path.join(script_dir, "shutsujin_v2_constants.sh")
+        if not os.path.exists(constants):
+            return False
+        # Source constants in a subshell; echo the Shogun pane target.
+        out = subprocess.run(
+            ["bash", "-c",
+             f'source "{constants}" 2>/dev/null && '
+             f'echo "${{SHOGUN_SESSION:-shogun}}:main.0"'],
+            capture_output=True, text=True, timeout=3,
+        )
+        if out.returncode != 0 or not out.stdout.strip():
+            return False
+        target = out.stdout.strip()
+
+        pane = subprocess.run(
+            ["tmux", "capture-pane", "-t", target, "-p", "-S", "-200"],
+            capture_output=True, text=True, timeout=3,
+        )
+        if pane.returncode != 0:
+            return False
+        # Match the rendered CLI output: the markdown heading
+        # "### 📨 To Lord" is rendered by the CLI as "  📨 To Lord"
+        # (the `### ` is consumed by the markdown renderer). Look for
+        # the mailbox emoji followed by "To Lord" on its own line. The
+        # phrase "To Lord" is specific enough that the loose match is
+        # safe — false-positive risk is "Lord" appearing elsewhere,
+        # which would only suppress a real warning by accident.
+        for line in pane.stdout.splitlines():
+            stripped = line.strip()
+            if "To Lord" in stripped and any(e in stripped for e in ("📨", "📮", "📰")):
+                return True
+        return False
+    except Exception:
+        return False
+
+
 def watch_stale_inbox(script_dir, warned_entries, now=None):
     """
     Watch queue/inbox/shogun.yaml for entries that the Lord sent via Telegram
@@ -292,6 +344,18 @@ def watch_stale_inbox(script_dir, warned_entries, now=None):
             key = (eid, ets)
             if key in warned_entries:
                 continue  # Already paged the Lord once about this one.
+
+            # Fallback: if Shogun pane has emitted a "### To Lord" marker,
+            # the message was almost certainly handled — Shogun replies
+            # via Telegram after every ntfy message, and forgetting to
+            # mark the inbox entry read is a known instruction-following
+            # gap. Suppress the false-positive rather than spam the Lord.
+            # Conservative: if the pane check fails (tmux down, etc.),
+            # fall through to the normal warning path.
+            if _shogun_pane_has_lord_marker(script_dir):
+                warned_entries.add(key)
+                print(f"[telegram_listener] Stale-inbox suppressed for id={eid} (Shogun pane has 'To Lord' marker — message was handled)")
+                continue
 
             warned_entries.add(key)
 
