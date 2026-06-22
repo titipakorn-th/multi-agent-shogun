@@ -129,13 +129,19 @@ ESCALATE_COOLDOWN=${ESCALATE_COOLDOWN:-300}
 # Avoid spamming the same "inboxN" into the pane every timeout tick.
 LAST_NUDGE_TS=${LAST_NUDGE_TS:-0}
 LAST_NUDGE_COUNT=${LAST_NUDGE_COUNT:-""}
+LAST_NUDGE_IDS=${LAST_NUDGE_IDS:-""}
 NUDGE_COOLDOWN_SEC=${NUDGE_COOLDOWN_SEC:-60}
+# Set by the main escalation flow before send_wakeup is called. Lets
+# send_wakeup / send_wakeup_with_escape pass the hashlet to
+# should_throttle_nudge without threading it through every signature.
+CURRENT_IDS_HASHLET=${CURRENT_IDS_HASHLET:-""}
 # Codex has a behavior where it picks up input immediately if received while thinking, which can cause loops, so we set a longer cooldown.
 NUDGE_COOLDOWN_SEC_CODEX=${NUDGE_COOLDOWN_SEC_CODEX:-300}
 
 reset_nudge_throttle() {
     LAST_NUDGE_TS=0
     LAST_NUDGE_COUNT=""
+    LAST_NUDGE_IDS=""
 }
 
 acquire_inbox_lock() {
@@ -231,6 +237,7 @@ disable_normal_nudge() {
 
 should_throttle_nudge() {
     local unread_count="${1:-0}"
+    local ids_hashlet="${2:-}"
     local now
     now=$(date +%s)
 
@@ -255,7 +262,18 @@ should_throttle_nudge() {
         fi
     fi
 
+    # Content dedup: if the same set of message IDs is still unread,
+    # suppress even past the cooldown. Same message sitting unread for
+    # minutes shouldn't generate a fresh nudge every 60s — the agent
+    # already saw it. Escalation (Phase 2/3) bypasses this because
+    # send_wakeup_with_escape runs outside this check.
+    if [ -n "$ids_hashlet" ] && [ "${LAST_NUDGE_IDS:-}" = "$ids_hashlet" ] && [ "${LAST_NUDGE_TS:-0}" -gt 0 ]; then
+        echo "[$(date)] [SKIP] Duplicate-content nudge for $AGENT_ID: inbox${unread_count} (same unread message set since last nudge)" >&2
+        return 0
+    fi
+
     LAST_NUDGE_COUNT="$unread_count"
+    LAST_NUDGE_IDS="$ids_hashlet"
     LAST_NUDGE_TS="$now"
     return 1
 }
@@ -488,9 +506,19 @@ try:
     normal_count = len(unread) - len(specials)
     normal_msgs = [m for m in unread if m.get("type") not in special_types]
     has_task_assigned = any(m.get("type") == "task_assigned" for m in normal_msgs)
+    # ids + hashlet: dedup nudge across long-unread messages. If the same
+    # set of message IDs is unread across multiple watcher cycles, the
+    # hashlet is stable → should_throttle_nudge suppresses the nudge
+    # instead of re-pinging every 60s for the same message. The latest
+    # id is included in the nudge payload so the agent can see WHICH
+    # message is still pending (the count alone is ambiguous).
+    msg_ids = [str(m.get("id", "")) for m in normal_msgs]
+    latest_id = msg_ids[-1] if msg_ids else ""
     payload = {
         "count": normal_count,
         "has_task_assigned": has_task_assigned,
+        "latest_id": latest_id,
+        "ids_hashlet": "|".join(msg_ids)[:120],
         "specials": [{"type": m.get("type", ""), "content": m.get("content", "")} for m in specials],
     }
     print(json.dumps(payload))
@@ -925,7 +953,7 @@ send_wakeup() {
         return 0
     fi
 
-    if should_throttle_nudge "$unread_count"; then
+    if should_throttle_nudge "$unread_count" "${CURRENT_IDS_HASHLET:-}"; then
         return 0
     fi
 
@@ -1178,6 +1206,12 @@ for s in data.get('specials', []):
     local has_task_assigned
     has_task_assigned=$(echo "$info" | "$SCRIPT_DIR/.venv/bin/python3" -c "import sys,json; print(1 if json.load(sys.stdin).get('has_task_assigned') else 0)" 2>/dev/null)
 
+    # Stable hash of unread message IDs — used by should_throttle_nudge
+    # to suppress duplicate nudges when the SAME message sits unread for
+    # minutes (no new arrivals, but watcher keeps polling).
+    local ids_hashlet
+    ids_hashlet=$(echo "$info" | "$SCRIPT_DIR/.venv/bin/python3" -c "import sys,json; print(json.load(sys.stdin).get('ids_hashlet',''))" 2>/dev/null)
+
     if [ "$normal_count" -gt 0 ] 2>/dev/null; then
         local now
         now=$(date +%s)
@@ -1251,6 +1285,11 @@ for s in data.get('specials', []):
             fi
             return 0
         fi
+
+        # Stable hashlet for dedup — set before any nudge path so
+        # send_wakeup / send_wakeup_with_escape can suppress duplicate
+        # nudges when the same message set stays unread across polls.
+        CURRENT_IDS_HASHLET="$ids_hashlet"
 
         local age=$((now - FIRST_UNREAD_SEEN))
 

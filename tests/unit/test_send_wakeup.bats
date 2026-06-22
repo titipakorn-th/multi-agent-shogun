@@ -1362,3 +1362,54 @@ YAML
     ! grep -q "send-keys.*Escape" "$MOCK_LOG"
     ! grep -q "send-keys.*C-c" "$MOCK_LOG"
 }
+
+# --- T-DEDUP-001: should_throttle_nudge suppresses duplicate content past cooldown ---
+
+@test "T-DEDUP-001: should_throttle_nudge suppresses duplicate content past cooldown" {
+    run bash -c '
+        export TEST_HARNESS_OVERRIDE_CLI="claude"
+        source "'"$TEST_HARNESS"'"
+        AGENT_ID="shogun"
+        LAST_NUDGE_TS=0
+        LAST_NUDGE_COUNT=""
+        LAST_NUDGE_IDS=""
+
+        # First call with msg_X as the unread set — should fire (rc=1).
+        should_throttle_nudge 1 "msg_X" || echo "first_fired=$?"
+
+        # Second call within cooldown — should throttle (count match).
+        should_throttle_nudge 1 "msg_X" && echo "cooldown_throttled"
+
+        # Third call past cooldown but SAME content — should suppress
+        # via the new ids_hashlet dedup (the bug fix).
+        LAST_NUDGE_TS=$(( $(date +%s) - 999 ))
+        should_throttle_nudge 1 "msg_X" && echo "dup_content_suppressed"
+
+        # Fourth call past cooldown with DIFFERENT content — should fire.
+        LAST_NUDGE_TS=$(( $(date +%s) - 999 ))
+        should_throttle_nudge 2 "msg_X|msg_Y" || echo "new_content_fired"
+    '
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"first_fired=1"* ]]
+    [[ "$output" == *"cooldown_throttled"* ]]
+    [[ "$output" == *"dup_content_suppressed"* ]]
+    [[ "$output" == *"new_content_fired"* ]]
+}
+
+# --- T-DEDUP-002: reset_nudge_throttle clears LAST_NUDGE_IDS ---
+
+@test "T-DEDUP-002: reset_nudge_throttle clears LAST_NUDGE_IDS" {
+    run bash -c '
+        source "'"$TEST_HARNESS"'"
+        AGENT_ID="shogun"
+        LAST_NUDGE_TS=1234
+        LAST_NUDGE_COUNT="1"
+        LAST_NUDGE_IDS="msg_abc"
+        reset_nudge_throttle
+        echo "TS=$LAST_NUDGE_TS COUNT=$LAST_NUDGE_COUNT IDS=$LAST_NUDGE_IDS"
+    '
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"TS=0"* ]]
+    [[ "$output" == *"COUNT="* ]]
+    [[ "$output" == *"IDS="* ]]
+}
