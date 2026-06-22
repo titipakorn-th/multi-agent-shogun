@@ -729,6 +729,15 @@ _last_cancel_cmd_id = None
 _dashboard_parse_state = None  # None | "ok" | "failing"
 _status_parse_state = None     # None | "ok" | "failing"
 
+# Late-callback dedup: tracks Telegram message_ids whose question we
+# have already answered. When the Lord double-taps or Telegram
+# re-delivers a callback after telegram_ask.py has consumed the
+# current_question.json, active_question is None and the message
+# would otherwise fall into the else branch that wipes the keyboard.
+# Without this guard, the buttons vanish mid-conversation.
+# Pruned by the blinker block whenever there is no active question.
+_processed_question_message_ids = set()
+
 # Stale-dashboard grace window (seconds). When a YAML completion timestamp
 # is more than this many seconds newer than the newest "Completed:" entry
 # in dashboard.md, /dashboard falls back to live YAML rather than trusting
@@ -1519,11 +1528,30 @@ def main():
                         cb = update["callback_query"]
                         cb_msg = cb.get("message", {})
                         cb_chat_id = cb_msg.get("chat", {}).get("id")
-                        
+
                         if str(cb_chat_id) != str(chat_id):
                             continue
-                            
-                        if active_question and active_question.get("status") != "answered" and cb_msg.get("message_id") == active_question.get("message_id"):
+
+                        cb_msg_id = cb_msg.get("message_id")
+
+                        # Late-callback guard: if the Lord taps a button on a
+                        # question we've already answered, telegram_ask.py
+                        # may have already deleted current_question.json
+                        # (its cleanup_question_file runs once the answer
+                        # is consumed). Without this guard, active_question
+                        # would be None and the else branch below would
+                        # wipe the keyboard — making the buttons the Lord
+                        # can still see in Telegram look "dead". Ack the
+                        # callback so the Telegram spinner clears, but
+                        # leave the message untouched.
+                        if cb_msg_id in _processed_question_message_ids:
+                            make_telegram_request(token, "answerCallbackQuery", {
+                                "callback_query_id": cb["id"],
+                                "text": "Already processed",
+                            })
+                            continue
+
+                        if active_question and active_question.get("status") != "answered" and cb_msg_id == active_question.get("message_id"):
                             data = cb.get("data", "")
                             
                             if data == "opt_other":
@@ -1574,6 +1602,15 @@ def main():
                                         json.dump(active_question, qf, indent=2, ensure_ascii=False)
                                 except Exception:
                                     pass
+
+                                # Track this message_id so a late duplicate
+                                # callback (after telegram_ask.py deletes the
+                                # question file) does not fall into the else
+                                # branch and wipe the keyboard.
+                                if active_question.get("message_id") is not None:
+                                    _processed_question_message_ids.add(
+                                        active_question["message_id"]
+                                    )
                                 
                                 # Wake up Orchestrator via inbox
                                 try:
@@ -1657,6 +1694,15 @@ def main():
                                         json.dump(active_question, qf, indent=2, ensure_ascii=False)
                                 except Exception:
                                     pass
+
+                                # Track this message_id so a late duplicate
+                                # callback (after telegram_ask.py deletes the
+                                # question file) does not fall into the else
+                                # branch and wipe the keyboard.
+                                if active_question.get("message_id") is not None:
+                                    _processed_question_message_ids.add(
+                                        active_question["message_id"]
+                                    )
 
                                 # Wake up Orchestrator via inbox
                                 try:
@@ -1808,12 +1854,22 @@ def main():
                 # keeps the Lord in read-only mode.
 
 
-                # Signal Shogun to wake up
+                # Signal Shogun to wake up. The full Lord command lives in
+                # queue/ntfy_inbox.yaml (written above via append_to_inbox)
+                # — Shogun's "ntfy Input Handling" section reads that file
+                # for status:pending entries and processes the command.
+                #
+                # The system inbox write carries only a short nudge that
+                # points Shogun at ntfy_inbox.yaml. Carrying the full text
+                # here was a bug: Shogun's "Inbox Input Handling" section
+                # does not list `ntfy_received` as a known type, so the
+                # payload was silently consumed and the Lord command was
+                # lost.
                 inbox_write_path = os.path.join(script_dir, "inbox_write.sh")
                 try:
                     subprocess.run([
                         "bash", inbox_write_path, "shogun",
-                        f"Received new command from Telegram: {concatenated_text}",
+                        "New Telegram message in queue/ntfy_inbox.yaml (status: pending).",
                         "ntfy_received", "telegram_listener"
                     ], check=True)
                 except Exception as e:
@@ -1870,6 +1926,15 @@ def main():
                     # Question file was removed (answered and cleaned up) — drop
                     # any throttle entries for completed questions.
                     last_blinker_edit.clear()
+                    # NOTE: do NOT clear _processed_question_message_ids here.
+                    # Telegram may re-deliver callbacks for the same question
+                    # message_id AFTER telegram_ask.py has consumed the file
+                    # and the blinker has run with no active question.
+                    # Clearing here would erase the dedup state and let those
+                    # late callbacks fall into the wipe-keyboard else branch.
+                    # The set is bounded by the total number of questions
+                    # ever answered in this listener's lifetime, which is
+                    # small (tens at most), so memory growth is not a concern.
                     # Drain the FIFO of pending Lord questions now that the
                     # active one is gone. Race-free: the bash lord_ask.sh
                     # caller has already consumed the answer and removed the

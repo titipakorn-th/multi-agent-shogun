@@ -1815,5 +1815,416 @@ class TestAgentStatusShWidth(unittest.TestCase):
         self.assertIn("0/3 active", out)
 
 
+class TestCallbackKeyboardPreservation(unittest.TestCase):
+    """Bug 1 regression: when a callback_query arrives after
+    current_question.json has already been deleted (the common race with
+    telegram_ask.py's cleanup_question_file), the listener must NOT
+    wipe the keyboard on the original question message. Otherwise the
+    Lord sees the buttons vanish mid-conversation.
+
+    Same applies when a callback arrives for a question whose message_id
+    doesn't match the active question (stale replay / out-of-order
+    delivery). The original question's keyboard must be preserved."""
+
+    def setUp(self):
+        os.environ["TELEGRAM_BOT_TOKEN"] = "123456:mock_token"
+        os.environ["TELEGRAM_CHAT_ID"] = "12345"
+
+        script_dir = os.path.dirname(os.path.abspath(telegram_listener.__file__))
+        self.queue_dir = os.path.normpath(os.path.join(script_dir, "../queue"))
+        self.question_file = os.path.join(self.queue_dir, "current_question.json")
+        os.makedirs(self.queue_dir, exist_ok=True)
+        # Reset listener's dedup state so the test is hermetic.
+        if hasattr(telegram_listener, "_processed_question_message_ids"):
+            telegram_listener._processed_question_message_ids.clear()
+
+    def tearDown(self):
+        try:
+            os.remove(self.question_file)
+        except OSError:
+            pass
+        if hasattr(telegram_listener, "_processed_question_message_ids"):
+            telegram_listener._processed_question_message_ids.clear()
+
+    @patch('telegram_listener.make_telegram_request')
+    @patch('telegram_listener.append_to_inbox')
+    @patch('subprocess.run')
+    @patch('time.sleep')
+    @patch('time.time')
+    def test_late_callback_does_not_wipe_keyboard_when_question_file_gone(
+        self, mock_time, mock_sleep, mock_subprocess, mock_append, mock_request,
+    ):
+        # Scenario: a question (message_id 7001) was answered earlier.
+        # telegram_ask.py consumed the response and deleted
+        # current_question.json. Now a late callback_query arrives
+        # (Telegram out-of-order delivery or the Lord double-tapped).
+        # The listener must NOT wipe the keyboard — the question was
+        # already answered and the buttons on the original message are
+        # the Lord-visible record of what happened.
+        # Freeze time so the blinker block's comparisons don't trip on a
+        # MagicMock fallback from the bare-mocked time.time().
+        mock_time.side_effect = lambda: 1000.0
+
+        # No question file on disk (telegram_ask.py cleaned up).
+        self.assertFalse(os.path.exists(self.question_file))
+
+        # Simulate that the listener already processed message_id 7001
+        # earlier in this conversation. The fix tracks processed
+        # message_ids in a module-level set so late callbacks can be
+        # ack'd without touching the message.
+        telegram_listener._processed_question_message_ids.add(7001)
+
+        responses = [
+            {"ok": True},  # setMyCommands
+            {"ok": True, "result": []},  # bootstrap getUpdates
+            # Late callback for a question whose message_id matches no
+            # active question. Before the fix, this fell into the else
+            # branch and called editMessageReplyMarkup with empty keyboard.
+            {"ok": True, "result": [{
+                "update_id": 100,
+                "callback_query": {
+                    "id": "cb_late_1",
+                    "data": "opt_0",
+                    "message": {
+                        "message_id": 7001,
+                        "chat": {"id": 12345},
+                    },
+                },
+            }]},
+            {"ok": True, "result": []},  # next poll, no updates
+        ]
+        mock_request.side_effect = (
+            lambda token, method, payload=None: responses.pop(0)
+            if responses
+            else {"ok": True, "result": []}
+        )
+
+        call_count = {"n": 0}
+
+        def stop_after_limit(*args, **kwargs):
+            call_count["n"] += 1
+            if call_count["n"] > 5:
+                raise KeyboardInterrupt("Stop")
+
+        mock_sleep.side_effect = stop_after_limit
+
+        try:
+            telegram_listener.main()
+        except KeyboardInterrupt:
+            pass
+        except SystemExit as e:
+            print(f"DEBUG: SystemExit code={e.code}", file=sys.stderr)
+
+        # DEBUG: dump all request calls
+        import sys
+        # (debug prints removed before commit)
+
+        # Critical assertion: editMessageReplyMarkup must NOT have been
+        # called. Before the fix, the else branch at lines 1588-1597 wiped
+        # the keyboard for ANY callback that didn't match an active
+        # question, including stale replays. The fix must suppress the
+        # wipe when the callback targets a question message_id we've
+        # already processed (or that the listener no longer tracks).
+        edit_markup_calls = [
+            c for c in mock_request.call_args_list
+            if c[0][1] == "editMessageReplyMarkup"
+        ]
+        self.assertEqual(
+            len(edit_markup_calls), 0,
+            f"Listener wiped keyboard via editMessageReplyMarkup for a "
+            f"late callback — this destroys the buttons the Lord can "
+            f"still see in Telegram. Saw {len(edit_markup_calls)} call(s): "
+            f"{edit_markup_calls}",
+        )
+
+        # The callback_query must still be ack'd so the Telegram client
+        # doesn't show a perpetual loading spinner on the Lord side.
+        answer_calls = [
+            c for c in mock_request.call_args_list
+            if c[0][1] == "answerCallbackQuery"
+            and c[0][2].get("callback_query_id") == "cb_late_1"
+        ]
+        self.assertGreaterEqual(
+            len(answer_calls), 1,
+            "answerCallbackQuery must still be called for late callbacks "
+            "(clears the Telegram client spinner) even when the question "
+            "file is gone.",
+        )
+
+        # And the ack text should indicate the question is already
+        # handled (so the Lord knows their tap didn't get lost).
+        ack_text = answer_calls[0][0][2].get("text", "")
+        self.assertIn(
+            "Already", ack_text,
+            f"Late-callback ack should signal 'already processed' to the "
+            f"Lord, not 'Acknowledged' (which would suggest the tap was "
+            f"accepted as a fresh answer). Got: {ack_text!r}",
+        )
+
+    @patch('telegram_listener.append_to_inbox')
+    @patch('telegram_listener.make_telegram_request')
+    @patch('subprocess.run')
+    @patch('time.sleep')
+    @patch('time.time')
+    def test_callback_for_known_question_message_id_is_idempotent(
+        self, mock_time, mock_sleep, mock_subprocess, mock_append, mock_request,
+    ):
+        """Regression: after the answer path marks the question answered
+        and writes the response to the file, a duplicate callback (same
+        message_id) arriving in the same poll batch must NOT re-fire
+        editMessageText (it would clobber the answer confirmation) and
+        must NOT re-wake Orchestrator (it would create a duplicate
+        'Telegram question answered' event in shogun/orchestrator inbox).
+        """
+        mock_time.side_effect = lambda: 1000.0
+
+        # Active question in `pending` state.
+        os.makedirs(os.path.dirname(self.question_file), exist_ok=True)
+        with open(self.question_file, "w", encoding="utf-8") as f:
+            json.dump({
+                "question": "Continue?",
+                "options": ["Yes", "No"],
+                "message_id": 8001,
+                "timestamp": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
+                "status": "pending",
+            }, f)
+
+        mock_time.side_effect = lambda: 1000.0
+
+        # Two callbacks for the same message_id in the same update batch.
+        # The first should be processed; the second should be a no-op.
+        responses = [
+            {"ok": True},  # setMyCommands
+            {"ok": True, "result": []},  # bootstrap getUpdates
+            {"ok": True, "result": [
+                {
+                    "update_id": 100,
+                    "callback_query": {
+                        "id": "cb_first",
+                        "data": "opt_0",
+                        "message": {"message_id": 8001, "chat": {"id": 12345}},
+                    },
+                },
+                {
+                    "update_id": 101,
+                    "callback_query": {
+                        "id": "cb_dup",
+                        "data": "opt_0",
+                        "message": {"message_id": 8001, "chat": {"id": 12345}},
+                    },
+                },
+            ]},
+            {"ok": True, "result": []},  # next poll
+        ]
+        mock_request.side_effect = (
+            lambda token, method, payload=None: responses.pop(0)
+            if responses
+            else {"ok": True, "result": []}
+        )
+
+        call_count = {"n": 0}
+
+        def stop_after_limit(*args, **kwargs):
+            call_count["n"] += 1
+            if call_count["n"] > 5:
+                raise KeyboardInterrupt("Stop")
+
+        mock_sleep.side_effect = stop_after_limit
+
+        try:
+            telegram_listener.main()
+        except KeyboardInterrupt:
+            pass
+
+        # Count editMessageText calls for the question message_id.
+        # Buggy code: 2 (one per callback). Fixed code: 1.
+        edit_text_calls = [
+            c for c in mock_request.call_args_list
+            if c[0][1] == "editMessageText"
+            and c[0][2].get("message_id") == 8001
+        ]
+        self.assertLessEqual(
+            len(edit_text_calls), 1,
+            f"Duplicate callback for the same question message_id must "
+            f"NOT re-edit the message. Saw {len(edit_text_calls)} "
+            f"editMessageText calls.",
+        )
+
+        # Orchestrator must be nudged at most once.
+        nudged = [
+            c for c in mock_subprocess.call_args_list
+            if c[0]
+            and isinstance(c[0][0], list)
+            and len(c[0][0]) >= 5
+            and c[0][0][2] == "orchestrator"
+            and c[0][0][4] == "telegram_answer"
+        ]
+        self.assertLessEqual(
+            len(nudged), 1,
+            f"Duplicate callback must NOT re-nudge Orchestrator. "
+            f"Saw {len(nudged)} nudge(s).",
+        )
+
+
+class TestPlainLordMessageRouting(unittest.TestCase):
+    """Bug 2 regression: a plain text message from the Lord (not a slash
+    command, not an answer to an active question) must be written to
+    queue/ntfy_inbox.yaml with status:pending — the file Shogun's
+    'ntfy Input Handling' section explicitly reads. Without this,
+    Shogun's 'Inbox Input Handling' section (the only handler for
+    queue/inbox/shogun.yaml) does not list 'ntfy_received' as a known
+    type, so the message is silently consumed and the Lord command is
+    lost.
+
+    The legacy shadow-log writer at scripts/telegram_listener.py:1803
+    wrote to ntfy_inbox.yaml but did not set status:pending. Shogun's
+    audit log expects status:pending for new entries.
+    """
+
+    def setUp(self):
+        os.environ["TELEGRAM_BOT_TOKEN"] = "123456:mock_token"
+        os.environ["TELEGRAM_CHAT_ID"] = "12345"
+
+        script_dir = os.path.dirname(os.path.abspath(telegram_listener.__file__))
+        self.queue_dir = os.path.normpath(os.path.join(script_dir, "../queue"))
+        self.shadow_log = os.path.join(self.queue_dir, "ntfy_inbox.yaml")
+        self.system_inbox = os.path.join(self.queue_dir, "inbox", "shogun.yaml")
+        for p in (self.shadow_log, self.system_inbox):
+            if os.path.exists(p):
+                os.remove(p)
+
+    def tearDown(self):
+        for p in (self.shadow_log, self.system_inbox):
+            if os.path.exists(p):
+                os.remove(p)
+
+    @patch('telegram_listener.make_telegram_request')
+    @patch('telegram_listener.append_to_inbox')
+    @patch('subprocess.run')
+    @patch('time.sleep')
+    @patch('time.time')
+    def test_plain_lord_message_lands_in_ntfy_inbox_with_raw_text(
+        self, mock_time, mock_sleep, mock_subprocess, mock_append, mock_request,
+    ):
+        """Regression: a plain Lord message (not a slash command, not an
+        answer to an active question) must be routed to TWO places:
+          1. queue/ntfy_inbox.yaml — the file Shogun's "ntfy Input
+             Handling" reads, with status:pending and the RAW Lord text.
+          2. queue/inbox/shogun.yaml — a minimal wake-up nudge via
+             inbox_write.sh so Shogun's "inboxN" prompt fires.
+
+        The bug: the listener used to write the FULL Lord text (with
+        "Received new command from Telegram: " prefix) into
+        queue/inbox/shogun.yaml only. Shogun's "Inbox Input Handling"
+        section does not list ntfy_received as a known type, so the
+        message was silently consumed and the Lord command was lost.
+
+        After the fix: the raw text goes to ntfy_inbox.yaml (which
+        Shogun's ntfy handler does process), and the system inbox write
+        carries only a short nudge pointing Shogun to that file.
+        """
+        mock_time.side_effect = lambda: time_values.pop(0) if time_values else 1005.0
+        time_values = [1000.0, 1000.0, 1000.0, 1002.0, 1002.0, 1002.0]
+
+        responses = [
+            {"ok": True, "result": []},  # bootstrap getUpdates
+            {"ok": True},                 # setMyCommands
+            # Two chunks so the buffer-flush logic matches the canonical test.
+            {"ok": True, "result": [
+                {
+                    "update_id": 100,
+                    "message": {
+                        "message_id": 2001,
+                        "chat": {"id": 12345},
+                        "text": "Investigate why login fails on",
+                    },
+                },
+                {
+                    "update_id": 101,
+                    "message": {
+                        "message_id": 2002,
+                        "chat": {"id": 12345},
+                        "text": "Safari browser",
+                    },
+                },
+            ]},
+            {"ok": True, "result": []},
+        ]
+        mock_request.side_effect = lambda *a, **kw: responses.pop(0) if responses else {"ok": True}
+
+        def stop_after_append(*args, **kwargs):
+            if mock_append.call_count > 0:
+                raise KeyboardInterrupt("Stop after append_to_inbox")
+        mock_sleep.side_effect = stop_after_append
+
+        try:
+            telegram_listener.main()
+        except KeyboardInterrupt:
+            pass
+
+        # 1. The Lord command must have been written to ntfy_inbox.yaml
+        #    via append_to_inbox, with the RAW text (no "Received new
+        #    command from Telegram: " prefix).
+        append_calls = mock_append.call_args_list
+        shadow_writes = [
+            c for c in append_calls
+            if "ntfy_inbox" in str(c[0][0])  # inbox_path is first positional arg
+        ]
+        self.assertGreaterEqual(
+            len(shadow_writes), 1,
+            f"Listener must write plain Lord messages to ntfy_inbox.yaml "
+            f"(Shogun's ntfy handler reads that file). Got {len(append_calls)} "
+            f"append_to_inbox calls total.",
+        )
+        shadow_call = shadow_writes[0]
+        # args[1] = msg_id, args[2] = msg_text (concatenated chunks)
+        written_text = shadow_call[0][2]
+        self.assertEqual(
+            written_text,
+            "Investigate why login fails on\nSafari browser",
+            "ntfy_inbox.yaml entry must contain the raw Lord text "
+            "(Shogun's ntfy handler processes it as a plain command). "
+            "Got: " + repr(written_text),
+        )
+
+        # 2. The system inbox write (queue/inbox/shogun.yaml) must carry
+        #    a MINIMAL nudge — NOT the full text. Shogun's "Inbox Input
+        #    Handling" doesn't list ntfy_received, so the full-text
+        #    payload was silently dropped before the fix. The fix sends
+        #    a short pointer message that just tells Shogun to look at
+        #    ntfy_inbox.yaml.
+        inbox_writes = [
+            c for c in mock_subprocess.call_args_list
+            if c[0]
+            and isinstance(c[0][0], list)
+            and len(c[0][0]) >= 5
+            and c[0][0][2] == "shogun"
+            and c[0][0][4] == "ntfy_received"
+        ]
+        self.assertEqual(
+            len(inbox_writes), 1,
+            f"Listener must write exactly one nudge to queue/inbox/shogun.yaml "
+            f"(type=ntfy_received, target=shogun). Got {len(inbox_writes)} "
+            f"call(s): {inbox_writes}",
+        )
+        nudge_content = inbox_writes[0][0][0][3]  # bash inbox_write.sh <target> <content> <type> <from>
+        # The nudge must NOT contain the full Lord command — that's the
+        # bug we're fixing. It should be a short pointer.
+        self.assertNotIn(
+            "Investigate why login fails", nudge_content,
+            f"System inbox nudge must NOT carry the full Lord command "
+            f"(Shogun's inbox handler drops it because ntfy_received "
+            f"isn't a recognised type). Got: {nudge_content!r}",
+        )
+        # And it SHOULD mention ntfy_inbox.yaml so a future Shogun
+        # instruction can route correctly.
+        self.assertIn(
+            "ntfy_inbox", nudge_content,
+            f"System inbox nudge should reference ntfy_inbox.yaml so "
+            f"Shogun knows where to find the Lord command. Got: "
+            f"{nudge_content!r}",
+        )
+
+
 if __name__ == '__main__':
     unittest.main()
