@@ -97,10 +97,11 @@ fi
 
 REQUEST_ID="$(date +%s)-$(printf '%04x' $RANDOM)"
 
-# Build telegram_ask.py args
-ASK_ARGS=(--question "$QUESTION" --question-file "$QUESTION_FILE"
-          --chat-id "$TELEGRAM_CHAT_ID" --token "$TELEGRAM_BOT_TOKEN"
-          --timeout "$TIMEOUT" --no-wait)
+# Build telegram_ask.py args. Token + chat_id come from env (telegram_ask.py
+# reads TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID itself, falling back to
+# config/telegram.env). Passing --question-file / --chat-id / --token to
+# telegram_ask.py would be rejected by its argparse as unknown flags.
+ASK_ARGS=(--question "$QUESTION" --timeout "$TIMEOUT" --no-wait)
 for o in "${OPTIONS[@]:-}"; do
     ASK_ARGS+=(--options "$o")
 done

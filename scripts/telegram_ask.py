@@ -62,20 +62,6 @@ def main():
 
     question_file = os.path.join(script_dir, "../queue/current_question.json")
 
-    # Only write current_question.json if this is NOT an informational message
-    if not args.info:
-        question_data = {
-            "question": args.question,
-            "options": args.options or [],
-            "timestamp": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
-            "status": "pending"
-        }
-        try:
-            with open(question_file, "w", encoding="utf-8") as f:
-                json.dump(question_data, f, indent=2, ensure_ascii=False)
-        except Exception as e:
-            print(f"WARNING: Failed to write to {question_file}: {e}", file=sys.stderr)
-
     def cleanup_question_file():
         if not args.info:
             try:
@@ -107,15 +93,26 @@ def main():
         sys.exit(1)
 
     sent_message_id = send_res["result"]["message_id"]
-    
-    # Update current_question.json with sent_message_id if not informational
+
+    # ponytail: write current_question.json EXACTLY ONCE, AFTER Telegram
+    # returns message_id. The previous two-write sequence opened a race:
+    # the listener could load the no-message-id intermediate write, then
+    # fail to match callback_query.message_id against active_question.message_id
+    # (None), silently dropping Lord's button taps and never marking the
+    # question answered.
     if not args.info:
-        question_data["message_id"] = sent_message_id
+        question_data = {
+            "question": args.question,
+            "options": args.options or [],
+            "timestamp": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
+            "status": "pending",
+            "message_id": sent_message_id,
+        }
         try:
             with open(question_file, "w", encoding="utf-8") as f:
                 json.dump(question_data, f, indent=2, ensure_ascii=False)
         except Exception as e:
-            print(f"WARNING: Failed to update {question_file}: {e}", file=sys.stderr)
+            print(f"WARNING: Failed to write to {question_file}: {e}", file=sys.stderr)
 
     if args.info or args.no_wait:
         if args.info:
