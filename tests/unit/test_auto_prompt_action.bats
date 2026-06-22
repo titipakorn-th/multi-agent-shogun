@@ -80,3 +80,17 @@ continued-line (Recommended), (b) other"
     [ "$status" -eq 0 ]
     [ "$output" = "high" ]
 }
+
+@test "TC-APR-07: multi-choice with embedded parens in option text" {
+    # Edge case: option (a) text contains parentheses "(Recommended)" inside the
+    # option body itself. The parser must identify "(Recommended)" as the marker
+    # by anchoring on the LAST closing paren of the recommended option, not a
+    # paren that appears inside option text. Returns the option text minus the
+    # marker.
+    write_fixture "tc07.txt" \
+        "ACTION_REQUIRED: pick a feature | CHOICES: (a) audit-log preview (Recommended), (b) full diff preview with side-by-side compare"
+
+    run auto_prompt_resolve_action "$TEST_FIXTURES_DIR/tc07.txt"
+    [ "$status" -eq 0 ]
+    [ "$output" = "audit-log preview" ]
+}

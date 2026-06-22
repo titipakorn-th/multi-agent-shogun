@@ -870,6 +870,29 @@ Treat the answer as the Lord's directive. If `lord_ask.sh` exits non-zero (Teleg
 
 For items requiring the Lord's decision that don't fit the lord_ask flow, delegate to shogun via `inbox_write.sh shogun ... action_required orchestrator` and update dashboard.md 🚨 Action Required.
 
+## Lord Decision Protocol (post-cmd_036)
+
+Lord Decisions MUST be emitted as `type:action_required` inbox messages with body formatted as `ACTION_REQUIRED: {Topic} | CHOICES: {A}, {B} (Recommended)`. The shogun's auto-prompt resolver (`scripts/lib/auto_prompt_resolve_action.sh`) parses this format, picks the option tagged `(Recommended)`, records the resolution in `queue/auto_prompt_state.yaml`, and Lord is NOT pinged.
+
+Orchestrator MUST NOT use `awaiting_lord_decision=true` (`queue/lord_decisions_*.yaml`) + `bash scripts/telegram_ask.py --no-wait` as the primary decision path. That legacy pattern remains as fallback ONLY when `auto_prompt.enabled=false` in `config/settings.yaml`.
+
+### Examples
+
+**Q1 — onboarding persistence:**
+```bash
+bash scripts/inbox_write.sh shogun 'ACTION_REQUIRED: onboarding persistence | CHOICES: (a) localStorage only — status quo from cmd_035 §7.5 (Recommended), (b) server-side persisted via new /onboarding/state endpoint' action_required orchestrator
+```
+
+**Q2 — wanted-post expiry:**
+```bash
+bash scripts/inbox_write.sh shogun 'ACTION_REQUIRED: wanted-post expiry | CHOICES: (A) auto-refund buyer pre-fund + notify buyer (Recommended), (B) keep wanted live, no auto-expiry' action_required orchestrator
+```
+
+**Q3 — B2B second-approver UX:**
+```bash
+bash scripts/inbox_write.sh shogun 'ACTION_REQUIRED: B2B second-approver UX | CHOICES: (a) audit-log preview + free-text reply (Recommended), (b) full diff preview with side-by-side compare' action_required orchestrator
+```
+
 
 ## Available Skills
 
