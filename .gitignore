@@ -98,6 +98,9 @@
 !config/opencode-tui.json
 !config/opencode-permissions.yaml
 !config/settings.yaml.sample
+!config/settings.yaml
+!plans/
+!plans/*.md
 
 # Templates
 !templates/

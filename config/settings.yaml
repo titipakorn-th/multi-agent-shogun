@@ -1,0 +1,148 @@
+language: en
+shell: bash
+topology: v2
+# Suffix for tmux sessions (e.g. shogun_suffix, multiagent_suffix).
+# Options:
+#   "auto"  - Auto-detect from folder name suffix (e.g. multi-agent-shogun-safepay -> _safepay)
+#   ""      - Force no suffix (uses "shogun" and "multiagent")
+#   "_name" - Force a specific suffix
+tmux_session_suffix: auto
+skill:
+  save_path: ~/.claude/skills/
+  local_path: ./skills/
+logging:
+  level: info
+  path: ./logs/
+auto_prompt:
+  # Auto-dispatch next pending plan task after cmd completes.
+  # See instructions/shogun.md → "Auto-Prompt on Task Completion".
+  enabled: true
+  # Cap dispatches within a session — prevents infinite loops.
+  max_dispatches_per_session: 5
+  # When all plans complete, ask Lord via Telegram instead of going silent.
+  prompt_when_no_plans: true
+cli:
+  default: claude
+roles:
+  shogun:
+    model: opus
+    cli_variant: claude
+    pane_target: shogun:main.0
+    color: "#002b36"
+    title: shogun
+    prompt_path: instructions/shogun.md
+    temperature: 0.1
+    skills:
+      - zoom-out
+      - grill-with-docs
+    permissions_override: {}
+  orchestrator:
+    model: opus
+    cli_variant: claude
+    pane_target: multiagent:ops.0
+    color: "#501515"
+    title: orchestrator
+    prompt_path: instructions/orchestrator.md
+    temperature: 0.1
+    skills: []
+    permissions_override:
+      read_allow:
+        - queue/inbox/orchestrator.yaml
+        - queue/tasks/*.yaml
+        - queue/reports/*.yaml
+        - context/*
+        - dashboard.md
+      edit_allow:
+        - queue/tasks/*.yaml
+        - queue/tasks/pending.yaml
+        - dashboard.md
+      edit_deny:
+        - queue/reports/*.yaml
+  explorer:
+    model: sonnet
+    cli_variant: claude
+    pane_target: multiagent:research.0
+    color: "#454510"
+    title: explorer
+    prompt_path: instructions/explorer.md
+    temperature: 0.1
+    skills:
+      - codemap
+    permissions_override:
+      read_allow:
+        - context/*
+      edit_deny:
+        - "**/*"
+  librarian:
+    model: sonnet
+    cli_variant: claude
+    pane_target: multiagent:research.1
+    color: "#503515"
+    title: librarian
+    prompt_path: instructions/librarian.md
+    temperature: 0.2
+    skills:
+      - web-search
+      - doc-fetch
+    permissions_override:
+      edit_deny:
+        - "**/*"
+  oracle:
+    model: opus
+    cli_variant: claude
+    pane_target: multiagent:research.2
+    color: "#9e7c0a"
+    title: oracle
+    prompt_path: instructions/oracle.md
+    temperature: 0.1
+    skills:
+      - grill-with-docs
+    permissions_override:
+      edit_deny:
+        - "**/*"
+  designer:
+    model: sonnet
+    cli_variant: claude
+    pane_target: multiagent:ops.2
+    color: "#3a1e3a"
+    title: designer
+    prompt_path: instructions/designer.md
+    temperature: 0.3
+    skills:
+      - frontend-design
+    permissions_override: {}
+  fixer:
+    model: sonnet
+    cli_variant: claude
+    pane_target: multiagent:ops.1
+    color: "#1e3a1e"
+    title: fixer
+    prompt_path: instructions/fixer.md
+    temperature: 0.2
+    skills:
+      - subagent-driven-development
+    permissions_override: {}
+  observer:
+    model: sonnet
+    cli_variant: claude
+    pane_target: multiagent:ops.3
+    color: "#1e3a3a"
+    title: observer
+    prompt_path: instructions/observer.md
+    temperature: 0.2
+    skills: []
+    permissions_override:
+      edit_deny:
+        - "**/*"
+  council:
+    model: opus
+    cli_variant: claude
+    pane_target: multiagent:research.3
+    color: "#353535"
+    title: council
+    prompt_path: instructions/council.md
+    temperature: 0.1
+    skills: []
+    permissions_override:
+      edit_deny:
+        - "**/*"
