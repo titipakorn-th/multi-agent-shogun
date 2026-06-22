@@ -272,6 +272,7 @@ When a message arrives in `queue/inbox/shogun.yaml` (signaled by `inboxN` typed 
      4. Send a confirmation to the Lord via `bash scripts/ntfy.sh "✅ cmd_xxx cancelled at <checkpoint>"` so they know the cancel landed.
      5. **Clear Pending Pings**: Remove any entries from `queue/pending_pings.yaml` whose `task_id` matches the cancelled cmd (same as completion cleanup).
 3. Update the processed entries: set `read: true` using the file edit tool (Read → Edit the YAML). This is mandatory — without it, the listener's stale-inbox watchdog and stale-internal-inbox watchdog cannot distinguish "handled" from "lost".
+3.5. **[Auto-Prompt]** Check for the next pending plan task (see "Auto-Prompt on Task Completion" section below). If a pending task exists, dispatch it before going idle so the Lord doesn't have to send the next command.
 4. Go idle.
 
 ## Progress Pings for Long Commands
@@ -327,6 +328,97 @@ When you receive `type: report_completed` or `type: report_failed` for a cmd, re
 - No cron: cron is for recurring background jobs; pings are per-command and must be cleared on completion.
 - 5-second dedup in `scripts/ntfy.sh` already handles accidental double-fires.
 - Bounded cost: at most a few YAML entries per active cmd.
+
+## Auto-Prompt on Task Completion (auto_prompt)
+
+When a cmd completes, before going idle, Shogun should check `plans/*.md`
+for the next pending task and auto-dispatch it — so the Lord doesn't have
+to send every command manually. Reference:
+[`plans/README.md`](../plans/README.md) for plan-file format, and the
+original concept in `/Users/prince/Workspaces/zed/.plans/01_auto_prompt.md`.
+
+### Trigger
+
+After step 3 of "Inbox Input Handling" Processing Steps (mark `read: true`)
+and before step 4 (Go idle). See step 3.5 inserted above.
+
+### Decision flow
+
+1. **Config gate**. Read `config/settings.yaml` → `auto_prompt.enabled`.
+   If false, skip the entire flow and go idle.
+2. **Session cap**. Read `queue/auto_prompt_state.yaml` →
+   `dispatches_this_session`. If
+   `dispatches_this_session >= auto_prompt.max_dispatches_per_session`,
+   skip and ask Lord via Telegram:
+   ```bash
+   bash scripts/ntfy.sh "🏯 auto_prompt cap reached. What's next?"
+   ```
+3. **Find next pending task**. Glob `plans/*.md` sorted by filename
+   (oldest first — date-prefixed names sort chronologically). For each
+   plan file:
+   a. Read frontmatter. If `auto_continue: false`, skip this plan.
+   b. Parse `## Status` for the **first** `- [ ]` line.
+   c. If found, look up the matching `### Task N: ...` body under
+      `## Task Details` for the cmd's `command` field.
+   d. If found, dispatch (step 4). Stop here — only one auto-dispatch
+      per cmd-completion event.
+4. **Dispatch** the next task:
+   - Append a new cmd to `queue/shogun_to_orchestrator.yaml` with id
+     `auto_<unix_ts>`, status `pending`, `north_star` from the plan
+     title, `command` from the `### Task N` body, `priority: medium`,
+     `project: <inherited from current cmd or 'shogun-system'>`.
+   - Wake Orchestrator:
+     ```bash
+     bash scripts/inbox_write.sh orchestrator \
+       "Auto-continuing from plan: <plan_filename> — Task N: <title>" \
+       task_assigned shogun
+     ```
+   - Increment `dispatches_this_session` in the state file (Edit YAML).
+   - Notify Lord:
+     ```bash
+     bash scripts/ntfy.sh "🏯 Auto-continuing: <plan title> — Task N: <title>"
+     ```
+5. **All plans complete** (no plan had a pending task):
+   - If `auto_prompt.prompt_when_no_plans` is true:
+     ```bash
+     bash scripts/ntfy.sh "🏯 All plans complete! What's next?"
+     ```
+   - Else: stay silent — Lord sends next cmd when ready.
+6. **Reset** `dispatches_this_session` to 0 when the auto-dispatched cmd
+   itself reaches `report_completed`. Read the cmd's `id` from
+   `queue/inbox/shogun.yaml`; if it starts with `auto_`, reset the
+   counter.
+
+### Plan-parsing helper (sourced bash function)
+
+To keep this logic testable, the selection routine lives in
+`scripts/lib/auto_prompt_select.sh` as a sourced function. Shogun may
+either invoke it directly via `source scripts/lib/auto_prompt_select.sh
+&& auto_prompt_select_next`, or follow the decision flow inline as
+described above. The bats test in `tests/unit/test_auto_prompt.bats`
+validates the helper against synthetic plans.
+
+### Safety guarantees
+
+- `max_dispatches_per_session` (default 5) caps auto-dispatch within a
+  Lord session — prevents infinite loops even if a plan keeps re-emitting
+  pending tasks.
+- Per-plan `auto_continue: false` opt-out — for plans that touch
+  production, secrets, or irreversible actions.
+- Lord retains cancel authority: `/cancel` from Telegram still aborts
+  auto-dispatched cmds via the existing `cancel_request` flow.
+- All-plans-complete → Lord is asked via Telegram, never silently dropped.
+- One auto-dispatch per cmd-completion event — no batching, no chaining.
+
+### Five-case decision tree (Zed reference, adapted)
+
+| Case | Trigger | Action |
+|------|---------|--------|
+| 1 | Plan found with `- [ ]` task | Dispatch first pending task (step 4) |
+| 2 | All plans complete or empty `plans/` | Ask Lord via Telegram (step 5) |
+| 3 | Only `auto_continue: false` plans have pending work | Ask Lord for confirmation |
+| 4 | `dispatches_this_session >= max_dispatches_per_session` | Ask Lord (cap reached) |
+| 5 | `auto_prompt.enabled: false` | Stay silent, go idle |
 
 ## Active Blocker Feedback (Telegram Questions)
 
