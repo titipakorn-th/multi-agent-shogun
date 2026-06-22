@@ -331,11 +331,13 @@ When you receive `type: report_completed` or `type: report_failed` for a cmd, re
 
 ## Auto-Prompt on Task Completion (auto_prompt)
 
-When a cmd completes, before going idle, Shogun should check `plans/*.md`
-for the next pending task and auto-dispatch it — so the Lord doesn't have
-to send every command manually. Reference:
-[`plans/README.md`](../plans/README.md) for plan-file format, and the
-original concept in `/Users/prince/Workspaces/zed/.plans/01_auto_prompt.md`.
+**Design principle: auto_prompt exists to break the project-wide
+ask-Lord-then-wait cycle.** Other parts of this system repeatedly ask
+Lord for confirmation before acting; auto_prompt is the explicit
+exception. Shogun makes the call, Lord sees the results — not the other
+way around. Reference: [`plans/README.md`](../plans/README.md) for
+plan-file format, and the original concept in
+`/Users/prince/Workspaces/zed/.plans/01_auto_prompt.md`.
 
 ### Trigger
 
@@ -349,14 +351,14 @@ and before step 4 (Go idle). See step 3.5 inserted above.
 2. **Session cap**. Read `queue/auto_prompt_state.yaml` →
    `dispatches_this_session`. If
    `dispatches_this_session >= auto_prompt.max_dispatches_per_session`,
-   skip and ask Lord via Telegram:
-   ```bash
-   bash scripts/ntfy.sh "🏯 auto_prompt cap reached. What's next?"
-   ```
+   go silent — no Lord ping, no asking. (Cap is a runaway-loop safety,
+   not a Lord-notification trigger.)
 3. **Find next pending task**. Glob `plans/*.md` sorted by filename
    (oldest first — date-prefixed names sort chronologically). For each
    plan file:
-   a. Read frontmatter. If `auto_continue: false`, skip this plan.
+   a. Read frontmatter. If `auto_continue: false`, **skip silently** —
+      do NOT ping Lord about it. (That plan needs explicit Lord
+      initiation; Lord will dispatch when ready.)
    b. Parse `## Status` for the **first** `- [ ]` line.
    c. If found, look up the matching `### Task N: ...` body under
       `## Task Details` for the cmd's `command` field.
@@ -374,16 +376,18 @@ and before step 4 (Go idle). See step 3.5 inserted above.
        task_assigned shogun
      ```
    - Increment `dispatches_this_session` in the state file (Edit YAML).
-   - Notify Lord:
+   - **Notify Lord** with an action report, NOT a question:
      ```bash
-     bash scripts/ntfy.sh "🏯 Auto-continuing: <plan title> — Task N: <title>"
+     bash scripts/ntfy.sh "🏯 Auto-dispatched: <plan title> — Task N: <title>"
      ```
-5. **All plans complete** (no plan had a pending task):
-   - If `auto_prompt.prompt_when_no_plans` is true:
-     ```bash
-     bash scripts/ntfy.sh "🏯 All plans complete! What's next?"
-     ```
-   - Else: stay silent — Lord sends next cmd when ready.
+     (Use past tense "dispatched" — the action is done, not pending
+     approval.)
+5. **No plan found** (all plans complete, all `auto_continue: false`,
+   or `plans/` empty): **go silent.** Do NOT ping Lord with "what's
+   next?" or "all plans complete!". Lord will initiate when ready.
+   - Rationale: a ping asking "what's next?" is the exact ask-Lord
+     pattern auto_prompt was built to break. If Lord wants continuous
+     work, write a plan. If Lord is silent, Shogun is silent.
 6. **Reset** `dispatches_this_session` to 0 when the auto-dispatched cmd
    itself reaches `report_completed`. Read the cmd's `id` from
    `queue/inbox/shogun.yaml`; if it starts with `auto_`, reset the
@@ -398,27 +402,25 @@ either invoke it directly via `source scripts/lib/auto_prompt_select.sh
 described above. The bats test in `tests/unit/test_auto_prompt.bats`
 validates the helper against synthetic plans.
 
-### Safety guarantees
+### Safety guarantees (no Lord-pings in any of these)
 
-- `max_dispatches_per_session` (default 5) caps auto-dispatch within a
-  Lord session — prevents infinite loops even if a plan keeps re-emitting
-  pending tasks.
-- Per-plan `auto_continue: false` opt-out — for plans that touch
-  production, secrets, or irreversible actions.
+- `max_dispatches_per_session` (default 20) caps auto-dispatch within a
+  Lord session — pure loop safety, silent on cap-reached.
+- Per-plan `auto_continue: false` opt-out — silent skip, no ping.
 - Lord retains cancel authority: `/cancel` from Telegram still aborts
   auto-dispatched cmds via the existing `cancel_request` flow.
-- All-plans-complete → Lord is asked via Telegram, never silently dropped.
+- All-plans-complete → **silent idle**, no Lord notification.
 - One auto-dispatch per cmd-completion event — no batching, no chaining.
 
-### Five-case decision tree (Zed reference, adapted)
+### Decision tree (Zed reference, adapted — no Lord-asking exits)
 
 | Case | Trigger | Action |
 |------|---------|--------|
-| 1 | Plan found with `- [ ]` task | Dispatch first pending task (step 4) |
-| 2 | All plans complete or empty `plans/` | Ask Lord via Telegram (step 5) |
-| 3 | Only `auto_continue: false` plans have pending work | Ask Lord for confirmation |
-| 4 | `dispatches_this_session >= max_dispatches_per_session` | Ask Lord (cap reached) |
-| 5 | `auto_prompt.enabled: false` | Stay silent, go idle |
+| 1 | Plan found with `- [ ]` task | Dispatch silently + report action |
+| 2 | All plans complete / empty `plans/` | Silent idle |
+| 3 | Only `auto_continue: false` plans have pending work | Silent idle (Lord must initiate) |
+| 4 | `dispatches_this_session >= max_dispatches_per_session` | Silent idle (loop safety) |
+| 5 | `auto_prompt.enabled: false` | Silent idle |
 
 ## Active Blocker Feedback (Telegram Questions)
 

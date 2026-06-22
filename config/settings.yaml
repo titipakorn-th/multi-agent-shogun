@@ -16,11 +16,16 @@ logging:
 auto_prompt:
   # Auto-dispatch next pending plan task after cmd completes.
   # See instructions/shogun.md → "Auto-Prompt on Task Completion".
+  # Design principle: auto_prompt exists to break the project-wide
+  # ask-Lord-then-wait cycle. Shogun makes the call, Lord sees results.
   enabled: true
-  # Cap dispatches within a session — prevents infinite loops.
-  max_dispatches_per_session: 5
-  # When all plans complete, ask Lord via Telegram instead of going silent.
-  prompt_when_no_plans: true
+  # Loop safety — cap dispatches within a session. Raised from 5 to 20:
+  # Lord wants sustained autonomous work, not micro-cap that re-triggers
+  # the ask-Lord pattern.
+  max_dispatches_per_session: 20
+  # When no plan has pending work, Shogun goes silent (does NOT ping Lord).
+  # Lord learns: write a plan to keep Shogun busy.
+  prompt_when_no_plans: false
 cli:
   default: claude
 roles:
