@@ -12,7 +12,7 @@ auto_continue: true
 - [x] Task 3: Add auto_prompt block to config/settings.yaml
 - [x] Task 4: Initialize queue/auto_prompt_state.yaml
 - [x] Task 5: Write tests/unit/test_auto_prompt.bats
-- [ ] Task 6: Run bats suite, verify green, commit, push
+- [x] Task 6: Run bats suite, verify green, commit, push
 
 ## Problem
 
