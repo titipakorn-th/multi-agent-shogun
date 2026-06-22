@@ -30,3 +30,37 @@ for s in "${SESSIONS[@]}"; do
         echo "[cleanup] no session: $s (skipped)"
     fi
 done
+
+# Kill inbox_watcher.sh + watcher_supervisor.sh instances tied to THIS
+# project. Discriminator: tmux pane target always has form `<session>:
+# <window>.<pane>` (e.g. `shogun:main.0`, `multiagent_safepay:ops.0`).
+# Match the literal `<session>:` substring so a sibling session like
+# `multiagent_safepay:ops.0` does NOT match this project's `multiagent:`
+# (the `_safepay` between `multiagent` and `:` breaks the substring).
+# Without this cleanup, watchers outlive their sessions and try to
+# nudge dead panes on every poll.
+#
+# Why basename pgrep (not absolute path): watcher_supervisor.sh spawns
+# children as `bash scripts/inbox_watcher.sh ...` (relative path), so
+# pgrep by absolute SCRIPT_DIR misses our OWN watchers. Session-name
+# anchor is the real safety guarantee.
+SESSION_REGEX="($(printf '%s:|' "${SESSIONS[@]}" | sed 's/|$//'))"
+for pattern in "scripts/inbox_watcher.sh" "scripts/watcher_supervisor.sh"; do
+    pids=$(pgrep -f "${pattern}" 2>/dev/null || true)
+    scoped_pids=""
+    if [[ -n "$pids" ]]; then
+        for pid in $pids; do
+            cmdline=$(ps -p "$pid" -o args= 2>/dev/null || true)
+            if [[ "$cmdline" =~ $SESSION_REGEX ]]; then
+                scoped_pids+="$pid "
+            fi
+        done
+    fi
+    scoped_pids="${scoped_pids% }"
+    if [[ -n "$scoped_pids" ]]; then
+        echo "$scoped_pids" | xargs kill 2>/dev/null || true
+        echo "[cleanup] killed $pattern: $scoped_pids"
+    else
+        echo "[cleanup] no $pattern matching our sessions (skipped)"
+    fi
+done
