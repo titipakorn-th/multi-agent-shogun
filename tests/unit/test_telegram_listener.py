@@ -1409,13 +1409,15 @@ class TestCancelCommandRouting(unittest.TestCase):
         telegram_listener._last_cancel_ts = 0.0
         telegram_listener._last_cancel_cmd_id = None
 
+    @patch("telegram_listener._find_active_cmd_id", return_value=None)
     @patch("subprocess.run")
     @patch("telegram_listener.append_to_inbox")
     @patch("telegram_listener.make_telegram_request")
     @patch("time.sleep")
     @patch("time.time")
     def test_cancel_routes_through_listener_directly(
-        self, mock_time, mock_sleep, mock_request, mock_append, mock_subprocess
+        self, mock_time, mock_sleep, mock_request, mock_append, mock_subprocess,
+        mock_find_active
     ):
         # No active cmd on disk -> friendly message
         responses = [
