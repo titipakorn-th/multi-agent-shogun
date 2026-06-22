@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# lord_ask.sh — AskQuestion → Telegram wrapper.
+# lord_ask.sh — AskQuestion → Telegram wrapper with CLI fallback.
 #
 # Usage:
 #   lord_ask.sh <question> [option1 option2 ...] [--timeout <seconds>]
 #
-# Behavior:
+# Behavior (telegram.mode=on):
 #   1. Generates a request_id.
 #   2. Calls telegram_ask.py to send the question to Telegram and write
 #      queue/current_question.json.
@@ -12,7 +12,13 @@
 #   4. On success: prints the answer to stdout, clears the file, exits 0.
 #   5. On timeout: prints "no answer; proceeding with default", emits a
 #      lord_question_timeout event into queue/inbox/shogun.yaml, exits 3.
-#   6. On Telegram not configured: prints message to stderr, exits 2.
+#
+# Behavior (telegram.mode=off):
+#   Lord is at CLI. Fall back to a plain terminal ask: print the question,
+#   list options, read the answer from stdin. Print the answer to stdout on
+#   success, exit 0. No Telegram, no queue file.
+#
+# See instructions/shogun.md → "Response Channel Mode (telegram.mode)".
 #
 # Test overrides:
 #   LORD_ASK_PYTHON     — path to telegram_ask.py (default: $SCRIPT_DIR/telegram_ask.py)
@@ -73,13 +79,6 @@ pending_pop() {
     mv "$PENDING_FILE.tmp" "$PENDING_FILE"
 }
 
-if [[ -z "${TELEGRAM_BOT_TOKEN:-}" || -z "${TELEGRAM_CHAT_ID:-}" \
-      || "$TELEGRAM_BOT_TOKEN" == "your_bot_token_here" \
-      || "$TELEGRAM_CHAT_ID" == "your_chat_id_here" ]]; then
-    echo "Telegram not configured — falling back to terminal." >&2
-    exit 2
-fi
-
 # Parse args
 QUESTION=""
 OPTIONS=()
@@ -93,6 +92,34 @@ done
 if [[ -z "$QUESTION" ]]; then
     echo "Usage: lord_ask.sh <question> [options] [--timeout <s>]" >&2
     exit 64
+fi
+
+# Mode gate: respect telegram.mode from settings.yaml.
+# When mode=off, Lord is at tmux/CLI — skip Telegram, ask on stdin.
+# ponytail: short-circuit before any Telegram infra call.
+SETTINGS="$SCRIPT_DIR/../config/settings.yaml"
+TELEGRAM_MODE=$(grep -E "^[[:space:]]*mode:" "$SETTINGS" 2>/dev/null \
+    | head -1 \
+    | sed -E 's/^[[:space:]]*mode:[[:space:]]*"?([^"]+)"?/\1/' \
+    | tr '[:upper:]' '[:lower:]')
+
+if [[ "$TELEGRAM_MODE" == "off" ]]; then
+    if [[ ${#OPTIONS[@]} -gt 0 ]]; then
+        echo "❓ $QUESTION"
+        echo "Options:"
+        i=0
+        for opt in "${OPTIONS[@]}"; do
+            echo "  $((i+1))) $opt"
+            i=$((i+1))
+        done
+        echo -n "Your answer (number or text): "
+    else
+        echo "❓ $QUESTION"
+        echo -n "Your answer: "
+    fi
+    read -r REPLY
+    printf '%s' "$REPLY"
+    exit 0
 fi
 
 REQUEST_ID="$(date +%s)-$(printf '%04x' $RANDOM)"

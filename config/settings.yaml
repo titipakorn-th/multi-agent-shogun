@@ -26,6 +26,18 @@ auto_prompt:
   # When no plan has pending work, Shogun goes silent (does NOT ping Lord).
   # Lord learns: write a plan to keep Shogun busy.
   prompt_when_no_plans: false
+telegram:
+  # Telegram routing mode — controls WHERE Lord-facing communication goes.
+  # Default "on" because Lord is on Telegram most of the time.
+  # When "off": all Lord-facing output → tmux/CLI only (no Telegram sends).
+  #            All Lord-facing questions → terminal stdin/stdout (no Telegram).
+  # When "on":  all Lord-facing output → scripts/ntfy.sh (Telegram).
+  #            All Lord-facing questions → scripts/lord_ask.sh → Telegram.
+  # Direct callers of scripts/ntfy.sh and scripts/lord_ask.sh honor this
+  # flag. Other scripts that send to Telegram directly (e.g.
+  # scripts/telegram_listener.py for receive-side) are unchanged.
+  # See instructions/shogun.md → "Response Channel Mode (telegram.mode)".
+  mode: on
 cli:
   default: claude
 roles:

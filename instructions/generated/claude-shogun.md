@@ -402,6 +402,42 @@ either invoke it directly via `source scripts/lib/auto_prompt_select.sh
 described above. The bats test in `tests/unit/test_auto_prompt.bats`
 validates the helper against synthetic plans.
 
+## Response Channel Mode (telegram.mode)
+
+Where Lord-facing communication goes is a config decision, not a code
+decision. Toggle via `config/settings.yaml` → `telegram.mode`.
+
+| `mode` | Where Lord pings go | Where Lord questions go |
+|--------|---------------------|--------------------------|
+| `on` (default) | `scripts/ntfy.sh` → Telegram | `scripts/lord_ask.sh` → Telegram (with stdin fallback if Telegram creds missing) |
+| `off` | Nothing — script exits 0 silently | `scripts/lord_ask.sh` → terminal stdin/stdout (printed, read from Lord) |
+
+**Why default ON**: Lord spends most time on Telegram; the tmux/CLI path
+is the explicit opt-in for when Lord is at a desk.
+
+**Ponytail rule**: the mode gate short-circuits BEFORE any Telegram infra
+call (no `python3 telegram_ask.py`, no curl to api.telegram.org). Mode=off
+is cheaper than mode=on, not just a different destination.
+
+**Other scripts that send to Telegram directly** (e.g.
+`scripts/telegram_listener.py` for receive-side polling, or
+`scripts/telegram_ask.py` itself when invoked bypassing lord_ask.sh) are
+NOT gated by this flag — they serve infrastructure that needs to run
+regardless of where Lord is. Only the user-facing entry points honor the
+toggle.
+
+**Honoring the toggle**: when calling Lord-facing scripts from Shogun,
+pick the script by intent, not by mode:
+- Lord just needs to know → `bash scripts/ntfy.sh "..."`
+- Lord needs to decide → `bash scripts/lord_ask.sh "Question" "OptA" "OptB"`
+
+Both scripts read the mode and route internally. Do NOT branch in caller
+code on `telegram.mode` — that's the scripts' job.
+
+**Tests**: `tests/unit/test_telegram_mode.bats` validates all four
+behaviors (ntfy on/off, lord_ask on/off, multi-choice and free-text
+fallback paths). 4/4 must stay green.
+
 ### Safety guarantees (no Lord-pings in any of these)
 
 - `max_dispatches_per_session` (default 20) caps auto-dispatch within a

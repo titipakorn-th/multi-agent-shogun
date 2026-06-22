@@ -1,9 +1,23 @@
 #!/usr/bin/env bash
 # SayTask Notification — Send push notification to smartphone via ntfy.sh
 # FR-066: ntfy authentication support (Bearer token / Basic auth)
+#
+# telegram.mode gate: when mode=off, this script exits silently — Lord is at
+# CLI/tmux and shouldn't get Telegram pings. See instructions/shogun.md →
+# "Response Channel Mode (telegram.mode)".
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SETTINGS="$SCRIPT_DIR/config/settings.yaml"
+
+# Mode gate: respect telegram.mode from settings.yaml.
+# ponytail: short-circuit before any network call when Lord is at CLI.
+TELEGRAM_MODE=$(grep -E "^[[:space:]]*mode:" "$SETTINGS" 2>/dev/null \
+    | head -1 \
+    | sed -E 's/^[[:space:]]*mode:[[:space:]]*"?([^"]+)"?/\1/' \
+    | tr '[:upper:]' '[:lower:]')
+if [[ "$TELEGRAM_MODE" == "off" ]]; then
+    exit 0
+fi
 
 # Load Telegram configuration if available
 TELEGRAM_ENV="$SCRIPT_DIR/config/telegram.env"
