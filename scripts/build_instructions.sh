@@ -301,6 +301,13 @@ generate_copilot_instructions() {
         -e 's|CLAUDE\.local\.md|copilot-instructions.local.md|g' \
         -e 's|instructions/shogun\.md|instructions/generated/copilot-shogun.md|g' \
         -e 's|instructions/orchestrator\.md|instructions/generated/copilot-orchestrator.md|g' \
+        -e 's|instructions/explorer\.md|instructions/generated/copilot-explorer.md|g' \
+        -e 's|instructions/librarian\.md|instructions/generated/copilot-librarian.md|g' \
+        -e 's|instructions/oracle\.md|instructions/generated/copilot-oracle.md|g' \
+        -e 's|instructions/designer\.md|instructions/generated/copilot-designer.md|g' \
+        -e 's|instructions/fixer\.md|instructions/generated/copilot-fixer.md|g' \
+        -e 's|instructions/observer\.md|instructions/generated/copilot-observer.md|g' \
+        -e 's|instructions/council\.md|instructions/generated/copilot-council.md|g' \
         -e 's|~/.claude/|~/.copilot/|g' \
         -e 's|\.claude\.json|.copilot/config.json|g' \
         -e 's|\.mcp\.json|.copilot/mcp-config.json|g' \
