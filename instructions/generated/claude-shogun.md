@@ -315,10 +315,17 @@ Lord is on Telegram only — silence for minutes is unacceptable for multi-stage
 pings:
   - ping_id: cmd_157_ping1
     task_id: cmd_157
-    fire_at: "2026-06-13T15:04:30+09:00"   # ISO 8601, absolute time
+    fire_at: "2026-06-13T15:04:30"   # ISO 8601, machine local time (no tz suffix)
     message: "⏳ Still working on cmd_157 — 2/5 subtasks done."
     sent: false
 ```
+
+> **Timezone convention** (cmd_045): `fire_at` is interpreted as **machine
+> local time** when no tz suffix is present. The listener
+> (`scripts/telegram_listener.py` → `fire_due_pings`) honors `Z`, `+00:00`,
+> `+HH:MM`, `-HH:MM` suffixes if you write them — but the simplest, least
+> error-prone form is to **omit the suffix and use the machine's local clock**.
+> See `config/settings.yaml` → `pings.timezone: local` for the default.
 
 ### When to schedule pings
 
@@ -331,12 +338,12 @@ Skip pinging for: status/help queries, simple queries answered inline, and sub-2
 
 ### How to write a ping
 
-Append a YAML entry to `queue/pending_pings.yaml` (initialize the file with `pings: []` if missing). Use absolute ISO 8601 timestamps. Example for a delegation issued at 15:01:00 JST for a ~10 min cmd:
+Append a YAML entry to `queue/pending_pings.yaml` (initialize the file with `pings: []` if missing). Use machine-local ISO 8601 timestamps (no tz suffix). Example for a delegation issued at 15:01:00 local for a ~10 min cmd:
 
 ```bash
-# Compute fire_at = now + N minutes (ISO 8601)
-FIRE1=$(date -u -d '+3 minutes' '+%Y-%m-%dT%H:%M:%S+00:00')
-FIRE2=$(date -u -d '+6 minutes' '+%Y-%m-%dT%H:%M:%S+00:00')
+# Compute fire_at = now + N minutes (machine local time, no suffix)
+FIRE1=$(date -v+3M '+%Y-%m-%dT%H:%M:%S')   # macOS
+FIRE2=$(date -v+6M '+%Y-%m-%dT%H:%M:%S')
 # Then Edit queue/pending_pings.yaml to append entries.
 ```
 

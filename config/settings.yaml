@@ -38,6 +38,19 @@ telegram:
   # scripts/telegram_listener.py for receive-side) are unchanged.
   # See instructions/shogun.md → "Response Channel Mode (telegram.mode)".
   mode: on
+pings:
+  # Default timezone for queue/pending_pings.yaml fire_at timestamps.
+  # The listener (scripts/telegram_listener.py → fire_due_pings) parses the
+  # suffix on each entry and uses:
+  #   '+00:00' / 'Z'      -> UTC
+  #   '+HH:MM' / '-HH:MM' -> that offset
+  #   (no suffix)         -> machine local time  ← DEFAULT
+  # Set this to 'local' (default) — Shogun should write fire_at as the
+  # machine's local clock (omit tz suffix). On macOS this is the system
+  # timezone. This avoids the previous bug where Shogun wrote +00:00 but the
+  # listener used time.mktime (local), causing future UTC pings to be treated
+  # as 9h-in-past JST and orphan_skipped.
+  timezone: local
 cli:
   default: claude
 roles:

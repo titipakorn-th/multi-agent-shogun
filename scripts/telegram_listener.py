@@ -4,6 +4,7 @@ import os
 import time
 import json
 import re
+import calendar
 import urllib.request
 import urllib.error
 import subprocess
@@ -130,9 +131,41 @@ def fire_due_pings(script_dir):
             if not fire_at_str or not message:
                 continue
 
-            # Parse ISO 8601 fire_at. Tolerate '+00:00' and 'Z' suffixes.
+            # Parse ISO 8601 fire_at. Honor the tz suffix when present:
+            #   '...+00:00' or '...Z' -> UTC
+            #   '+HH:MM' / '-HH:MM'  -> that offset from UTC
+            #   (no suffix)            -> machine local time (default)
+            # This makes pings interpretable regardless of which tz the writer used.
             try:
-                fire_at_ts = time.mktime(time.strptime(fire_at_str[:19], "%Y-%m-%dT%H:%M:%S"))
+                wall_str = fire_at_str[:19]  # YYYY-MM-DDTHH:MM:SS
+                tz_suffix = fire_at_str[19:]
+                if tz_suffix in ("Z", "+00:00", "-00:00", ""):
+                    # Wall is UTC for Z/+00/-00; wall is local for no suffix.
+                    if tz_suffix in ("Z", "+00:00", "-00:00"):
+                        # calendar.timegm: parse wall as UTC, return epoch.
+                        fire_at_ts = calendar.timegm(
+                            time.strptime(wall_str, "%Y-%m-%dT%H:%M:%S")
+                        )
+                    else:
+                        # No suffix: machine local time.
+                        fire_at_ts = time.mktime(
+                            time.strptime(wall_str, "%Y-%m-%dT%H:%M:%S")
+                        )
+                elif tz_suffix.startswith("+") or tz_suffix.startswith("-"):
+                    # Honor non-UTC offset: wall is in that offset from UTC.
+                    sign = 1 if tz_suffix[0] == "+" else -1
+                    hh, mm = tz_suffix[1:].split(":")
+                    offset_sec = sign * (int(hh) * 3600 + int(mm) * 60)
+                    # Epoch in that offset = calendar.timegm (UTC) shifted by offset.
+                    utc_epoch = calendar.timegm(
+                        time.strptime(wall_str, "%Y-%m-%dT%H:%M:%S")
+                    )
+                    fire_at_ts = utc_epoch - offset_sec
+                else:
+                    # Unrecognized suffix — fall back to local.
+                    fire_at_ts = time.mktime(
+                        time.strptime(wall_str, "%Y-%m-%dT%H:%M:%S")
+                    )
             except Exception:
                 continue
 
