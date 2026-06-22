@@ -10,7 +10,7 @@ Run 10 AI coding agents in parallel — **Claude Code, OpenAI Codex, GitHub Copi
 
 [![GitHub Stars](https://img.shields.io/github/stars/yohey-w/multi-agent-shogun?style=social)](https://github.com/yohey-w/multi-agent-shogun)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![v5.1.0 Orchestrator Traffic Control](https://img.shields.io/badge/v5.1.0-Orchestrator%20Traffic%20Control-ff6600?style=flat-square&logo=data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxNiIgaGVpZ2h0PSIxNiI+PHRleHQgeD0iMCIgeT0iMTIiIGZvbnQtc2l6ZT0iMTIiPuKalTwvdGV4dD48L3N2Zz4=)](https://github.com/yohey-w/multi-agent-shogun/releases/tag/v5.1.0)
+[![v5.3.0 Hands-free Shogun](https://img.shields.io/badge/v5.3.0-Hands--free%20Shogun-ff6600?style=flat-square&logo=data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxNiIgaGVpZ2h0PSIxNiI+PHRleHQgeD0iMCIgeT0iMTIiIGZvbnQtc2l6ZT0iMTIiPuKalTwvdGV4dD48L3N2Zz4=)](https://github.com/yohey-w/multi-agent-shogun/releases/tag/v5.3.0)
 [![Shell](https://img.shields.io/badge/Shell%2FBash-100%25-green)]()
 
 [English](README.md)
@@ -1214,7 +1214,8 @@ The Shogun System is built on five core principles:
 | **Continuous Learning** | Don't rely solely on model knowledge cutoffs |
 | **Triangulation** | Multi-perspective research with integrated authorization |
 
-These principles are documented in detail: **[docs/philosophy.md](docs/philosophy.md)**
+These principles are documented in detail in `instructions/shogun.md` (the
+authoritative source for Shogun's decision logic).
 
 ---
 
@@ -1440,6 +1441,80 @@ Priority: Token > Basic > None. If neither is set, no auth headers are sent (bac
 
 `config/ntfy_auth.env` is excluded from git. See `config/ntfy_auth.env.sample` for details.
 
+### Telegram routing (mode toggle)
+
+Where Lord-facing communication goes is a config decision, not a code
+decision. Toggle via `telegram.mode` in `config/settings.yaml`:
+
+```yaml
+# config/settings.yaml
+telegram:
+  mode: on   # default — Lord is on Telegram
+  # mode: off — Lord is at tmux/CLI; all Telegram pings silenced,
+  #            Lord questions fall back to terminal stdin/stdout
+```
+
+| `mode` | ntfy pings | Lord questions |
+|--------|------------|----------------|
+| `on` (default) | `scripts/ntfy.sh` → Telegram | `scripts/lord_ask.sh` → Telegram |
+| `off` | silenced (exit 0) | terminal stdin/stdout |
+
+Mode=off is cheaper than mode=on: scripts short-circuit BEFORE any
+Telegram infra call (`telegram_ask.py`, `api.telegram.org`). Lord
+retains control by editing one YAML key.
+
+When `mode=off`, `scripts/lord_ask.sh` prints the question and a numbered
+option list to stdout and reads the answer from stdin — a CLI-native
+fallback that works in tmux, ssh, or any terminal.
+
+Both scripts honor the toggle. Other scripts that touch Telegram
+directly (e.g. `scripts/telegram_listener.py` for receive-side polling)
+are unchanged — they serve infrastructure that must run regardless of
+where Lord is.
+
+See `instructions/shogun.md` → "Response Channel Mode (telegram.mode)"
+and `tests/unit/test_telegram_mode.bats` (4/4 cases) for the full
+contract.
+
+### Auto-Prompt on Task Completion (auto_prompt)
+
+Shogun can autonomously dispatch the next pending plan task after a
+cmd completes — Lord does not have to send each command manually.
+
+Plans live in `plans/*.md` (one task per `- [ ]` checkbox under
+`## Status`). The auto_prompt system:
+
+1. After a `report_completed` arrives, Shogun checks `plans/*.md`
+   sorted by filename (oldest first).
+2. For each plan, reads the frontmatter. If `auto_continue: false`,
+   skip — that plan needs explicit Lord initiation.
+3. Picks the first plan with an unchecked task.
+4. Looks up the `### Task N: ...` body under `## Task Details`, builds
+   a cmd YAML, and writes it to `queue/shogun_to_orchestrator.yaml`.
+5. Wakes the Orchestrator with `inbox_write.sh ... task_assigned` and
+   notifies Lord via `ntfy.sh` (action report, not a question).
+6. Repeats for the next cmd until the plan is done — capped by
+   `max_dispatches_per_session` (default 20).
+
+```yaml
+# config/settings.yaml
+auto_prompt:
+  enabled: true
+  max_dispatches_per_session: 20   # runaway-loop safety cap
+  prompt_when_no_plans: false       # when no plans have pending work,
+                                    # go silent — no "what's next?" ping
+```
+
+**Why this exists**: the project-wide ask-Lord-then-wait pattern
+breaks autonomous throughput. auto_prompt is the explicit exception —
+Shogun makes the call, Lord sees results. Lord stays in control by
+writing plans (advance work) or by setting
+`prompt_when_no_plans: true` if they want a ping when plans run out.
+
+See `plans/README.md` for the plan-file format,
+`scripts/lib/auto_prompt_select.sh` for the selection logic, and
+`tests/unit/test_auto_prompt.bats` (6/6 cases) for the contract.
+
 ---
 
 ## Advanced
@@ -1499,20 +1574,21 @@ Priority: Token > Basic > None. If neither is set, no auth headers are sent (bac
 ./depart.sh -c
 ./depart.sh --clean
 
-# Battle formation: All Specialist on Opus (max capability, higher cost)
-./depart.sh -k
-./depart.sh --kessen
-
 # Silent mode: Disable battle cries (saves API tokens on echo calls)
 ./depart.sh -S
 ./depart.sh --silent
 
-# Full startup + open Windows Terminal tabs
-./depart.sh -t
-./depart.sh --terminal
-
 # Shogun relay-only mode: Disable Shogun's thinking (cost savings)
 ./depart.sh --shogun-no-thinking
+
+# Launch with --permission-mode auto-approved (Claude Code)
+./depart.sh --auto-mode-on
+
+# Explicitly specify CLI permission mode (Claude plan mode, Codex, etc.)
+./depart.sh --permission-mode plan
+
+# Tear down everything for a fresh restart (sessions + stale watchers)
+./cleanup.sh
 
 # Show help
 ./depart.sh -h
@@ -1554,12 +1630,13 @@ tmux kill-session -t multiagent
 <details>
 <summary><b>Convenient Aliases</b> (click to expand)</summary>
 
-Running `first_setup.sh` automatically adds these aliases to `~/.bashrc`:
+Running `first_setup.sh` automatically adds these functions to `~/.bashrc`:
 
 ```bash
+css() { tmux attach-session -t "${SHOGUN_SESSION:-shogun}"; }   # Connect to Shogun
+csm() { tmux attach-session -t "${MULTIAGENT_SESSION:-multiagent}"; }  # Connect to Orchestrator + Specialists
+# Optional WSL convenience:
 alias csst='cd /mnt/c/tools/multi-agent-shogun && ./depart.sh'
-alias css='tmux attach-session -t shogun'      # Connect to Shogun
-alias csm='tmux attach-session -t multiagent'  # Connect to Orchestrator + Specialist
 ```
 
 To apply aliases: run `source ~/.bashrc` or restart your terminal (PowerShell: `wsl --shutdown` then reopen).
@@ -1593,7 +1670,12 @@ multi-agent-shogun/
 │   ├── council.md            # Multi-model consensus
 │   └── cli_specific/         # CLI-specific tool descriptions
 │       ├── claude_tools.md   # Claude Code tools & features
-│       └── copilot_tools.md  # GitHub Copilot CLI tools & features
+│       ├── codex_tools.md    # OpenAI Codex CLI tools
+│       ├── copilot_tools.md  # GitHub Copilot CLI tools
+│       ├── cursor_tools.md   # Cursor CLI tools
+│       ├── kimi_tools.md     # Kimi Code CLI tools
+│       ├── opencode_tools.md # OpenCode CLI tools
+│       └── antigravity_tools.md  # Antigravity CLI tools
 │
 ├── lib/
 │   ├── agent_status.sh       # Shared busy/idle detection (Claude Code + Codex + OpenCode)
@@ -1604,12 +1686,22 @@ multi-agent-shogun/
 │   ├── agent_status.sh       # Show busy/idle status of all agents
 │   ├── inbox_write.sh        # Write messages to agent inbox
 │   ├── inbox_watcher.sh      # Watch inbox changes via inotifywait
+│   ├── watcher_supervisor.sh # Keep inbox watchers alive across crashes
 │   ├── switch_cli.sh         # Live CLI/model switching (/exit → relaunch)
-│   ├── ntfy.sh               # Send push notifications to phone
+│   ├── ntfy.sh               # Send push notifications to phone (mode-gated)
+│   ├── lord_ask.sh           # Ask Lord via Telegram or terminal (mode-gated)
+│   ├── telegram_ask.py       # Telegram AskQuestion send + poll
+│   ├── telegram_listener.py  # Inbound Telegram message router
+│   ├── auto_prompt_select.sh # Plan-file selector (sourced helper)
+│   ├── shutshujin_v2_constants.sh  # Shared v2 role/session/pane constants
 │   └── ntfy_listener.sh      # Stream incoming messages from phone
 │
+├── plans/                    # Plan files for auto_prompt (see plans/README.md)
+│   ├── README.md             # Plan-file format spec
+│   └── 2026-06-22-adopt-auto-prompt.md  # Sample plan
+│
 ├── config/
-│   ├── settings.yaml         # Language, ntfy, and other settings
+│   ├── settings.yaml         # Language, telegram.mode, auto_prompt, ntfy, etc.
 │   ├── ntfy_auth.env.sample  # ntfy authentication template (self-hosted)
 │   └── projects.yaml         # Project registry
 │
@@ -1793,6 +1885,15 @@ tmux respawn-pane -t shogun:0.0 -k 'claude --model opus --dangerously-skip-permi
 Even if you're not comfortable with keyboard shortcuts, you can switch, scroll, and resize panes using just the mouse.
 
 ---
+
+## What's New in v5.3.0 — Auto-Prompt + Telegram Mode Toggle
+
+> **Shogun keeps working without asking the Lord, and the Lord picks the channel.** Plan files drive sustained autonomous execution; `telegram.mode` switches between phone and CLI without code changes.
+
+- **`plans/` + auto_prompt** — drop a markdown plan file under `plans/`, Shogun auto-dispatches the next unchecked task to the Orchestrator after each `report_completed`. Cap: `max_dispatches_per_session: 20`. Opt-out per-plan via `auto_continue: false`. New files: `plans/README.md` (format spec), `plans/2026-06-22-adopt-auto-prompt.md` (sample), `scripts/lib/auto_prompt_select.sh` (testable selector). Tests: 6/6 (`tests/unit/test_auto_prompt.bats`).
+- **`telegram.mode` toggle** — `config/settings.yaml` → `telegram.mode: on|off`. `on` (default): Telegram stays the channel for Lord pings + questions. `off`: `scripts/ntfy.sh` exits 0 silently and `scripts/lord_ask.sh` falls back to terminal stdin/stdout. Both scripts short-circuit BEFORE any Telegram infra call — mode=off is cheaper, not just a different destination. Tests: 4/4 (`tests/unit/test_telegram_mode.bats`).
+- **`cleanup.sh` now kills stale watchers** — previously only killed tmux sessions, leaving `inbox_watcher.sh` + `watcher_supervisor.sh` processes alive to nudge dead panes on every poll. New: basename pgrep + session-name-anchor regex (`(shogun:|multiagent:)`) so sibling projects with different suffix sessions are NEVER touched.
+- **Exact-match tmux session kills** — `tmux has-session -t "=$S"` forces exact-name match; without `=`, tmux falls back through unique-prefix → substring and can murder the wrong project when only a sibling suffixed session exists.
 
 ## What's New in v5.2.0 — Hands-free Shogun (Telegram channel)
 
