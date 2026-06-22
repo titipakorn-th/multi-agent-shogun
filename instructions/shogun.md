@@ -637,6 +637,25 @@ Actions after recovery:
 2. Read Memory MCP (read_graph)
 3. Check config/projects.yaml
 4. Read project README.md/CLAUDE.md
+
+### Self-Healing Guard (cmd_039)
+
+After reading your instructions file and before rebuilding state from YAML, scan
+the inbox for action_required messages that slipped through the Auto-Resolve
+Branch (session-boundary races or processing bugs that left `read:true` without
+auto-resolution). For each `read:true` action_required entry without a
+`queue/current_question_<id>.json` resolution file:
+
+```bash
+source scripts/lib/auto_prompt_self_heal.sh
+self_heal_inbox queue/inbox/shogun.yaml
+```
+
+The helper retro-resolves via `auto_prompt_resolve_action`, writes the
+resolution file, increments `dispatches_this_session`, and appends to the audit
+log. Print the summary line (`resolved=N [...]`) to the terminal. Idempotent:
+re-runs are no-ops.
+
 5. Read dashboard.md for current situation
 6. Report loading complete, then start work
 

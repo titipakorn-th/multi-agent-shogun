@@ -94,3 +94,126 @@ continued-line (Recommended), (b) other"
     [ "$status" -eq 0 ]
     [ "$output" = "audit-log preview" ]
 }
+
+# ----- TC-APR-08..10: self_heal_inbox (cmd_039) -------------------------------
+
+# Helper: stage a minimal project root with queue/ + auto_prompt_state.yaml.
+stage_self_heal_root() {
+    local root
+    root=$(mktemp -d "$BATS_TMPDIR/proj.XXXXXX")
+    mkdir -p "$root/queue/inbox"
+    # Minimal state file — helper increments dispatches_this_session.
+    printf 'dispatches_this_session: 0\nlast_reset_at: "2026-06-23T01:50:00+00:00"\nsession_id: "manual_init"\n' \
+        > "$root/queue/auto_prompt_state.yaml"
+    echo "$root"
+}
+
+# Helper: write a single-entry inbox YAML.
+write_self_heal_inbox() {
+    local inbox_path="$1"
+    local entry_type="$2"      # "action_required" | "report_completed"
+    local read_state="$3"      # "true" | "false"
+    local body="$4"
+    cat > "$inbox_path" <<YAML
+messages:
+- content: '${body}'
+  from: orchestrator
+  id: msg_test_$(date +%s%N | tail -c 7)
+  read: ${read_state}
+  timestamp: '2026-06-23T01:50:00+00:00'
+  type: ${entry_type}
+YAML
+}
+
+@test "TC-APR-08: read:true action_required WITHOUT resolution → helper resolves it" {
+    local root; root=$(stage_self_heal_root)
+    local inbox="$root/queue/inbox/shogun.yaml"
+    write_self_heal_inbox "$inbox" "action_required" "true" \
+        "ACTION_REQUIRED: pick | CHOICES: (a) low, (b) high (Recommended), (c) off"
+
+    # shellcheck disable=SC1090
+    source "$PROJECT_ROOT/scripts/lib/auto_prompt_self_heal.sh"
+    cd "$root"
+    run self_heal_inbox "$inbox"
+    cd "$PROJECT_ROOT"
+    [ "$status" -eq 0 ]
+    [[ "$output" =~ "resolved=1" ]]
+    [[ "$output" =~ "(b) high" ]]
+
+    # Resolution file written with required JSON fields.
+    local res_file
+    res_file=$(ls "$root/queue/" | grep '^current_question_msg_test_' | head -1)
+    [ -n "$res_file" ]
+    [ -f "$root/queue/$res_file" ]
+    run cat "$root/queue/$res_file"
+    [[ "$output" =~ '"status": "answered"' ]]
+    [[ "$output" =~ '"resolved_by": "auto_prompt"' ]]
+    [[ "$output" =~ '"session_id": "shogun-self-heal"' ]]
+
+    # State counter incremented from 0 → 1.
+    run cat "$root/queue/auto_prompt_state.yaml"
+    [[ "$output" =~ "dispatches_this_session: 1" ]]
+}
+
+@test "TC-APR-09: read:true action_required WITH resolution → idempotent skip" {
+    local root; root=$(stage_self_heal_root)
+    local inbox="$root/queue/inbox/shogun.yaml"
+    write_self_heal_inbox "$inbox" "action_required" "true" \
+        "ACTION_REQUIRED: pick | CHOICES: (a) low, (b) high (Recommended), (c) off"
+
+    # Pre-create resolution file matching the source_message_id format.
+    local res_file="$root/queue/current_question_msg_test_pre.json"
+    cat > "$res_file" <<JSON
+{"status": "answered", "response": "high", "resolved_by": "auto_prompt", "source_message_id": "msg_test_pre"}
+JSON
+
+    # Add a second entry pointing at the pre-created file's id.
+    cat >> "$inbox" <<YAML
+- content: 'ACTION_REQUIRED: pick | CHOICES: (a) low, (b) high (Recommended), (c) off'
+  from: orchestrator
+  id: msg_test_pre
+  read: true
+  timestamp: '2026-06-23T01:50:00+00:00'
+  type: action_required
+YAML
+
+    # shellcheck disable=SC1090
+    source "$PROJECT_ROOT/scripts/lib/auto_prompt_self_heal.sh"
+    cd "$root"
+    run self_heal_inbox "$inbox"
+    cd "$PROJECT_ROOT"
+    [ "$status" -eq 0 ]
+    [[ "$output" =~ "resolved=0" ]]
+
+    # State counter NOT incremented (still 0).
+    run cat "$root/queue/auto_prompt_state.yaml"
+    [[ "$output" =~ "dispatches_this_session: 0" ]]
+
+    # Pre-existing resolution file untouched.
+    run cat "$res_file"
+    [[ "$output" =~ '"response": "high"' ]]
+}
+
+@test "TC-APR-10: type:report_completed read:true → skipped, not action_required" {
+    local root; root=$(stage_self_heal_root)
+    local inbox="$root/queue/inbox/shogun.yaml"
+    write_self_heal_inbox "$inbox" "report_completed" "true" \
+        "cmd_038 SHIPPED at 01:38:10 (commit e5c6739)."
+
+    # shellcheck disable=SC1090
+    source "$PROJECT_ROOT/scripts/lib/auto_prompt_self_heal.sh"
+    cd "$root"
+    run self_heal_inbox "$inbox"
+    cd "$PROJECT_ROOT"
+    [ "$status" -eq 0 ]
+    [[ "$output" =~ "resolved=0" ]]
+
+    # No resolution file created.
+    local count
+    count=$(ls "$root/queue/" 2>/dev/null | grep '^current_question_msg_test_' 2>/dev/null | wc -l | tr -d ' ')
+    [ "$count" -eq 0 ]
+
+    # State counter NOT incremented.
+    run cat "$root/queue/auto_prompt_state.yaml"
+    [[ "$output" =~ "dispatches_this_session: 0" ]]
+}
