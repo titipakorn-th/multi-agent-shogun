@@ -645,7 +645,7 @@ def _parse_agent_status_table(output):
     Robust against:
       - Long task_ids overflowing the column (the bash-side fix truncates
         to TASK_ID_WIDTH=64, but the parser tolerates overflow too)
-      - CJK bytes that defeat the old `\s{2,}` left-indexed contract
+      - CJK bytes that defeat the old `\\s{2,}` left-indexed contract
       - Future column additions (parser relies on right edge, not indices)
 
     Returns None only when a row has fewer than 3 whitespace-separated
@@ -1898,15 +1898,13 @@ def main():
                         # command, but /progress, /status, /dashboard, /help
                         # are all handled above as direct (no-LLM) handlers.
                         # The remaining slash commands and the bare "btw"
-                        # keyword (or "btw ..." prefix) are routed to the
-                        # Telegram agent — that's the only category that
-                        # still incurs LLM cost by design.
+                        # keyword (or "btw ..." prefix) are routed to Shogun.
                         if msg_text.startswith("/") or lower_msg in ["btw"] or lower_msg.startswith("btw "):
-                            print(f"[telegram_listener] Routing side command to Telegram agent: {msg_text}")
-                            # Signal Telegram agent to wake up
+                            print(f"[telegram_listener] Routing side command to Shogun: {msg_text}")
+                            # Signal Shogun to wake up
                             inbox_write_path = os.path.join(script_dir, "inbox_write.sh")
                             subprocess.run([
-                                "bash", inbox_write_path, "telegram",
+                                "bash", inbox_write_path, "shogun",
                                 msg_text,
                                 "telegram_cmd", "telegram_listener"
                             ], check=True)
