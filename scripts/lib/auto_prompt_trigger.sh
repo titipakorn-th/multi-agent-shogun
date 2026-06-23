@@ -21,16 +21,18 @@
 
 auto_prompt_trigger_dispatch() {
     local inbox_path="${1:-queue/inbox/shogun.yaml}"
-    [[ ! -f "$inbox_path" ]] && return 0
+    local ts; ts=$(date '+%Y-%m-%d %H:%M:%S')
+
+    [[ ! -f "$inbox_path" ]] && { echo "[$ts] inbox not found: $inbox_path"; return 0; }
 
     local seen_file="queue/.auto_prompt_seen"
-    [[ ! -f "$seen_file" ]] && touch "$seen_file"
+    [[ ! -f "$seen_file" ]] && touch "$seen_file" 2>/dev/null
 
     # Gate 1: config flag.
     local enabled
     enabled=$(grep -A 8 '^auto_prompt:' config/settings.yaml 2>/dev/null \
               | grep -E 'enabled:' | head -1 | awk '{print $2}')
-    [[ "$enabled" != "true" ]] && return 0
+    [[ "$enabled" != "true" ]] && { echo "[$ts] auto_prompt disabled in config"; return 0; }
 
     # Gate 2: session cap (read state, compare to max).
     local max_disp
@@ -41,7 +43,7 @@ auto_prompt_trigger_dispatch() {
     cur_disp=$(grep -E '^dispatches_this_session:' queue/auto_prompt_state.yaml 2>/dev/null \
                | awk '{print $2}' | head -1)
     cur_disp="${cur_disp:-0}"
-    [[ "$cur_disp" -ge "$max_disp" ]] && return 0
+    [[ "$cur_disp" -ge "$max_disp" ]] && { echo "[$ts] session cap reached: $cur_disp/$max_disp"; return 0; }
 
     declare -f auto_prompt_select_next >/dev/null || \
         source "$(dirname "${BASH_SOURCE[0]}")/auto_prompt_select.sh"
@@ -58,12 +60,15 @@ auto_prompt_trigger_dispatch() {
         END                     { if (cur_id != "" && cur_type != "" && cur_read != "") print cur_id "\t" cur_type "\t" cur_read }
     ' "$inbox_path")
 
+    echo "[$ts] auto_prompt check: enabled=$enabled, session=$cur_disp/$max_disp, processed_reports=0"
+
     local dispatched=0
     while IFS=$'\t' read -r msg_id msg_type msg_read; do
         [[ -z "$msg_id" ]] && continue
         [[ "$msg_type" != "report_completed" ]] && continue
         [[ "$msg_read" != "true" ]] && continue
         grep -qxF "$msg_id" "$seen_file" 2>/dev/null && continue
+        echo "[$ts] auto_prompt processing: msg_id=$msg_id"
 
         # Mark seen BEFORE dispatch (idempotent: don't double-fire on retry).
         echo "$msg_id" >> "$seen_file"
@@ -71,6 +76,7 @@ auto_prompt_trigger_dispatch() {
         # Run select.
         local sel; sel=$(auto_prompt_select_next ./plans 2>/dev/null)
         local result; result=$(echo "$sel" | grep -E '^RESULT=' | head -1 | cut -d= -f2)
+        echo "[$ts] auto_prompt select: result=$result"
         [[ "$result" != "found" ]] && continue
 
         local plan_file task_num task_title task_body
@@ -117,6 +123,7 @@ YAML
         dispatched=$((dispatched + 1))
     done <<< "$entries"
 
+    echo "[$ts] auto_prompt completed: dispatched=$dispatched"
     [[ "$dispatched" -eq 0 ]] && return 0
     echo "dispatched=${dispatched}"
     return 0

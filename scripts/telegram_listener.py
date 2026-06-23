@@ -2073,14 +2073,16 @@ def main():
             # config.auto_prompt.enabled + session cap.
             try:
                 import subprocess as _sp
-                _sp.run(
-                    ["bash", os.path.join(script_dir, "lib/auto_prompt_trigger.sh")],
-                    check=False,
-                    timeout=10,
-                    cwd=os.path.join(script_dir, ".."),
-                    stdout=_sp.DEVNULL,
-                    stderr=_sp.DEVNULL,
-                )
+                ap_log = os.path.join(script_dir, "../logs/auto_prompt_trigger.log")
+                with open(ap_log, "a", encoding="utf-8") as ap_logfile:
+                    _sp.run(
+                        ["bash", os.path.join(script_dir, "lib/auto_prompt_trigger.sh")],
+                        check=False,
+                        timeout=10,
+                        cwd=os.path.join(script_dir, ".."),
+                        stdout=ap_logfile,
+                        stderr=ap_logfile,
+                    )
             except Exception as _e:
                 print(f"[telegram_listener] auto_prompt trigger error: {_e}", file=sys.stderr)
 
