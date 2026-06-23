@@ -2049,6 +2049,25 @@ def main():
             # loop) and bounded by an orphan-grace of 30 min.
             fire_due_pings(script_dir)
 
+            # Auto-prompt trigger: detect report_completed entries in Shogun's
+            # inbox (read:true, Shogun already processed) and dispatch the next
+            # plan task autonomously. Solves the session-boundary race where
+            # Shogun goes idle without running its Step 3.5 manual check.
+            # See scripts/lib/auto_prompt_trigger.sh. Idempotent + gated by
+            # config.auto_prompt.enabled + session cap.
+            try:
+                import subprocess as _sp
+                _sp.run(
+                    ["bash", os.path.join(script_dir, "lib/auto_prompt_trigger.sh")],
+                    check=False,
+                    timeout=10,
+                    cwd=os.path.join(script_dir, ".."),
+                    stdout=_sp.DEVNULL,
+                    stderr=_sp.DEVNULL,
+                )
+            except Exception as _e:
+                print(f"[telegram_listener] auto_prompt trigger error: {_e}", file=sys.stderr)
+
             # Stale-Inbox Watchdog: warn the Lord once if a Telegram message
             # has been sitting in queue/inbox/shogun.yaml as unread for more
             # than 300s. Distinguishes "system is working" from "system lost
