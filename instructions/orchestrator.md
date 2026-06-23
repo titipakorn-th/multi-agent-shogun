@@ -145,7 +145,17 @@ workflow:
     target: queue/reports/orchestrator_report.yaml
   - step: 17
     action: notify_shogun
+    note: |
+      Orchestrator MUST report back to Shogun at THREE checkpoints:
+      1. IMMEDIATELY after receiving cmd (acknowledge receipt)
+      2. AFTER dispatching to specialists (work initiated)
+      3. AFTER validation/integration complete (work done)
+      
+      Rationale: Shogun has zero visibility during work. Without checkpoints,
+      Shogun/Lord believe Orchestrator is stuck. (No ETAs — just status.)
     commands:
+      acknowledge: "bash scripts/inbox_write.sh shogun \"Acknowledged cmd_{id}: {purpose}. Decomposing now.\" cmd_acknowledged orchestrator"
+      dispatched: "bash scripts/inbox_write.sh shogun \"cmd_{id} DISPATCHED: {N} parallel tasks to {specialists}. Working.\" cmd_dispatched orchestrator"
       completed: "bash scripts/inbox_write.sh shogun \"Command cmd_{id} completed. Summary: {summary}\" report_completed orchestrator"
       failed: "bash scripts/inbox_write.sh shogun \"Command cmd_{id} failed. Reason: {reason}\" report_failed orchestrator"
       action_required: "bash scripts/inbox_write.sh shogun \"Action Required: {topic}\" action_required orchestrator"

@@ -48,6 +48,7 @@ task_status_transitions:
   - "RULE: Specialist updates OWN yaml only. Never touch another specialist's yaml."
   - "RULE: On /clear recovery, if assigned=done → DO NOT re-send report. Wait idle. (prevents duplicate report loop)"
   - "RULE: Do not pre-assign tasks in blocked status to specialists. Keep them in pending_tasks until prerequisites are met."
+  - "RULE: Orchestrator MUST send 3 status checkpoints to Shogun: (1) cmd_acknowledged on receipt, (2) cmd_dispatched after task delegation, (3) report_completed on finish. Silence ≠ stuck detection."
 
 # Status definitions are authoritative in:
 # - instructions/common/task_flow.md (Status Reference)
