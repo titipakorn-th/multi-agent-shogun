@@ -152,6 +152,20 @@ workflow:
     action: transition_state
     target: queue/tasks/orchestrator.yaml
     note: "state: done | failed → idle"
+    sub_steps:
+      - step: 18a
+        action: write_current_question
+        trigger: "state transitions to action_required"
+        target: queue/current_question.json
+        note: |
+          Atomically write {question, options, timestamp, status:pending,
+          message_id, blocked_cmd, context_commits} (write to .tmp + rename).
+          ponytail: stamp .tmp then mv; atomic on POSIX.
+      - step: 18b
+        action: fire_ntfy
+        trigger: "state transitions to action_required"
+        command: "bash scripts/ntfy.sh \"<question> (cmd_<id>)\""
+        note: "ntfy.sh is mode-gated: respects telegram.mode=off (silent exit)."
 
 files:
   input: queue/inbox/orchestrator.yaml

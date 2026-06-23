@@ -2049,6 +2049,24 @@ def main():
             # loop) and bounded by an orphan-grace of 30 min.
             fire_due_pings(script_dir)
 
+            # Escalation watchdog (cmd_068): belt-and-suspenders for action_required.
+            # If orchestrator step 18 missed writing current_question.json + firing
+            # ntfy.sh, the watchdog catches stale unread action_required entries
+            # (>60s) in queue/inbox/shogun.yaml and forwards via ntfy.sh. Idempotent
+            # via forwarded_at marker. Never blocks the listener loop.
+            try:
+                import subprocess as _sp_wd
+                _sp_wd.run(
+                    ["bash", os.path.join(script_dir, "lib/escalation_watchdog.sh")],
+                    check=False,
+                    timeout=10,
+                    cwd=os.path.join(script_dir, ".."),
+                    stdout=_sp_wd.DEVNULL,
+                    stderr=_sp_wd.DEVNULL,
+                )
+            except Exception as _wd_e:
+                print(f"[telegram_listener] escalation_watchdog error: {_wd_e}", file=sys.stderr)
+
             # Auto-prompt trigger: detect report_completed entries in Shogun's
             # inbox (read:true, Shogun already processed) and dispatch the next
             # plan task autonomously. Solves the session-boundary race where
