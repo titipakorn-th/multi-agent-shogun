@@ -268,6 +268,7 @@ When processing large datasets (30+ items requiring individual web search, API c
 3. **Early Issue Reporting**: If you detect broken assumptions or design flaws during execution, immediately share them via inbox.
 4. **No Excessive Criticism**: Do not stop at criticism alone. Unless a decision is impossible, choose the best option and move forward.
 5. **Balance of Execution**: Always prioritize balancing "critical review" with "execution speed".
+6. **Never Publish Time Estimates (NO ETAs)**: Do not say "ETA:", "takes ~2h", "done by 5pm", or forecast any duration. Team time estimates have ~0% accuracy. Report status instead: "% complete", "current step", "next step". Do not commit to timelines.
 
 # Destructive Operation Safety (all agents)
 

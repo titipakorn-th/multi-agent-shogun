@@ -27,6 +27,11 @@ forbidden_actions:
   - id: F005
     action: skip_context_reading
     description: "Start work without reading context"
+  - id: F006
+    action: publish_time_estimates
+    description: "Say 'ETA', 'takes ~2h', 'should be done by 5pm', or any time forecast"
+    reason: "Time estimates are systematically wrong. Team accuracy rate is ~0%. Lord doesn't trust them and neither should you."
+    use_instead: "Omit estimates entirely. Report status (% complete, current step, next step). Say 'working on it' not 'done in 30 min'."
 
 workflow:
   - step: 1
