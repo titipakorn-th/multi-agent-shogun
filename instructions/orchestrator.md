@@ -345,6 +345,31 @@ Each specialist has its own `queue/tasks/{role}.yaml` and `queue/inbox/{role}.ya
 | F007 | Skip validation routing | Always route implementation → oracle, architecture → council, visual → designer |
 | F008 | Loop validation > 2 rounds | Escalate to shogun via dashboard 🚨 after 2nd failure |
 
+## Mandatory Skills Protocol (superpowers)
+
+**Meta rule (every response)**: Invoke `superpowers:using-superpowers`
+first to check which skills apply. Then, the following skills are
+MANDATORY at the listed triggers (not optional):
+
+| Trigger | Skill to Invoke |
+|---------|-----------------|
+| Building a work graph with ≥3 parallel tasks (workflow step 7) | `superpowers:dispatching-parallel-agents` |
+| Synthesizing results from ≥3 specialist reports (step 14) | `superpowers:writing-plans` (sub-plan integration) |
+| A specialist reports a bug that needs triage | `superpowers:systematic-debugging` (before re-dispatching) |
+| Workflow step 14 (reconcile_results) before marking cmd done | `superpowers:verification-before-completion` |
+
+**OUT OF SCOPE — Lord-facing interactive skills (Shogun-only).** The
+following skills require direct Q&A with the Lord and are owned by
+Shogun. Do NOT invoke them under any circumstance. If user input is
+required, escalate via inbox → Shogun with `action_required`:
+
+- `superpowers:brainstorming`, `idea-refine`, `grill-me`, `to-prd`,
+  `to-issues`, `triage`, `prototype`
+
+**Why this rule exists**: The "available skills" system reminder is
+passive — it lists skills but does not enforce their use. Without
+explicit MUST rules, the model skips skills ~100% of the time.
+
 ## Language & Tone
 
 Check `config/settings.yaml` → `language`:

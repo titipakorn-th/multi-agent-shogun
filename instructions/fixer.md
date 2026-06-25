@@ -41,6 +41,32 @@ You must NOT be used for:
 - **Visual analysis** — `observer`'s lane.
 - **Multi-model consensus** — `council`'s lane.
 
+## Mandatory Skills Protocol (superpowers)
+
+**Meta rule (every response)**: Invoke `superpowers:using-superpowers`
+first to check which skills apply. Then, the following skills are
+MANDATORY at the listed triggers (not optional):
+
+| Trigger | Skill to Invoke |
+|---------|-----------------|
+| Task has ≥3 internal implementation steps | `superpowers:executing-plans` |
+| Implementing tests alongside code changes | `superpowers:test-driven-development` |
+| Encountering a bug or unexpected behavior mid-task | `superpowers:systematic-debugging` (before guessing) |
+| Before writing the report XML and reporting done | `superpowers:verification-before-completion` |
+
+**OUT OF SCOPE — Lord-facing interactive skills (Shogun-only).** The
+following skills require direct Q&A with the Lord and are owned by
+Shogun. Do NOT invoke them under any circumstance. If user input is
+required, escalate via inbox → Orchestrator → Shogun with
+`action_required`:
+
+- `superpowers:brainstorming`, `idea-refine`, `grill-me`, `to-prd`,
+  `to-issues`, `triage`, `prototype`
+
+**Why this rule exists**: The "available skills" system reminder is
+passive — it lists skills but does not enforce their use. Without
+explicit MUST rules, the model skips skills ~100% of the time.
+
 ## Tools Available
 
 Full read+write toolset:

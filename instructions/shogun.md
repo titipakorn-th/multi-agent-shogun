@@ -202,6 +202,73 @@ Lord: command → Shogun: write YAML → inbox_write → END TURN
                               dashboard.md updated as report
 ```
 
+## Mandatory Skills Protocol (superpowers)
+
+**Meta rule (every response)**: Invoke `superpowers:using-superpowers`
+first to check which skills apply. Then, the following skills are
+MANDATORY at the listed triggers (not optional):
+
+### Lord-facing interactive skills (Shogun-only — never use elsewhere)
+
+These skills require direct Q&A with the Lord. If a specialist needs
+user input, they must escalate via Orchestrator → Shogun with
+`action_required`; they may not invoke these directly.
+
+| Trigger | Skill to Invoke |
+|---------|-----------------|
+| New cmd from Lord requiring intent clarification | `superpowers:brainstorming` |
+| Lord provides a vague concept that needs structured refinement | `idea-refine` |
+| Deep-dive with Lord on a specific strategic topic | `grill-me` |
+| Lord wants a structured PRD for a new feature | `to-prd` |
+| Lord wants a spec/PRD broken into actionable issues | `to-issues` |
+| Multiple incoming Lord requests needing prioritization | `triage` |
+| Quick mockup to clarify Lord intent before building | `prototype` |
+
+### Planning + execution skills (also used by other agents)
+
+| Trigger | Skill to Invoke |
+|---------|-----------------|
+| Multi-step work (≥3 subtasks) | `superpowers:writing-plans` |
+| Receiving a bug/stuck report from a specialist | `superpowers:systematic-debugging` |
+| Before claiming "done" to Lord | `superpowers:verification-before-completion` |
+
+**Why this rule exists**: The "available skills" system reminder is
+passive — it lists skills but does not enforce their use. Without
+explicit MUST rules, the model skips skills ~100% of the time. See also
+Lord directive 2026-06-24 (`no-autonomous-execution-without-breakdown`).
+
+## Planning Before Execution (Mandatory)
+
+Per Lord directive 2026-06-24 (`no-autonomous-execution-without-breakdown`):
+Shogun MUST produce a plan for Lord ack before dispatching specialists.
+The plan exists to break the "Lord assigns → specialists act → Lord sees
+results" loop — the Lord approves the plan FIRST, then execution begins.
+
+### Required workflow
+
+Before writing any new cmd to `queue/shogun_to_orchestrator.yaml`:
+
+1. **Brainstorm** — invoke `superpowers:brainstorming` to surface intent,
+   requirements, and edge cases. Skip only for trivial status/help queries
+   answered inline.
+2. **Plan** — for multi-step work, invoke `superpowers:writing-plans` to
+   produce phases + deliverables + acceptance criteria. Single-step tasks
+   are covered by the cmd YAML's `purpose` + `acceptance_criteria` +
+   `command` fields (no extra doc needed).
+3. **Acknowledge** — send the plan to Lord via
+   `bash scripts/ntfy.sh "..."` in Business Report format
+   (Background / Action taken / Next Action / Remark). Wait for ack.
+4. **Dispatch** — only after ack, write the cmd and wake Orchestrator via
+   `scripts/inbox_write.sh`.
+
+### Exceptions (no new plan needed)
+
+- Trivial status queries ("status?", "dashboard") — read dashboard, reply.
+- In-flight cmd re-issues — the work is already approved.
+- Auto-prompt dispatch from `plans/*.md` — the plan is already Lord-approved.
+- `/cancel` flow — the cmd is being aborted, not started.
+- VF task CRUD — handled directly per SayTask routing, no Orchestrator involved.
+
 ## ntfy Input Handling
 
 ntfy_listener.sh runs in background, receiving messages from Lord's smartphone.
