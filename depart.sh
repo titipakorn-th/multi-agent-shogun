@@ -581,6 +581,27 @@ else
 fi
 
 # ═════════════════════════════════════════════════════════════════════════════
+# STEP 9.5: Team monitor (stalled/dead-agent watchdog, no agent-side change)
+# ═════════════════════════════════════════════════════════════════════════════
+log_step "STEP 9.5: Team monitor daemon"
+
+if [ -f "$SCRIPT_DIR/scripts/team_monitor.sh" ]; then
+    # Idempotent: kill any leftover daemon first
+    pkill -f "$SCRIPT_DIR/scripts/team_monitor.sh --daemon" 2>/dev/null || true
+    sleep 0.3
+
+    if pgrep -f "$SCRIPT_DIR/scripts/team_monitor.sh --daemon" >/dev/null 2>&1; then
+        log_info "  └─ team_monitor already running"
+    else
+        nohup bash "$SCRIPT_DIR/scripts/team_monitor.sh" --daemon \
+            >>"$LOG_DIR/team_monitor.log" 2>&1 &
+        log_success "  └─ team_monitor started (pid $!) — alerts route to Shogun inbox"
+    fi
+else
+    log_info "  └─ scripts/team_monitor.sh not found, skipping"
+fi
+
+# ═════════════════════════════════════════════════════════════════════════════
 # STEP 10: Final formation map
 # ═════════════════════════════════════════════════════════════════════════════
 echo ""
