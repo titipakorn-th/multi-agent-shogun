@@ -19,6 +19,14 @@
 # The script walks each pane's process tree to find the CLI child, then
 # uses `lsof` to identify its session file. Stale mtime = stalled agent.
 #
+# Alert routing: when a failure is detected, the alert is logged to
+# `queue/metrics/team_monitor_alerts.log` and written to the Shogun's
+# inbox (`queue/inbox/shogun.yaml`, type=alert, from=team_monitor).
+# The Shogun decides whether to escalate to the Lord via Telegram.
+# Cooldown is keyed by md5(agent_id+message) in /tmp/team_monitor_<project>/
+# to prevent alert storms (default 600s between re-alerts for the same root
+# cause).
+#
 # Usage:
 #   bash scripts/team_monitor.sh --once         # Single check, exit 0/1
 #   bash scripts/team_monitor.sh --daemon       # Background loop, 30s poll
@@ -161,7 +169,8 @@ mark_alerted() {
   echo "$(date +%s)" > "$ALERT_STATE_DIR/$1"
 }
 
-# Send alert via ntfy.sh + log to file. Respects cooldown.
+# Send alert: log to file + write to Shogun's inbox (the Shogun decides whether
+# to forward to the Lord via Telegram). Respects cooldown to prevent storms.
 send_alert() {
   local agent_id="$1"
   local msg="$2"
@@ -176,8 +185,9 @@ send_alert() {
   local full="🚨 [team_monitor] $agent_id: $msg"
   echo "[$(date '+%Y-%m-%d %H:%M:%S')] $full" >> "$ALERT_LOG"
 
-  if [ -x "$SCRIPT_DIR/ntfy.sh" ]; then
-    bash "$SCRIPT_DIR/ntfy.sh" "$full" 2>/dev/null || true
+  # Write to Shogun's inbox — Shogun will surface/escalate as appropriate.
+  if [ -x "$SCRIPT_DIR/inbox_write.sh" ]; then
+    bash "$SCRIPT_DIR/inbox_write.sh" shogun "$full" alert team_monitor 2>/dev/null || true
   fi
   echo "$full" >&2
 }
