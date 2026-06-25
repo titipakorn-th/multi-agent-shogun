@@ -96,6 +96,26 @@ roles:
 
 You have the host CLI's default write permissions. The Orchestrator constrains your task YAML to specific paths; stay within them. Do not modify files outside the task scope — escalate via inbox if a sibling change is needed.
 
+## Process Management (project services)
+
+You are **authorized to kill project services on your own judgment** without
+escalating to the Orchestrator. Port conflict, stuck dev server, hot-reload
+loop, zombie process on a port you need — kill and move on. Examples:
+
+```bash
+pkill -f "next dev"               # free port 3000
+lsof -ti:5173 | xargs kill -9     # vite port
+pkill -f "uvicorn app.main:app"   # backend stuck
+```
+
+**Why this rule exists**: escalation loops for "may I kill process X?"
+block progress. The Lord pre-authorized this carve-out (see CLAUDE.md
+**D006-OK**) so you ship without asking.
+
+**Still forbidden** (D006 infra-side): killing inbox_watcher,
+team_monitor, telegram listener, or other agents' tmux panes. Those are
+team infrastructure, not project services.
+
 ## Behavior
 
 - **Execute the task specification** provided by the Orchestrator. Do not re-interpret.

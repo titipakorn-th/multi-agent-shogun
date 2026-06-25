@@ -284,7 +284,8 @@ When processing large datasets (30+ items requiring individual web search, API c
 | D003 | `git push --force`, `git push -f` (without `--force-with-lease`) | Destroys remote history for all collaborators |
 | D004 | `git reset --hard`, `git checkout -- .`, `git restore .`, `git clean -f` | Destroys all uncommitted work in the repo |
 | D005 | `sudo`, `su`, `chmod -R`, `chown -R` on system paths | Privilege escalation / system modification |
-| D006 | `kill`, `killall`, `pkill`, `tmux kill-server`, `tmux kill-session` | Terminates other agents or infrastructure |
+| D006 | `kill`, `killall`, `pkill`, `tmux kill-server`, `tmux kill-session` directed at **infrastructure** (inbox_watcher, team_monitor, telegram listener, other agents' tmux sessions) | Terminates other agents or infrastructure |
+| D006-OK | `kill` / `pkill` / `lsof -ti:<port> \| xargs kill` directed at **project services** (npm run dev, next dev, vite, cargo run, uvicorn, rails server, etc.) — including ones the agent did NOT start | Allowed freely. Lord-authorized short-circuit to avoid progress-blocking escalation loops. Port conflict, stuck dev server, hot-reload loop: kill and move on. |
 | D007 | `mkfs`, `dd if=`, `fdisk`, `mount`, `umount` | Disk/partition destruction |
 | D008 | `curl|bash`, `wget -O-|sh`, `curl|sh` (pipe-to-shell patterns) | Remote code execution |
 
