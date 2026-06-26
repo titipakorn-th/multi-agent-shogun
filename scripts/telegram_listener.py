@@ -1691,14 +1691,37 @@ def main():
                                     "parse_mode": "Markdown"
                                 })
                                 
-                                # Update JSON to answered
-                                active_question["status"] = "answered"
-                                active_question["response"] = selected_option
-                                try:
-                                    with open(question_file, "w", encoding="utf-8") as qf:
-                                        json.dump(active_question, qf, indent=2, ensure_ascii=False)
-                                except Exception:
-                                    pass
+                                # Update JSON to answered via lord_channel.py
+                                # (W4c round-7). The channel owns current_question.json
+                                # under flock; this avoids the race where lord_ask.sh's
+                                # poll sees a partial write. If the channel returns
+                                # no_match / already_resolved, the state has already
+                                # been consumed (Lord answered twice or telegram_ask.py
+                                # already cleaned up); in either case the listener's
+                                # job is done — ack the callback, move on.
+                                active_question_rid = active_question.get("request_id", "")
+                                if not active_question_rid:
+                                    # Old-format question (no request_id from lord_channel).
+                                    # Fall back to the legacy direct write so existing
+                                    # tests / behavior don't regress on legacy data.
+                                    active_question["status"] = "answered"
+                                    active_question["response"] = selected_option
+                                    try:
+                                        with open(question_file, "w", encoding="utf-8") as qf:
+                                            json.dump(active_question, qf, indent=2, ensure_ascii=False)
+                                    except Exception:
+                                        pass
+                                else:
+                                    channel_py = os.path.join(script_dir, "lib", "lord_channel.py")
+                                    try:
+                                        subprocess.run([
+                                            "python3", channel_py, "consume",
+                                            "--queue-dir", os.path.join(script_dir, "..", "queue"),
+                                            "--request-id", active_question_rid,
+                                            "--answer", selected_option,
+                                        ], check=False, timeout=5)
+                                    except Exception as e:
+                                        print(f"[telegram_listener] lord_channel consume failed: {e}", file=sys.stderr)
 
                                 # Track this message_id so a late duplicate
                                 # callback (after telegram_ask.py deletes the

@@ -55,7 +55,9 @@ from pathlib import Path
 
 STATE_FILENAME = "current_question.json"
 LOCK_FILENAME = "current_question.lock"
-TELEGRAM_API = "https://api.telegram.org/bot{token}/{method}"
+DEFAULT_TELEGRAM_API = "https://api.telegram.org/bot{token}/{method}"
+# Test override: TELEGRAM_API_BASE lets tests point at a mock server.
+TELEGRAM_API_BASE = os.environ.get("TELEGRAM_API_BASE") or DEFAULT_TELEGRAM_API
 
 
 class LordChannel:
@@ -112,7 +114,7 @@ class LordChannel:
                 "reply_markup": json.dumps({"inline_keyboard": keyboard}),
             }
             data = urllib.parse.urlencode(payload).encode()
-            url = TELEGRAM_API.format(token=self.telegram_token, method="sendMessage")
+            url = TELEGRAM_API_BASE.format(token=self.telegram_token, method="sendMessage")
             req = urllib.request.Request(url, data=data, method="POST")
             with urllib.request.urlopen(req, timeout=10) as resp:
                 return resp.status == 200
