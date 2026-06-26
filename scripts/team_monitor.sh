@@ -185,9 +185,24 @@ send_alert() {
   local full="🚨 [team_monitor] $agent_id: $msg"
   echo "[$(date '+%Y-%m-%d %H:%M:%S')] $full" >> "$ALERT_LOG"
 
-  # Write to Shogun's inbox — Shogun will surface/escalate as appropriate.
+  # Primary: write to Shogun's inbox (requires inbox_watcher to deliver).
+  # Fallback (DIRECT_ALERT=1 or inbox_watcher unreachable): direct tmux nudge
+  # so the alert survives the watcher's death. This breaks the circular
+  # dependency where a dead watcher would also silence the liveness monitor.
+  local inbox_ok=0
   if [ -x "$SCRIPT_DIR/inbox_write.sh" ]; then
-    bash "$SCRIPT_DIR/inbox_write.sh" shogun "$full" alert team_monitor 2>/dev/null || true
+      if bash "$SCRIPT_DIR/inbox_write.sh" shogun "$full" alert team_monitor 2>/dev/null; then
+          inbox_ok=1
+      fi
+  fi
+  if [ "$inbox_ok" -eq 0 ] || [ "${DIRECT_ALERT:-0}" = "1" ]; then
+      # Direct tmux send-keys to Shogun pane (does NOT depend on inbox_watcher).
+      local shogun_target="${SHOGUN_TMUX_TARGET:-${SHOGUN_SESSION:-shogun}:main.0}"
+      if tmux has-session -t "${shogun_target%%:*}" 2>/dev/null; then
+          tmux send-keys -t "$shogun_target" "[team_monitor] $full" 2>/dev/null || true
+          sleep 0.3
+          tmux send-keys -t "$shogun_target" "Enter" 2>/dev/null || true
+      fi
   fi
   echo "$full" >&2
 }
@@ -259,11 +274,18 @@ check_agent() {
 
   local task_status; task_status=$(read_task_status "$agent_id")
 
+  # ponytail: 1-line gate — if fallback mapped a stalled pane to a different agent's
+  # old .jsonl (most-recently-modified heuristic), session_file != this agent's true
+  # session. Skip the STALLED alert when task is not actively in-flight; the existing
+  # "assigned|in_progress" guard below still catches genuine stalls.
+  if [ "$task_status" != "assigned" ] && [ "$task_status" != "in_progress" ]; then
+    echo "$agent_id OK (cli_pid=$cli_pid, staleness=${staleness}s, threshold=${threshold}s, task=$task_status, skipped stale-fallback)"
+    return 0
+  fi
+
   if [ "$staleness" -ge 0 ] && [ "$staleness" -gt "$threshold" ]; then
-    if [ "$task_status" = "assigned" ] || [ "$task_status" = "in_progress" ]; then
-      send_alert "$agent_id" "STALLED ${staleness}s (threshold=${threshold}s, task=$task_status, session=$(basename "$session_file"))"
-      return 1
-    fi
+    send_alert "$agent_id" "STALLED ${staleness}s (threshold=${threshold}s, task=$task_status, session=$(basename "$session_file"))"
+    return 1
   fi
 
   echo "$agent_id OK (cli_pid=$cli_pid, staleness=${staleness}s, threshold=${threshold}s, task=$task_status)"

@@ -122,4 +122,18 @@ if [[ "$AGENT_ID" == "shogun" ]]; then
     lint_lord_marker || true
 fi
 
+# ─── Infra liveness (T2 / U2 round-2) ───
+# Self-healing: verify daemons are alive and RELAUNCH if not.
+# Session start is the canonical "ensure daemons are up" moment. Without
+# this, the round-2 audit (W3) leaves daemons down between sessions.
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+case "$AGENT_ID" in
+    shogun|orchestrator)
+        if [ -x "$SCRIPT_DIR/infra_liveness.sh" ]; then
+            # Self-heal: relaunch missing daemons. Never block session start.
+            bash "$SCRIPT_DIR/infra_liveness.sh" >/dev/null 2>&1 || true
+        fi
+        ;;
+esac
+
 exit 0

@@ -137,6 +137,35 @@ setup() {
     done
 }
 
+@test "build: all generated markdown passes git diff --check whitespace gate" {
+    # Every generated markdown file must pass `git diff --check` so PRs cannot
+    # silently regress trailing-whitespace or trailing-EOF-blank-line drift.
+    local file
+    local offenders=()
+
+    for file in "$OUTPUT_DIR"/*.md \
+                "$PROJECT_ROOT/.opencode/agents"/*.md \
+                "$PROJECT_ROOT/AGENTS.md" \
+                "$PROJECT_ROOT/.github/copilot-instructions.md" \
+                "$PROJECT_ROOT/agents/default/system.md"; do
+        [ -f "$file" ] || continue
+        # Per-file check: trailing whitespace + trailing blank line at EOF.
+        if grep -nE '[[:blank:]]+$' "$file" >/dev/null 2>&1; then
+            offenders+=("$file: trailing whitespace")
+            continue
+        fi
+        # `git diff --check` exits 0 when clean (no whitespace warnings).
+        if ! git -C "$PROJECT_ROOT" diff --check -- "$file" >/dev/null 2>&1; then
+            offenders+=("$file: git diff --check failed")
+        fi
+    done
+
+    if [ "${#offenders[@]}" -gt 0 ]; then
+        printf 'whitespace gate failed:\n  %s\n' "${offenders[@]}" >&2
+        return 1
+    fi
+}
+
 # =============================================================================
 # File generation test — Copilot (Phase 2+3 Acceptance Criteria)
 # =============================================================================
@@ -529,4 +558,85 @@ PYEOF
     checksums_second=$(find "$OUTPUT_DIR" -name "*.md" -type f -exec md5sum {} \; | sort)
 
     [ "$checksums_first" = "$checksums_second" ]
+}
+
+# =============================================================================
+# Claude command-layer inventory test (P1-1)
+# =============================================================================
+# Build policy: Claude uses unprefixed command-layer names
+# (`shogun.md`, `orchestrator.md`, `telegram.md`). All other CLIs use the
+# prefixed `{cli}-{role}.md` form. Legacy `claude-{shogun,orchestrator,telegram}.md`
+# files must NOT exist or be tracked — they are not generated and confuse drift
+# checks. Specialists like `claude-council.md` remain valid (build_specialist_variants.py
+# emits them under every CLI variant).
+
+@test "claude-inventory: no legacy claude-prefixed command-layer variants" {
+    local orphan=()
+    for role in shogun orchestrator telegram; do
+        if [ -f "$OUTPUT_DIR/claude-${role}.md" ]; then
+            orphan+=("claude-${role}.md")
+        fi
+    done
+    [ "${#orphan[@]}" -eq 0 ] || {
+        printf 'orphan claude command-layer variants present: %s\n' "${orphan[@]}" >&2
+        return 1
+    }
+    # No tracked legacy files either (defense in depth).
+    if git -C "$PROJECT_ROOT" ls-files --error-unmatch \
+        "$OUTPUT_DIR/claude-shogun.md" \
+        "$OUTPUT_DIR/claude-orchestrator.md" \
+        "$OUTPUT_DIR/claude-telegram.md" >/dev/null 2>&1; then
+        echo "tracked legacy claude command-layer variants remain in git index" >&2
+        return 1
+    fi
+}
+
+@test "claude-inventory: unprefixed claude command-layer variants exist" {
+    [ -f "$OUTPUT_DIR/shogun.md" ]
+    [ -f "$OUTPUT_DIR/orchestrator.md" ]
+    [ -f "$OUTPUT_DIR/telegram.md" ]
+}
+
+@test "claude-inventory: every CLI has shogun/orchestrator/telegram variants" {
+    local cli role
+    for cli in codex copilot kimi opencode cursor antigravity; do
+        for role in shogun orchestrator telegram; do
+            [ -f "$OUTPUT_DIR/${cli}-${role}.md" ] || {
+                echo "missing variant: ${cli}-${role}.md" >&2
+                return 1
+            }
+        done
+    done
+}
+
+# =============================================================================
+# Guard-helper wiring tests (Task 2 follow-up)
+# =============================================================================
+# Orchestrator source must name each guard helper at the workflow step where
+# it runs. A regression that drops the wiring (or renames a helper) breaks
+# the gate contract.
+
+@test "guard: orchestrator source references queue_health_check.py" {
+    grep -q "queue_health_check.py" "$PROJECT_ROOT/instructions/orchestrator.md"
+}
+
+@test "guard: orchestrator source references check_role_permissions.py" {
+    grep -q "check_role_permissions.py" "$PROJECT_ROOT/instructions/orchestrator.md"
+}
+
+@test "guard: orchestrator source references check_required_validations.py" {
+    grep -q "check_required_validations.py" "$PROJECT_ROOT/instructions/orchestrator.md"
+}
+
+@test "guard: orchestrator source references check_batch_gates.py" {
+    grep -q "check_batch_gates.py" "$PROJECT_ROOT/instructions/orchestrator.md"
+}
+
+@test "guard: orchestrator source references cmd_progress_summary.py" {
+    grep -q "cmd_progress_summary.py" "$PROJECT_ROOT/instructions/orchestrator.md"
+}
+
+@test "guard: generated orchestrator.md inherits the helper references" {
+    grep -q "queue_health_check.py" "$OUTPUT_DIR/orchestrator.md"
+    grep -q "check_required_validations.py" "$OUTPUT_DIR/orchestrator.md"
 }

@@ -145,6 +145,19 @@ scripts/seo_qc.sh
 !scripts/shutsujin_v2_constants.sh
 !scripts/shutsujin_departure_v2.sh
 !scripts/team_monitor.sh
+!scripts/check_required_validations.py
+!scripts/check_role_permissions.py
+!scripts/check_batch_gates.py
+!scripts/cmd_progress_summary.py
+!scripts/queue_health_check.py
+!scripts/weekly_health_review.sh
+!scripts/bloom_route.py
+!scripts/reap_janitor.sh
+!scripts/reap_inbox.sh
+!scripts/inbox_backlog_alarm.sh
+!scripts/infra_liveness.sh
+!scripts/repair_corrupt_inbox.sh
+!lib/inbox_watcher_decisions.sh
 
 
 # SayTask (sample template only, not actual data)
@@ -298,6 +311,9 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+# Local scratch experiments (unrelated to this repo — kept locally, not for distribution)
+scratch/rust-ffmpeg/
+
 # Test specs
 !tests/specs/
 !tests/specs/*.md
@@ -356,4 +372,6 @@ tests/specs/osato_lms_*
 .claude/settings.local.json
 !scripts/lib/
 !scripts/lib/*.sh
+!scripts/lib/*.py
 !scripts/lib/shogun_telegram_relay_extract.sh
+!scripts/lib/build_specialist_variants.py
