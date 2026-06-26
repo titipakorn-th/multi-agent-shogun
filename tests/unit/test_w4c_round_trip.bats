@@ -141,8 +141,9 @@ PY
     # arrives → state transitions to answered. We test that directly
     # by simulating the callback as a lord_channel.py consume call.
     #
-    # The mock-server variant (TEST-VERIFY-MOCK) lives in
-    # tests/manual/test_round_trip_live.sh for Lord-driven verification.
+    # The mock-server variant (TEST-VERIFY-MOCK-LIVE) lives in
+    # tests/manual/w4c_verify_live.sh for full-pipeline verification
+    # including the HTTP path.
     LORD_ASK_QUEUE_DIR="$SANDBOX/queue" \
         LORD_ASK_SETTINGS="$SANDBOX/config/settings.yaml" \
         bash "$SANDBOX/scripts/lord_ask.sh" "Pick one" "yes" "no" --timeout 1 \
@@ -198,6 +199,107 @@ print('OK: state machine round-trip succeeded')
     # state machine worked (which we just verified above).
     # Accept either rc.
     [ "$rc" -eq 0 ] || [ "$rc" -eq 3 ]
+}
+
+@test "W4C-T-VERIFY-003: full HTTP round-trip via mock Telegram server" {
+    # The full HTTP path: lord_channel.py ask POSTs to a real local
+    # HTTP server (mocking api.telegram.org), which returns a valid
+    # sendMessage response with message_id. ask writes the state file.
+    # Then we simulate Lord's callback via lord_channel.py consume,
+    # which transitions the state to answered. ask's poll loop picks
+    # that up and prints the answer.
+    #
+    # This is the closest the test environment can get to a real
+    # Telegram round-trip without a bot token.
+
+    # Find a free port.
+    local port
+    port=$(python3 -c "
+import socket
+s = socket.socket()
+s.bind(('127.0.0.1', 0))
+print(s.getsockname()[1])
+s.close()
+")
+    [ -n "$port" ]
+
+    # Mock Telegram server (responds to sendMessage + answerCallbackQuery).
+    python3 - "$port" "$SANDBOX" <<'PY' &
+import json, os, sys
+from http.server import BaseHTTPRequestHandler, HTTPServer
+port = int(sys.argv[1])
+sandbox = sys.argv[2]
+class H(BaseHTTPRequestHandler):
+    def log_message(self, *a, **kw): pass
+    def do_POST(self):
+        n = int(self.headers.get("Content-Length", "0"))
+        self.rfile.read(n)  # discard body
+        path = self.path.split("/")[-1].split("?")[0]
+        if path == "sendMessage":
+            resp = {"ok": True, "result": {"message_id": 42}}
+        else:
+            resp = {"ok": True, "result": True}
+        data = json.dumps(resp).encode()
+        self.send_response(200)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", str(len(data)))
+        self.end_headers()
+        self.wfile.write(data)
+HTTPServer(("127.0.0.1", port), H).serve_forever()
+PY
+    MOCK_PID=$!
+    sleep 0.5
+
+    # Run lord_channel.py ask pointing at the mock.
+    env TELEGRAM_API_BASE="http://127.0.0.1:${port}" \
+        TELEGRAM_BOT_TOKEN="mock" TELEGRAM_CHAT_ID="mock" \
+        python3 "$CHANNEL" ask --queue-dir "$SANDBOX/queue" \
+            --question "full round-trip" --options "yes,no" --timeout 10 \
+            > "$SANDBOX/ask.out" 2>&1 &
+    ASK_PID=$!
+
+    # Wait for state file.
+    local request_id=""
+    for i in 1 2 3 4 5 6 7 8 9 10; do
+        if [ -f "$SANDBOX/queue/current_question.json" ]; then
+            request_id=$(python3 -c "import json; print(json.load(open('$SANDBOX/queue/current_question.json'))['request_id'])" 2>/dev/null || echo "")
+            [ -n "$request_id" ] && break
+        fi
+        sleep 0.3
+    done
+    [ -n "$request_id" ]
+
+    # Simulate the callback.
+    run env TELEGRAM_API_BASE="http://127.0.0.1:${port}" \
+        python3 "$CHANNEL" consume --queue-dir "$SANDBOX/queue" \
+            --request-id "$request_id" --answer "yes"
+    [ "$status" -eq 0 ]
+
+    # Wait for ask to resolve.
+    for i in 1 2 3 4 5 6 7 8 9 10; do
+        if ! kill -0 "$ASK_PID" 2>/dev/null; then break; fi
+        sleep 0.3
+    done
+    set +e
+    wait "$ASK_PID" 2>/dev/null
+    rc=$?
+    set -e
+
+    # ask should have printed "yes" and exited 0.
+    [ "$rc" -eq 0 ]
+    local last_line
+    last_line=$(awk 'NF{last=$0} END{print last}' "$SANDBOX/ask.out")
+    [ "$last_line" = "yes" ]
+
+    # State file: answered with answer=yes.
+    python3 -c "
+import json
+d = json.load(open('$SANDBOX/queue/current_question.json'))
+assert d['status'] == 'answered', d
+assert d['answer'] == 'yes', d
+"
+
+    kill "$MOCK_PID" 2>/dev/null || true
 }
 
 @test "W4C-T-VERIFY-002: late callback returns already_resolved (idempotent)" {
