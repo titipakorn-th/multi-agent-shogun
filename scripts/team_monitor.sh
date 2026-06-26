@@ -359,9 +359,22 @@ case "$mode" in
   --once)   run_all_checks ;;
   --daemon)
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] team_monitor: daemon mode, poll=${POLL_INTERVAL}s" >> "$ALERT_LOG"
+    # ponytail (X3 round-4): wrap daemon loop in set +e so per-iteration
+    # failures (load_agents Python error, alert-log write fail, transient
+    # filesystem issue) cannot kill the daemon. The whole point of a
+    # daemon is to outlive any single check. Cron-liveness will restart
+    # on actual process death; we want "actual process death" to be rare.
     while true; do
-      run_all_checks || true
-      sleep "$POLL_INTERVAL"
+      set +e
+      run_all_checks
+      rc=$?
+      set -e
+      # Log non-zero check results but never let them exit the daemon.
+      if [ "$rc" -ne 0 ]; then
+        echo "[$(date '+%Y-%m-%d %H:%M:%S')] team_monitor: check returned rc=$rc (continuing)" >> "$ALERT_LOG"
+      fi
+      # Defensive: bound sleep so a stuck `sleep` (signal) doesn't hang.
+      sleep "$POLL_INTERVAL" || sleep 1
     done
     ;;
   --check)
