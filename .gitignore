@@ -172,6 +172,7 @@ logs/
 !memory/MEMORY.md.sample
 
 # Docs (General docs ignored)
+!docs/crontab-survival.md
 
 # Screenshots (masked — no secrets)
 !images/
