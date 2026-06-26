@@ -1511,6 +1511,16 @@ def main():
     # set stays bounded across long uptimes.
     warned_entries = set()
 
+    # Hot-loop throttle: inbox mtime cache so the trigger + self_heal
+    # subprocess calls only fire when the inbox changed since last run.
+    # Without this the listener shells out 4×/sec (2 scripts × 2/sec) doing
+    # a full awk over the inbox that grows with usage. self_heal also gets
+    # a periodic force-run (every FORCE_INTERVAL sec) as a recovery guard
+    # so the mtime short-circuit can't permanently hide stuck entries.
+    _last_inbox_mtime = 0.0
+    _last_self_heal_force = 0.0
+    _FORCE_INTERVAL = 300  # 5 minutes
+
     while True:
         try:
             # Save offset periodically
@@ -2018,6 +2028,18 @@ def main():
             except Exception as _wd_e:
                 print(f"[telegram_listener] escalation_watchdog error: {_wd_e}", file=sys.stderr)
 
+            # Hot-loop throttle (4): only shell out to the trigger/self_heal
+            # scripts when the inbox mtime changed since the last successful
+            # pass, OR (for self_heal only) the FORCE_INTERVAL has elapsed as
+            # a recovery guard. Cost was 4×/sec awk over an unbounded inbox.
+            # Initialized here so the trigger/self_heal try blocks below can
+            # reference them safely even if the first try raised.
+            _inbox_path = os.path.join(script_dir, "../queue/inbox/shogun.yaml")
+            _now_mtime = os.path.getmtime(_inbox_path) if os.path.exists(_inbox_path) else 0.0
+            _trigger_inbox_changed = _now_mtime != _last_inbox_mtime
+            _now_ts = time.time()
+            _self_heal_forced = (_now_ts - _last_self_heal_force) >= _FORCE_INTERVAL
+
             # Auto-prompt trigger: detect report_completed entries in Shogun's
             # inbox (read:true, Shogun already processed) and dispatch the next
             # plan task autonomously. Solves the session-boundary race where
@@ -2027,17 +2049,47 @@ def main():
             try:
                 import subprocess as _sp
                 ap_log = os.path.join(script_dir, "../logs/auto_prompt_trigger.log")
-                with open(ap_log, "a", encoding="utf-8") as ap_logfile:
-                    _sp.run(
-                        ["bash", os.path.join(script_dir, "lib/auto_prompt_trigger.sh")],
-                        check=False,
-                        timeout=10,
-                        cwd=os.path.join(script_dir, ".."),
-                        stdout=ap_logfile,
-                        stderr=ap_logfile,
-                    )
+                # Hot-loop throttle (4): only fire trigger when inbox mtime
+                # changed (see gate init above). The mtime+forced flags are
+                # computed once per loop iteration to avoid duplicate syscalls.
+                if _trigger_inbox_changed:
+                    with open(ap_log, "a", encoding="utf-8") as ap_logfile:
+                        _sp.run(
+                            ["bash", os.path.join(script_dir, "lib/auto_prompt_trigger.sh")],
+                            check=False,
+                            timeout=10,
+                            cwd=os.path.join(script_dir, ".."),
+                            stdout=ap_logfile,
+                            stderr=ap_logfile,
+                        )
+                    _last_inbox_mtime = _now_mtime
             except Exception as _e:
                 print(f"[telegram_listener] auto_prompt trigger error: {_e}", file=sys.stderr)
+
+            # Action-required self-heal: auto-resolve action_required
+            # read:true entries (previously a manual LLM step in
+            # instructions/shogun.md:728-730). Gated by inbox mtime OR
+            # the FORCE_INTERVAL safety net — self_heal is a recovery
+            # guard, not a hot-loop job (cmd_039 design). Same idempotent
+            # shape: skip ids with existing resolution files, never blocks
+            # the loop. See scripts/lib/auto_prompt_self_heal.sh.
+            try:
+                import subprocess as _sp_sh
+                sh_log = os.path.join(script_dir, "../logs/auto_prompt_self_heal.log")
+                if _trigger_inbox_changed or _self_heal_forced:
+                    with open(sh_log, "a", encoding="utf-8") as sh_logfile:
+                        _sp_sh.run(
+                            ["bash", os.path.join(script_dir, "lib/auto_prompt_self_heal.sh"), "queue/inbox/shogun.yaml"],
+                            check=False,
+                            timeout=10,
+                            cwd=os.path.join(script_dir, ".."),
+                            stdout=sh_logfile,
+                            stderr=sh_logfile,
+                        )
+                    if _self_heal_forced:
+                        _last_self_heal_force = _now_ts
+            except Exception as _sh_e:
+                print(f"[telegram_listener] auto_prompt self_heal error: {_sh_e}", file=sys.stderr)
 
             # Stale-Inbox Watchdog: warn the Lord once if a Telegram message
             # has been sitting in queue/inbox/shogun.yaml as unread for more

@@ -1,6 +1,7 @@
 ---
 title: Adopt auto_prompt for Shogun
 auto_continue: true
+project: lotuss
 ---
 
 # Plan: Adopt auto_prompt for Shogun

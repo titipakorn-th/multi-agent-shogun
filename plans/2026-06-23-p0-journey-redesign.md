@@ -1,6 +1,7 @@
 ---
 title: P0 Journey Redesign Implementation (cmd_037 §8.7)
 auto_continue: true
+project: lotuss
 ---
 
 # Plan: P0 Journey Redesign Implementation

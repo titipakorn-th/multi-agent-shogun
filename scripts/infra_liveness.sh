@@ -110,6 +110,22 @@ else
     relaunch "watcher_supervisor" "cd '$PROJECT_ROOT' && bash scripts/watcher_supervisor.sh >> '$LOG_DIR/watcher_supervisor.log' 2>&1"
 fi
 
+# 3. listener_watchdog.sh — supervises telegram_listener.py (auto_prompt
+# trigger caller). Scripts/LISTENER_SUPERVISION.md says the canonical
+# launcher is depart.sh's tmux window, but if the tmux server is down
+# the watchdog dies too — leaving the listener permanently un-supervised
+# (which is exactly the bug the watchdog exists to prevent). Adding it
+# here as a singleton closes that gap with the same shape as the other
+# two. The watchdog's own flock + pause-sentinel logic means double-launch
+# is safe. ponytail: same pattern; revisit if watchdog ever splits.
+if is_alive "bash scripts/listener_watchdog.sh"; then
+    log_line "OK: listener_watchdog is alive"
+else
+    log_line "MISSING: listener_watchdog not running"
+    missing+=("listener_watchdog")
+    relaunch "listener_watchdog" "cd '$PROJECT_ROOT' && exec bash scripts/listener_watchdog.sh >> '$LOG_DIR/listener_watchdog.log' 2>&1"
+fi
+
 # inbox_watcher is NOT managed here. See scripts/watcher_supervisor.sh.
 # Round-3 audit found this script's relaunch was malformed (no args);
 # supervisor already owns per-pane watcher lifecycle (and now supervisor

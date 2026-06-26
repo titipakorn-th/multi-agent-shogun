@@ -18,6 +18,7 @@
 #   TASK_NUM=<integer>
 #   TASK_TITLE=<text after "Task N: ">
 #   TASK_BODY=<full body of the ### Task N section, multiline>
+#   PROJECT=<frontmatter project: value, or empty if omitted>
 #
 # Output (no plans):
 #   RESULT=no_plans
@@ -52,6 +53,16 @@ auto_prompt_select_next() {
         if grep -q "^auto_continue:[[:space:]]*false" "$plan_file" 2>/dev/null; then
             continue
         fi
+
+        # Optional `project:` frontmatter — caller uses this for routing instead
+        # of a hardcoded default. Empty string means "plan did not declare".
+        local project
+        project=$(awk '
+            /^---/ { fm_count++; next }
+            fm_count == 1 && /^project:[[:space:]]*/ {
+                sub(/^project:[[:space:]]*/, ""); print; exit
+            }
+        ' "$plan_file")
 
         # Find first `- [ ]` line in `## Status` section. We use awk to
         # bound the search between `## Status` and the next `## ` heading.
@@ -99,6 +110,7 @@ auto_prompt_select_next() {
         echo "TASK_NUM=$task_num"
         echo "TASK_TITLE=$task_title"
         echo "TASK_BODY=$task_body"
+        echo "PROJECT=$project"
         return 0
     done
 

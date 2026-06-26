@@ -92,3 +92,34 @@ YAML
     [ "$status" -eq 0 ]
     [ ! -f "$TEST_TMP/marker_ntfy.log" ]
 }
+
+# Round-4 regression guard for escalation_watchdog's specialized parser
+# (captures timestamp + forwarded_at). If the parser silently reverts to
+# an END-only emit (the round-1/round-2 defect), the buried stale
+# action_required below would not be forwarded. Reproduces the exact
+# shape: target entry FIRST, an unrelated read:true entry LAST.
+@test "multi-entry: stale action_required FIRST + read:true entry LAST → still forwards" {
+    cat > queue/inbox/shogun.yaml <<YAML
+messages:
+- content: 'cmd_test — question for Lord'
+  from: orchestrator
+  id: msg_buried_stale
+  read: false
+  timestamp: '$(stale_ts)'
+  type: action_required
+- content: 'random cmd status'
+  from: orchestrator
+  id: msg_trailing_read
+  read: true
+  timestamp: '$(stale_ts)'
+  type: report_completed
+YAML
+    run bash scripts/lib/escalation_watchdog.sh queue/inbox/shogun.yaml
+    [ "$status" -eq 0 ]
+    # Buried stale action_required MUST be forwarded despite the trailing entry.
+    [ -f "$TEST_TMP/marker_ntfy.log" ]
+    grep -q "msg_buried_stale" "$TEST_TMP/marker_ntfy.log"
+    # forwarded_at was added to the buried entry.
+    grep -q "msg_buried_stale" queue/inbox/shogun.yaml
+    grep -A5 "msg_buried_stale" queue/inbox/shogun.yaml | grep -q "forwarded_at"
+}

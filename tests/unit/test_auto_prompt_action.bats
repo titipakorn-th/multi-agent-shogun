@@ -217,3 +217,46 @@ YAML
     run cat "$root/queue/auto_prompt_state.yaml"
     [[ "$output" =~ "dispatches_this_session: 0" ]]
 }
+
+# TC-APR-11: Round-4 regression guard for self_heal's specialized parser.
+# The handler captures `content` (multi-line YAML scalar) and emits id\tbody
+# only when type=action_required AND read=true. If this parser silently
+# reverts to an END-only emit (the round-1/round-2 defect), the buried
+# action_required below would not be acted on. This test reproduces the
+# exact shape: target entry FIRST, unrelated report_completed LAST.
+@test "TC-APR-11: buried action_required (NOT last) is still resolved" {
+    local root; root=$(stage_self_heal_root)
+    local inbox="$root/queue/inbox/shogun.yaml"
+    cat > "$inbox" <<'YAML'
+messages:
+- content: 'ACTION_REQUIRED: pick | CHOICES: (a) low, (b) high (Recommended), (c) off'
+  from: orchestrator
+  id: msg_buried_action
+  read: true
+  timestamp: '2026-06-23T01:50:00+00:00'
+  type: action_required
+- content: 'cmd_038 SHIPPED at 01:38:10.'
+  from: orchestrator
+  id: msg_trailing_report
+  read: true
+  timestamp: '2026-06-23T01:50:01+00:00'
+  type: report_completed
+YAML
+    # shellcheck disable=SC1090
+    source "$PROJECT_ROOT/scripts/lib/auto_prompt_self_heal.sh"
+    cd "$root"
+    run self_heal_inbox "$inbox"
+    cd "$PROJECT_ROOT"
+    [ "$status" -eq 0 ]
+    # Buried action_required MUST be resolved despite the trailing entry.
+    [[ "$output" =~ "resolved=1" ]]
+    [[ "$output" =~ "msg_buried_action" ]]
+    [[ "$output" =~ "(b) high" ]]
+
+    # Resolution file written for the buried entry.
+    [ -f "$root/queue/current_question_msg_buried_action.json" ]
+
+    # State counter incremented from 0 → 1.
+    run cat "$root/queue/auto_prompt_state.yaml"
+    [[ "$output" =~ "dispatches_this_session: 1" ]]
+}

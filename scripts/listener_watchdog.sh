@@ -238,13 +238,24 @@ fi
 # Single-instance guard. flock -n exits the script immediately if another copy
 # is already running. This is what makes cron-driven + tmux-driven supervision
 # safe to overlap.
-exec 9>"$LOCKFILE" || {
-    echo "[watchdog] cannot open lockfile $LOCKFILE" >&2
-    exit 1
-}
-if ! flock -n 9; then
-    log_watchdog "another instance already running; exiting"
-    exit 0
+# ponytail: flock is not installed on stock macOS. Fall back to mkdir-based
+# locking (same pattern as scripts/watcher_supervisor.sh) so the watchdog
+# stays portable.
+if command -v flock >/dev/null 2>&1; then
+    exec 9>"$LOCKFILE" || {
+        echo "[watchdog] cannot open lockfile $LOCKFILE" >&2
+        exit 1
+    }
+    if ! flock -n 9; then
+        log_watchdog "another instance already running; exiting"
+        exit 0
+    fi
+else
+    if ! mkdir "${LOCKFILE}.d" 2>/dev/null; then
+        log_watchdog "another instance already running; exiting"
+        exit 0
+    fi
+    trap 'rmdir "${LOCKFILE}.d" 2>/dev/null || true' EXIT
 fi
 
 log_watchdog "watchdog started poll=${POLL_INTERVAL}s max_restarts=${MAX_RESTARTS_PER_HOUR}/hour"

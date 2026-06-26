@@ -1,6 +1,7 @@
 ---
 title: Agentic Orchestration Gap Closure
 auto_continue: true
+project: lotuss
 created: "2026-06-26"
 ---
 
