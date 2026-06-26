@@ -15,12 +15,17 @@ teardown() {
 }
 
 @test "T-REAP-001: dry-run does not delete anything" {
+    # Use a sandboxed copy of the reaper pointed at the sandbox.
+    local reaped_copy="$SANDBOX/reap_janitor_local.sh"
+    sed -e "s|^QUEUE_DIR=.*|QUEUE_DIR=\"$SANDBOX\"|" \
+        -e "s|^PROJECT_ROOT=.*|PROJECT_ROOT=\"$SANDBOX\"|" \
+        "$REAPER" > "$reaped_copy"
+    chmod +x "$reaped_copy"
     touch -t 202401010000 "$SANDBOX/old.tmp"
-    run bash "$REAPER" --age-minutes 1
-    # The reaper resolves QUEUE_DIR relative to the script, so dry-run on
-    # the real queue still lists the sandbox via stdout.
+    run bash "$reaped_copy" --age-minutes 1
     [ "$status" -eq 0 ] || [ "$status" -eq 2 ]
     echo "$output" | grep -qE "dry-run|APPLYING"
+    [ -f "$SANDBOX/old.tmp" ]  # dry-run must NOT delete
 }
 
 @test "T-REAP-002: rejects unknown args with exit 1" {
@@ -35,16 +40,47 @@ teardown() {
 }
 
 @test "T-REAP-004: zero candidates → clean exit 0" {
-    # Empty sandbox has nothing to reap (script uses real queue dir).
-    run bash "$REAPER" --age-minutes 999999
-    # Real queue has candidates but all < 999999m old.
-    [ "$status" -eq 0 ] || [ "$status" -eq 2 ]
+    # Empty sandbox has nothing to reap.
+    local reaped_copy="$SANDBOX/reap_janitor_local.sh"
+    sed -e "s|^QUEUE_DIR=.*|QUEUE_DIR=\"$SANDBOX\"|" \
+        -e "s|^PROJECT_ROOT=.*|PROJECT_ROOT=\"$SANDBOX\"|" \
+        "$REAPER" > "$reaped_copy"
+    chmod +x "$reaped_copy"
+    run bash "$reaped_copy" --age-minutes 999999
+    [ "$status" -eq 0 ]
 }
 
 @test "T-REAP-005: dry-run output lists .bak.test candidates" {
-    echo "x" > "$SANDBOX/fixture.bak.test"
-    run bash "$REAPER" --age-minutes 0
-    # .bak.test files are always reaped regardless of age (no mmin guard).
-    echo "$output" | grep -q "fixture.bak.test" || echo "$output" | grep -q "would remove"
-    rm -f "$SANDBOX/fixture.bak.test"
+    local reaped_copy="$SANDBOX/reap_janitor_local.sh"
+    sed -e "s|^QUEUE_DIR=.*|QUEUE_DIR=\"$SANDBOX\"|" \
+        -e "s|^PROJECT_ROOT=.*|PROJECT_ROOT=\"$SANDBOX\"|" \
+        "$REAPER" > "$reaped_copy"
+    chmod +x "$reaped_copy"
+    mkdir -p "$SANDBOX/scripts"
+    echo "x" > "$SANDBOX/scripts/fixture.bak.test"
+    run bash "$reaped_copy" --age-minutes 0
+    echo "$output" | grep -qE "fixture.bak.test|would remove"
+    [ -f "$SANDBOX/scripts/fixture.bak.test" ]  # dry-run preserves
+}
+
+@test "T-REAP-006: --apply removes an untracked .bak.test file (round-3 V3 regression)" {
+    # V3 round-3 review: ntfy.sh.bak.test survived because the original
+    # candidate match only scanned queue/. The fix extends the scan to
+    # scripts/ at depth ≤ 1. This test guards against future regressions.
+    touch "$SANDBOX/untracked.bak.test"
+    [ -f "$SANDBOX/untracked.bak.test" ]
+    # Point the reaper at the sandbox by overriding INBOX_DIR + queue_dir
+    # via env. Since reap_janitor hardcodes $QUEUE_DIR via BASH_SOURCE,
+    # we copy the script into the sandbox with the path rewritten.
+    local reaped_copy
+    reaped_copy="$SANDBOX/reap_janitor_local.sh"
+    sed -e "s|^QUEUE_DIR=.*|QUEUE_DIR=\"$SANDBOX\"|" \
+        -e "s|^PROJECT_ROOT=.*|PROJECT_ROOT=\"$SANDBOX\"|" \
+        "$PROJECT_ROOT/scripts/reap_janitor.sh" > "$reaped_copy"
+    chmod +x "$reaped_copy"
+    # Plant a sibling scripts/ dir so the bak.test scan finds the file.
+    mkdir -p "$SANDBOX/scripts"
+    mv "$SANDBOX/untracked.bak.test" "$SANDBOX/scripts/untracked.bak.test"
+    bash "$reaped_copy" --apply >/dev/null 2>&1 || true
+    [ ! -f "$SANDBOX/scripts/untracked.bak.test" ]
 }

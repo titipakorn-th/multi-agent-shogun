@@ -55,9 +55,12 @@ while IFS= read -r f; do
 done < <(find "$QUEUE_DIR" -maxdepth 1 -type f -name "*.lock" -mmin +"$AGE_MINUTES" 2>/dev/null)
 
 # 3. Test backup files left after a bats run (these have no retention need).
+# Scan both queue/ (in-progress leftovers) and scripts/ (post-test snapshots
+# like ntfy.sh.bak.test). The scripts/ scan is shallow — we only care about
+# .bak.test at depth ≤ 1 to avoid accidentally reaping nested build artifacts.
 while IFS= read -r f; do
     candidates+=("$f")
-done < <(find "$QUEUE_DIR" -type f -name "*.bak.test" 2>/dev/null)
+done < <(find "$QUEUE_DIR" "$PROJECT_ROOT/scripts" -maxdepth 1 -type f -name "*.bak.test" 2>/dev/null)
 
 # 4. Orphaned report YAMLs whose writer has no live task. Conservative
 # heuristic: any *_{role}_report.yaml in queue/reports/ whose target role

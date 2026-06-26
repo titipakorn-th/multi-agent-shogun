@@ -487,21 +487,13 @@ try:
     special_types = ("clear_command", "model_switch", "cli_restart")
     specials = [m for m in unread if m.get("type") in special_types]
 
-    if specials:
-        for m in messages:
-            if not m.get("read", False) and m.get("type") in special_types:
-                m["read"] = True
-
-        tmp_path = f"{inbox}.tmp.{os.getpid()}"
-        with open(tmp_path, "w", encoding="utf-8") as f:
-            yaml.safe_dump(
-                data,
-                f,
-                default_flow_style=False,
-                allow_unicode=True,
-                sort_keys=False,
-            )
-        os.replace(tmp_path, inbox)
+    # NOTE (Task 1 gap-closure): We no longer mark specials as read here.
+    # Previously, a busy-skip in the bash loop (clear_command + agent_is_busy)
+    # would lose the message because the Python helper already wrote
+    # read=True. Now specials stay read=False until mark_specials_read()
+    # is called with the IDs of specials that were actually sent.
+    # Busyskipped specials remain read=False with deferred metadata so the
+    # next cycle retries them.
 
     normal_count = len(unread) - len(specials)
     normal_msgs = [m for m in unread if m.get("type") not in special_types]
@@ -519,11 +511,129 @@ try:
         "has_task_assigned": has_task_assigned,
         "latest_id": latest_id,
         "ids_hashlet": "|".join(msg_ids)[:120],
-        "specials": [{"type": m.get("type", ""), "content": m.get("content", "")} for m in specials],
+        # Include `id` so bash can call mark_specials_read() with the exact
+        # entries that were successfully sent (avoids marking busyskipped
+        # specials as read, which would lose them permanently).
+        "specials": [
+            {
+                "id": m.get("id"),
+                "type": m.get("type", ""),
+                "content": m.get("content", ""),
+            }
+            for m in specials
+        ],
     }
     print(json.dumps(payload))
 except Exception:
     print(json.dumps({"count": 0, "specials": []}))
+PY
+    ) 200>"$LOCKFILE" 2>/dev/null
+}
+
+# ─── Mark specific specials as read (Task 1 gap-closure) ───
+# Args: newline-separated list of message IDs that were successfully sent.
+# Only marks those IDs read. Busyskipped specials are NOT included and
+# therefore stay read=False with deferred metadata until next cycle.
+# Returns 0 on success, 1 on error.
+mark_specials_read() {
+    local ids_text="$1"
+    [ -z "$ids_text" ] && return 0
+    if [ -z "${INBOX:-}" ] || [ ! -f "$INBOX" ]; then
+        return 1
+    fi
+
+    (
+        if ! acquire_inbox_lock; then
+            return 1
+        fi
+        trap release_inbox_lock EXIT
+        INBOX_PATH="$INBOX" IDS_TEXT="$ids_text" "$SCRIPT_DIR/.venv/bin/python3" - << 'PY'
+import os
+import yaml
+
+inbox = os.environ["INBOX_PATH"]
+ids_text = os.environ["IDS_TEXT"]
+target_ids = {x.strip() for x in ids_text.splitlines() if x.strip()}
+if not target_ids:
+    raise SystemExit(0)
+
+with open(inbox, "r", encoding="utf-8") as f:
+    data = yaml.safe_load(f) or {}
+
+messages = data.get("messages", []) or []
+import time as _t
+_now = int(_t.time())
+for m in messages:
+    if m.get("id") in target_ids and not m.get("read", False):
+        m["read"] = True
+        # Clear any deferred metadata from prior busy-skips.
+        m.pop("deferred_at", None)
+        m.pop("deferred_reason", None)
+        m.pop("deferred_count", None)
+
+tmp_path = f"{inbox}.tmp.{os.getpid()}"
+with open(tmp_path, "w", encoding="utf-8") as f:
+    yaml.safe_dump(
+        data,
+        f,
+        default_flow_style=False,
+        allow_unicode=True,
+        sort_keys=False,
+    )
+os.replace(tmp_path, inbox)
+PY
+    ) 200>"$LOCKFILE" 2>/dev/null
+}
+
+# ─── Mark specials as deferred (busyskipped) ───
+# Adds deferred_at + deferred_count to busyskipped specials so we can
+# log-throttle on retries without losing the message.
+mark_specials_deferred() {
+    local ids_text="$1"
+    local reason="${2:-busy}"
+    [ -z "$ids_text" ] && return 0
+    if [ -z "${INBOX:-}" ] || [ ! -f "$INBOX" ]; then
+        return 1
+    fi
+
+    (
+        if ! acquire_inbox_lock; then
+            return 1
+        fi
+        trap release_inbox_lock EXIT
+        INBOX_PATH="$INBOX" IDS_TEXT="$ids_text" REASON="$reason" "$SCRIPT_DIR/.venv/bin/python3" - << 'PY'
+import os
+import time
+import yaml
+
+inbox = os.environ["INBOX_PATH"]
+ids_text = os.environ["IDS_TEXT"]
+reason = os.environ.get("REASON", "busy")
+target_ids = {x.strip() for x in ids_text.splitlines() if x.strip()}
+if not target_ids:
+    raise SystemExit(0)
+
+with open(inbox, "r", encoding="utf-8") as f:
+    data = yaml.safe_load(f) or {}
+
+messages = data.get("messages", []) or []
+now = int(time.time())
+for m in messages:
+    if m.get("id") in target_ids and not m.get("read", False):
+        m["deferred_at"] = now
+        m["deferred_reason"] = reason
+        m["deferred_count"] = int(m.get("deferred_count", 0)) + 1
+
+tmp_path = f"{inbox}.tmp.{os.getpid()}"
+with open(tmp_path, "w", encoding="utf-8") as f:
+    yaml.safe_dump(
+        data,
+        f,
+        default_flow_style=False,
+        allow_unicode=True,
+        sort_keys=False,
+    )
+os.replace(tmp_path, inbox)
 PY
     ) 200>"$LOCKFILE" 2>/dev/null
 }
@@ -562,9 +672,12 @@ send_cli_command() {
 
     # Safety: never inject CLI commands into the shogun pane.
     # Shogun is controlled by the Lord; keystroke injection can clobber human input.
+    # The suppression IS a successful operation (we recognised the role and
+    # intentionally did nothing) — return 0 so the special-message loop can
+    # mark the message read instead of leaving it pending forever.
     if [ "$AGENT_ID" = "shogun" ]; then
         echo "[$(date)] [SKIP] shogun: suppressing CLI command injection ($cmd)" >&2
-        return 1
+        return 0
     fi
 
     # Busy guard: never send /clear when agent is actively processing.
@@ -1150,33 +1263,68 @@ process_unread() {
 import sys, json
 data = json.load(sys.stdin)
 for s in data.get('specials', []):
+    sid = s.get('id', '')
     t = s.get('type', '')
     c = (s.get('content', '') or '').replace('\t', ' ').replace('\n', ' ').strip()
-    print(f'{t}\t{c}')
+    print(f'{sid}\t{t}\t{c}')
 " 2>/dev/null)
 
     local clear_seen=0
     local clear_sent=0  # tracks if /clear was actually sent (not just seen)
+    local sent_ids=""   # newline-separated IDs to mark read after loop
+    local deferred_ids=""  # newline-separated IDs to mark deferred (busyskipped)
     if [ -n "$specials" ]; then
-        local msg_type msg_content cmd
-        while IFS=$'\t' read -r msg_type msg_content; do
+        local msg_id msg_type msg_content cmd
+        while IFS=$'\t' read -r msg_id msg_type msg_content; do
             [ -n "$msg_type" ] || continue
             if [ "$msg_type" = "clear_command" ]; then
                 clear_seen=1
                 # Busy guard: skip /clear if agent is currently processing.
                 # Sending /clear during active work destroys in-progress context.
+                # Task 1 gap-closure: track deferred ID so the message is NOT
+                # marked read — it will be retried next cycle.
                 if agent_is_busy && [[ "$AGENT_ID" != "shogun" ]]; then
-                    echo "[$(date)] [SKIP] Agent $AGENT_ID is busy — /clear (clear_command) deferred to next cycle" >&2
+                    echo "[$(date)] [SKIP] Agent $AGENT_ID is busy — /clear (id=${msg_id:-?}) deferred (will retry next cycle)" >&2
+                    [ -n "$msg_id" ] && deferred_ids="${deferred_ids:+${deferred_ids}
+}${msg_id}"
                     continue
                 fi
             fi
             cmd=$(normalize_special_command "$msg_type" "$msg_content")
             if [ -n "$cmd" ]; then
+                # send_cli_command returns 0 on success or intentional suppression
+                # (e.g., shogun suppresses /clear), and 1 on real failure (e.g.,
+                # /model on codex, shell-only pane). Treat 0 as "handled".
                 if send_cli_command "$cmd"; then
-                    [ "$msg_type" = "clear_command" ] && clear_sent=1
+                    # Auto-recovery only fires when a /clear was actually sent
+                    # to a real CLI. shogun suppresses /clear (return 0 but no
+                    # keystroke sent), so skip auto-recovery for shogun.
+                    if [ "$msg_type" = "clear_command" ] && [ "$AGENT_ID" != "shogun" ]; then
+                        clear_sent=1
+                    fi
+                    [ -n "$msg_id" ] && sent_ids="${sent_ids:+${sent_ids}
+}${msg_id}"
+                else
+                    # send_cli_command reported a real failure. Don't lose the
+                    # message — defer so we can retry or surface for operator.
+                    [ -n "$msg_id" ] && deferred_ids="${deferred_ids:+${deferred_ids}
+}${msg_id}"
                 fi
+            else
+                # normalize returned empty (unsupported combination). Don't lose the message.
+                [ -n "$msg_id" ] && deferred_ids="${deferred_ids:+${deferred_ids}
+}${msg_id}"
             fi
         done <<< "$specials"
+
+        # Atomic bookkeeping: mark sent specials read, mark busyskipped as deferred.
+        # Order matters: deferred first (so it can't race against mark-read).
+        if [ -n "$deferred_ids" ]; then
+            mark_specials_deferred "$deferred_ids" "busy"
+        fi
+        if [ -n "$sent_ids" ]; then
+            mark_specials_read "$sent_ids"
+        fi
     fi
 
     # /clear is translated to /new in Codex. To prevent missing messages immediately after restart,
@@ -1374,6 +1522,7 @@ process_unread_once
 # Shorter timeout = faster escalation retry for stuck agents.
 INOTIFY_TIMEOUT="${INOTIFY_TIMEOUT:-30}"
 
+LIVENESS_TICKS=0
 while true; do
     # Block until file is modified OR timeout
     # Backend-specific file watching: inotifywait (Linux) or fswatch (macOS)
@@ -1422,6 +1571,18 @@ while true; do
     if [ "$rc" -eq 2 ]; then
         if [ "${ASW_PROCESS_TIMEOUT:-1}" = "1" ]; then
             process_unread "timeout"
+        fi
+        # ponytail (V4 round-3): watcher self-heartbeat — every timeout tick
+        # (default 30s) re-invoke infra_liveness. Cron is primary, this is
+        # the backstop. If macOS cron is asleep or crontab is missing, the
+        # watcher still keeps itself and team_monitor alive.
+        LIVENESS_INTERVAL="${LIVENESS_INTERVAL:-10}"
+        LIVENESS_TICKS=$((LIVENESS_TICKS + 1))
+        if [ "$LIVENESS_TICKS" -ge "$LIVENESS_INTERVAL" ]; then
+            LIVENESS_TICKS=0
+            if [ -x "$SCRIPT_DIR/infra_liveness.sh" ]; then
+                bash "$SCRIPT_DIR/infra_liveness.sh" >/dev/null 2>&1 || true
+            fi
         fi
     else
         process_unread "event"
