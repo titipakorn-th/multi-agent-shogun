@@ -418,118 +418,42 @@ def watch_stale_inbox(script_dir, warned_entries, now=None):
 
 
 def _drain_pending_lord_questions(script_dir, token, chat_id):
-    """If pending_lord_questions.yaml has entries, pop the first one and
-    write it to current_question.json as the new active question. Send it
-    to Telegram. Notify the Lord if more questions remain.
+    """Pop the next pending Lord question and send it to Telegram.
 
-    Returns True if a question was popped, False if the queue is empty.
-
-    Race-safety (C1 fix): the read-pop-rewrite sequence uses a tmp file
-    + os.replace() (atomic on POSIX) and re-reads the pending file to
-    confirm. If a concurrent lord_ask.sh enqueue lands between the
-    initial read and the atomic replace, the new entry is still in the
-    file after the replace (it appended to the original inode after our
-    read snapshot, and our os.replace() overwrote the file in place).
-    In that case we keep what we popped (a new entry will be popped on
-    the next tick). The previous implementation did a non-atomic
-    read → f.write(remaining) which clobbered any concurrent enqueue.
+    W4c-finish (rev 4): the inline YAML parsing + json.dump to
+    current_question.json has moved into LordChannel.promote_next_pending.
+    This wrapper is now ~30 lines: it calls promote_next_pending (which
+    owns state under flock), sends the resulting question to Telegram,
+    and notifies the Lord if more questions remain.
     """
-    pending_path = os.path.abspath(
-        os.path.join(script_dir, "../queue/pending_lord_questions.yaml")
+    sys.path.insert(0, os.path.join(script_dir, "lib"))
+    try:
+        from lord_channel import LordChannel
+        from pathlib import Path as _Path
+    except ImportError as e:
+        print(f"[telegram_listener] lord_channel import failed: {e}", file=sys.stderr)
+        return False
+
+    queue_dir = os.path.abspath(os.path.join(script_dir, "..", "queue"))
+    channel = LordChannel(
+        _Path(queue_dir),
+        telegram_token=token or "",
+        chat_id=chat_id or "",
     )
-    tmp_path = pending_path + ".tmp"
-    if not os.path.exists(pending_path):
+    question_data = channel.promote_next_pending()
+    if not question_data:
         return False
 
-    try:
-        # Read all entries (simple YAML list-of-mappings parser — no
-        # PyYAML dep to keep the listener lean). Each entry is four
-        # lines emitted by lord_ask.sh's enqueue_pending helper.
-        with open(pending_path, "r", encoding="utf-8") as f:
-            content = f.read()
-
-        # Find the first `- request_id:` line and its block (4 lines).
-        match = re.search(
-            r'^- request_id: "([^"]+)"\n  question: "([^"]+)"\n  options: (\[.*?\])\n  timestamp: "([^"]+)"\n',
-            content, re.MULTILINE,
-        )
-        if not match:
-            return False
-
-        request_id, question, options_json, timestamp = match.groups()
-
-        # Unescape newlines (C2 fix): enqueue_pending escapes literal
-        # newlines in the question as the two-character sequence \n so
-        # each mapping stays on a single line (preserving the 4-line
-        # invariant that pending_pop's `tail -n +5` depends on). Restore
-        # the real newline here before sending to Telegram / writing
-        # to current_question.json.
-        question = question.replace("\\n", "\n")
-
-        # Pop the head entry via atomic write: write `remaining` to a
-        # tmp file, then os.replace() (atomic rename on POSIX). This
-        # eliminates the read-vs-write race where a concurrent
-        # lord_ask.sh enqueue could land between our read and write.
-        remaining = content[match.end():]
-        with open(tmp_path, "w", encoding="utf-8") as f:
-            f.write(remaining)
-        os.replace(tmp_path, pending_path)
-
-        # Re-read to confirm. If a concurrent enqueue landed during our
-        # read+replace, the new entry is still in the file (good — next
-        # tick will pop it). We proceed with the question we already
-        # extracted; no need to retry.
-        try:
-            with open(pending_path, "r", encoding="utf-8") as f:
-                post_replace = f.read()
-        except Exception:
-            post_replace = remaining
-
-        # Count remaining entries (rough — count of "- request_id:")
-        remaining_count = post_replace.count("- request_id:")
-    except Exception as e:
-        print(f"[telegram_listener] drain error: {e}", file=sys.stderr)
-        # Best-effort cleanup of the tmp file if we left it behind.
-        try:
-            if os.path.exists(tmp_path):
-                os.remove(tmp_path)
-        except Exception:
-            pass
-        return False
-
-    # Write the popped question as the new active question. The waiting
-    # lord_ask.sh caller polls current_question.json for its own request_id;
-    # telegram_ask.py will overwrite this file when it sends, but the
-    # request_id field persists because telegram_ask.py doesn't touch it.
-    question_file = os.path.abspath(
-        os.path.join(script_dir, "../queue/current_question.json")
-    )
-    try:
-        options = json.loads(options_json)
-    except Exception:
-        options = []
-    question_data = {
-        "request_id": request_id,
-        "question": question,
-        "options": options,
-        "timestamp": timestamp,
-        "status": "pending",
-    }
-    try:
-        with open(question_file, "w", encoding="utf-8") as f:
-            json.dump(question_data, f, indent=2, ensure_ascii=False)
-    except Exception as e:
-        print(f"[telegram_listener] drain question-file write error: {e}", file=sys.stderr)
-        return False
-
-    # Send the question to Telegram
+    # Send the popped question to Telegram.
     payload = {
         "chat_id": chat_id,
-        "text": f"❓ *Question:*\n{question}",
+        "text": f"❓ *Question:*\n{question_data.get('question', '')}",
         "parse_mode": "Markdown",
     }
+    options = question_data.get("options") or []
     if options:
-        keyboard = [[{"text": o, "callback_data": f"opt_{i}"}] for i, o in enumerate(options)]
+        keyboard = [[{"text": o, "callback_data": f"opt_{i}"}]
+                    for i, o in enumerate(options)]
         keyboard.append([{"text": "✏️ Other (free text)", "callback_data": "opt_other"}])
         payload["reply_markup"] = {"inline_keyboard": keyboard}
     send_res = make_telegram_request(token, "sendMessage", payload)
@@ -540,12 +464,18 @@ def _drain_pending_lord_questions(script_dir, token, chat_id):
         )
         return False
 
-    # Notify Lord if more questions remain
+    # Notify Lord if more questions remain (rough count of `- request_id:`
+    # in the file — the channel already popped the head, so we re-read).
+    pending_path = os.path.join(queue_dir, "pending_lord_questions.yaml")
+    try:
+        with open(pending_path, "r", encoding="utf-8") as f:
+            remaining_count = f.read().count("- request_id:")
+    except Exception:
+        remaining_count = 0
     if remaining_count > 0:
-        notify_text = f"📋 {remaining_count} more question(s) queued after this one."
         make_telegram_request(token, "sendMessage", {
             "chat_id": chat_id,
-            "text": notify_text,
+            "text": f"📋 {remaining_count} more question(s) queued after this one.",
         })
 
     return True

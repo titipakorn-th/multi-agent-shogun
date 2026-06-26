@@ -46,6 +46,7 @@ import contextlib
 import fcntl
 import json
 import os
+import re
 import sys
 import time
 import urllib.request
@@ -55,6 +56,7 @@ from pathlib import Path
 
 STATE_FILENAME = "current_question.json"
 LOCK_FILENAME = "current_question.lock"
+PENDING_FILENAME = "pending_lord_questions.yaml"
 DEFAULT_TELEGRAM_API = "https://api.telegram.org/bot{token}/{method}"
 # Test override: TELEGRAM_API_BASE lets tests point at a mock server.
 TELEGRAM_API_BASE = os.environ.get("TELEGRAM_API_BASE") or DEFAULT_TELEGRAM_API
@@ -65,6 +67,7 @@ class LordChannel:
         self.queue_dir = queue_dir
         self.state_path = queue_dir / STATE_FILENAME
         self.lock_path = queue_dir / LOCK_FILENAME
+        self.pending_path = queue_dir / PENDING_FILENAME
         self.telegram_token = telegram_token
         self.chat_id = chat_id
 
@@ -177,6 +180,59 @@ class LordChannel:
             state["answered_at"] = time.time()
             self._write_state_unlocked(state)
             return "consumed"
+
+    def promote_next_pending(self) -> dict:
+        """Pop the first entry from pending_lord_questions.yaml and write
+        it as the new active question in current_question.json. Returns
+        the popped question dict, or {} if the queue is empty.
+
+        Replaces the inline body of telegram_listener._drain_pending_lord_questions.
+        Race-safety: the read-pop-rewrite sequence uses os.replace() for
+        atomic state transitions; concurrent enqueue from lord_ask.sh is
+        preserved (next tick picks up the new entry).
+        """
+        if not self.pending_path.exists():
+            return {}
+
+        try:
+            content = self.pending_path.read_text(encoding="utf-8")
+        except Exception:
+            return {}
+
+        match = re.search(
+            r'^- request_id: "([^"]+)"\n  question: "([^"]+)"\n'
+            r'  options: (\[.*?\])\n  timestamp: "([^"]+)"\n',
+            content, re.MULTILINE,
+        )
+        if not match:
+            return {}
+
+        request_id, question, options_json, timestamp = match.groups()
+        question = question.replace("\\n", "\n")
+        remaining = content[match.end():]
+        tmp_path = self.pending_path.with_suffix(".tmp")
+        try:
+            with open(tmp_path, "w", encoding="utf-8") as f:
+                f.write(remaining)
+            os.replace(tmp_path, self.pending_path)
+        except Exception:
+            return {}
+
+        try:
+            options = json.loads(options_json)
+        except Exception:
+            options = []
+
+        question_data = {
+            "request_id": request_id,
+            "question": question,
+            "options": options,
+            "timestamp": timestamp,
+            "status": "pending",
+        }
+        with self._lock():
+            self._write_state_unlocked(question_data)
+        return question_data
 
 
 def main():
