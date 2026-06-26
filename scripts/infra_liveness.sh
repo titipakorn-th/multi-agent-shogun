@@ -96,9 +96,24 @@ else
     relaunch "team_monitor" "cd '$PROJECT_ROOT' && bash scripts/team_monitor.sh --daemon >> '$LOG_DIR/team_monitor.log' 2>&1"
 fi
 
+# 2. watcher_supervisor.sh — also a singleton. Z1 round-5 closes the gap
+# X1 opened: the supervisor was the named owner of per-pane watchers but
+# itself had no guarantor. If it dies, every per-pane watcher goes
+# unsupervised. Same relaunch pattern as team_monitor.
+# ponytail: supervisor is a singleton too; if multi-session ever splits
+# it, revisit. ~5 lines, same shape as team_monitor.
+if is_alive "bash scripts/watcher_supervisor.sh"; then
+    log_line "OK: watcher_supervisor is alive"
+else
+    log_line "MISSING: watcher_supervisor not running"
+    missing+=("watcher_supervisor")
+    relaunch "watcher_supervisor" "cd '$PROJECT_ROOT' && bash scripts/watcher_supervisor.sh >> '$LOG_DIR/watcher_supervisor.log' 2>&1"
+fi
+
 # inbox_watcher is NOT managed here. See scripts/watcher_supervisor.sh.
 # Round-3 audit found this script's relaunch was malformed (no args);
-# supervisor already owns per-pane watcher lifecycle.
+# supervisor already owns per-pane watcher lifecycle (and now supervisor
+# itself has infra_liveness as its guarantor, per Z1).
 
 if [ "${#missing[@]}" -eq 0 ]; then
     echo "infra_liveness: all singletons healthy"

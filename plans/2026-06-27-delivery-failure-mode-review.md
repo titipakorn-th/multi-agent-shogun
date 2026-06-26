@@ -13,6 +13,35 @@ status: ranked-list (no code changes)
 > `inbox-watcher-supervisor-session-binding` memory entry, and the audit
 > of W1-W7.
 
+## Guarantor matrix (Z4 round-5)
+
+> One guarantor per daemon, every box filled, matching the actual scripts.
+> Implemented per Z4 acceptance; every in-repo daemon has a named owner.
+> The host crontab is an **accepted external dependency** (host-managed,
+> not an in-repo gap).
+
+| Daemon / concern | Owner (guarantor) | Trigger | Verified by |
+|------------------|-------------------|---------|-------------|
+| Fleet launch | `depart.sh` | manual / Lord login | manual run |
+| `team_monitor` (singleton) | `infra_liveness.sh` (cron, every 5 min) | cron | `test_infra_liveness_survival.bats` SURVIVE-001 |
+| `watcher_supervisor` (singleton, Z1) | `infra_liveness.sh` (cron, every 5 min) | cron | `test_infra_liveness_survival.bats` SURVIVE-001 |
+| Per-pane `inbox_watcher` | `watcher_supervisor.sh` (rescans every 5s) | supervisor loop | `test_e2e_delivery_survival.bats` DELIVERY-001/002 |
+| Stalled-agent alerts | `team_monitor.sh --daemon` (POLL_INTERVAL=30s) | daemon loop | inline alert in inbox |
+| Janitor (reap_janitor, reap_inbox, repair_corrupt) | `setup_cron.sh` (cron, every 15-30 min) | cron | `logs/reap_*.log` |
+| Inbox backlog alarm | `setup_cron.sh` (cron, every 5 min) | cron | `logs/inbox_backlog_alarm.log` |
+| Host crontab itself | **external** (Lord-managed) | — | `crontab -l` |
+
+### Round-by-round guarantor closure
+
+- **Round 1:** wrote tools but didn't run them → no runtime guarantee.
+- **Round 2:** ran once → tools shipped inert (green tests, no daemon up).
+- **Round 3:** wired into cron → crontab itself not installed (inert).
+- **Round 4:** installed crontab → liveness relaunch was malformed for
+  per-pane watcher (still inert for that case).
+- **Round 5 (Z1):** closed the last unsupervised link by adding
+  `watcher_supervisor` to `infra_liveness.sh`'s singleton list. After
+  Z1, every in-repo daemon has a named owner that fires automatically.
+
 ## Ranking criteria
 
 - **Severity**: worst-case blast radius (data loss / silent blackout / wrong action)

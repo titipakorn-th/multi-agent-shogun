@@ -97,6 +97,14 @@ if [ "${1:-}" = "--print-watchers" ]; then
 fi
 
 while true; do
+    # ponytail (Z2 round-5): explicit rescan log so the supervisor's
+    # periodic scan is visible. cmd_042 memory notes that supervisor
+    # used to bind at startup; this loop is the rescan that closes
+    # the cmd_042 gap (a new tmux session is picked up on the next
+    # iteration, not at startup).
+    if [ "${WATCHER_SUPERVISOR_VERBOSE:-0}" = "1" ]; then
+        echo "[$(date '+%Y-%m-%d %H:%M:%S')] [RESCAN] watcher_supervisor scanning panes" >&2
+    fi
     start_all_watchers
     sleep 5
 done
