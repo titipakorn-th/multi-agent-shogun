@@ -96,8 +96,7 @@ roles:
     title: explorer
     prompt_path: instructions/explorer.md
     temperature: 0.1
-    skills:
-      - codemap
+    skills: []
     permissions_override:
       read_allow:
         - context/*
@@ -111,9 +110,7 @@ roles:
     title: librarian
     prompt_path: instructions/librarian.md
     temperature: 0.2
-    skills:
-      - web-search
-      - doc-fetch
+    skills: []
     permissions_override:
       edit_deny:
         - "**/*"
@@ -125,8 +122,7 @@ roles:
     title: oracle
     prompt_path: instructions/oracle.md
     temperature: 0.1
-    skills:
-      - grill-with-docs
+    skills: []
     permissions_override:
       edit_deny:
         - "**/*"
@@ -138,8 +134,7 @@ roles:
     title: designer
     prompt_path: instructions/designer.md
     temperature: 0.3
-    skills:
-      - frontend-design
+    skills: []
     permissions_override: {}
   fixer:
     model: sonnet
@@ -149,8 +144,7 @@ roles:
     title: fixer
     prompt_path: instructions/fixer.md
     temperature: 0.2
-    skills:
-      - subagent-driven-development
+    skills: []
     permissions_override: {}
   observer:
     model: sonnet
