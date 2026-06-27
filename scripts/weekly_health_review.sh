@@ -199,7 +199,22 @@ echo "  skip directives found: ${SKIP_COUNT:-0}"
 echo ""
 echo "## 6. Instruction drift"
 DRIFT=$(git -C "$PROJECT_ROOT" diff --stat "$PROJECT_ROOT/instructions/generated/" "$PROJECT_ROOT/AGENTS.md" "$PROJECT_ROOT/.github/copilot-instructions.md" "$PROJECT_ROOT/.opencode/agents/" 2>/dev/null | tail -1)
-echo "  $DRIFT"
+echo "  uncommitted diff: $DRIFT"
+
+# ponytail: source→generated drift guard. The git diff above only catches
+# uncommitted drift. --check renders from source and diffs against the
+# committed tree — catches the failure mode where source changed but no
+# one ran build_instructions.sh yet (cmd_113 root cause).
+echo "  source→generated drift guard:"
+DRIFT_CHECK_OUTPUT=$(bash "$PROJECT_ROOT/scripts/build_instructions.sh" --check 2>&1 || true)
+DRIFT_CHECK_EXIT=$?
+if [ "$DRIFT_CHECK_EXIT" -eq 0 ]; then
+    echo "    ✅ no drift"
+else
+    echo "    ❌ drift detected:"
+    echo "$DRIFT_CHECK_OUTPUT" | sed 's/^/      /'
+    RECS+=("- source→generated drift detected by build_instructions.sh --check — run \`bash scripts/build_instructions.sh\` and commit the regenerated artifacts")
+fi
 
 # ─── Summary ───
 echo ""

@@ -141,8 +141,6 @@ Tools explicitly **out of scope**:
 - **Web search / doc fetch** — those belong to `librarian`.
 - **Image / PDF analysis** — that belongs to `observer`.
 
-If a skill is listed under `roles.explorer.skills` in `config/settings.yaml`, you may invoke it; otherwise stay within the tools above.
-
 ## Output Format
 
 Always return results in this XML shape. The Orchestrator parses this directly; deviations break the dispatch loop.
