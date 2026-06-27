@@ -12,10 +12,43 @@ ROOT_DIR="$(dirname "$SCRIPT_DIR")"
 PARTS_DIR="$ROOT_DIR/instructions"
 OUTPUT_DIR="$ROOT_DIR/instructions/generated"
 
-mkdir -p "$OUTPUT_DIR"
+# ─── CLI flags ────────────────────────────────────────────────────────────────
+# --check: render to a tempdir, diff against the committed tree, exit non-zero
+# on drift. Reuses the line-ending normalization below (normalize_generated_markdown)
+# so CRLF-vs-LF doesn't false-positive. Additive — no flag = existing regen.
+# ponytail: wired into scripts/weekly_health_review.sh; no new scheduler (D006).
+CHECK_MODE=0
+TEMP_ROOT=""
+OPENCODE_AGENTS_DIR=""
 
-echo "=== Instruction File Build System ==="
-echo "Building instruction files..."
+cleanup_check_tempdir() {
+    if [ -n "$TEMP_ROOT" ] && [ -d "$TEMP_ROOT" ]; then
+        rm -rf "$TEMP_ROOT"
+    fi
+}
+
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --check) CHECK_MODE=1; shift ;;
+        *) echo "Unknown arg: $1" >&2; exit 1 ;;
+    esac
+done
+
+if [ "$CHECK_MODE" = "1" ]; then
+    TEMP_ROOT=$(mktemp -d)
+    trap cleanup_check_tempdir EXIT
+    OUTPUT_DIR="$TEMP_ROOT/generated"
+    OPENCODE_AGENTS_DIR="$TEMP_ROOT/oc-agents"
+    export OPENCODE_AGENTS_DIR
+    mkdir -p "$OUTPUT_DIR" "$OPENCODE_AGENTS_DIR"
+    echo "=== Instruction File Build System (--check mode) ==="
+    echo "Rendering to tempdir: $TEMP_ROOT"
+    echo "Will diff against committed tree before exiting."
+else
+    mkdir -p "$OUTPUT_DIR"
+    echo "=== Instruction File Build System ==="
+    echo "Building instruction files..."
+fi
 
 # Function: opencode_build_python
 # Description: Returns a Python interpreter with PyYAML for build-time YAML parsing.
@@ -45,6 +78,89 @@ normalize_generated_markdown() {
 
     awk '{ sub(/\r$/, ""); sub(/[ \t]+$/, ""); print }' "$output_path" > "$tmp_path"
     mv "$tmp_path" "$output_path"
+}
+
+# Function: drift_check
+# Description: Compare the --check tempdir build against the committed tree.
+# Copies the committed tree to a tempdir (never mutates it), applies
+# normalize_generated_markdown on the copy, then diffs. Exits non-zero on drift.
+drift_check() {
+    local gen_temp="$TEMP_ROOT/generated"
+    local oc_temp="$OPENCODE_AGENTS_DIR"
+    local gen_committed="$ROOT_DIR/instructions/generated"
+    local oc_committed="$ROOT_DIR/.opencode/agents"
+    local committed_root="$TEMP_ROOT/committed"
+    local gen_copy="$committed_root/generated"
+    local oc_copy="$committed_root/oc-agents"
+    local diff_output
+
+    mkdir -p "$gen_copy" "$oc_copy"
+
+    # Ponytail: the build only normalizes opencode variants today; non-opencode
+    # variants keep trailing whitespace in the build output. To make the
+    # comparison fair we normalize BOTH sides (build temp + committed copy)
+    # using the same function. We never mutate the live tracked snapshot —
+    # the committed copy lives in TEMP_ROOT/committed.
+    find "$gen_temp" -type f -name '*.md' -print0 2>/dev/null | \
+        while IFS= read -r -d '' f; do
+            normalize_generated_markdown "$f"
+        done
+    find "$oc_temp" -type f -name '*.md' -print0 2>/dev/null | \
+        while IFS= read -r -d '' f; do
+            normalize_generated_markdown "$f"
+        done
+
+    if [ -d "$gen_committed" ]; then
+        cp -R "$gen_committed/." "$gen_copy/" 2>/dev/null || true
+        find "$gen_copy" -type f -name '*.md' -print0 | \
+            while IFS= read -r -d '' f; do
+                normalize_generated_markdown "$f"
+            done
+    fi
+
+    if [ -d "$oc_committed" ]; then
+        # Skip *-runtime.md — git-ignored, not part of the tracked snapshot.
+        local f base
+        for f in "$oc_committed"/*.md; do
+            [ -f "$f" ] || continue
+            base=$(basename "$f")
+            [[ "$base" == *-runtime.md ]] && continue
+            cp "$f" "$oc_copy/"
+        done
+        find "$oc_copy" -type f -name '*.md' -print0 | \
+            while IFS= read -r -d '' f; do
+                normalize_generated_markdown "$f"
+            done
+    fi
+
+    diff_output=$(diff -r "$gen_temp" "$gen_copy" 2>&1 || true)
+    if [ -n "$diff_output" ]; then
+        echo "❌ Drift detected in instructions/generated/:" >&2
+        echo "$diff_output" >&2
+        return 1
+    fi
+
+    # Filter the build's runtime files out of the comparison set on the
+    # build side too — they are git-ignored and shouldn't trigger drift.
+    local oc_temp_filtered="$TEMP_ROOT/oc-agents-filtered"
+    mkdir -p "$oc_temp_filtered"
+    local f base
+    for f in "$oc_temp"/*.md; do
+        [ -f "$f" ] || continue
+        base=$(basename "$f")
+        [[ "$base" == *-runtime.md ]] && continue
+        cp "$f" "$oc_temp_filtered/"
+    done
+
+    diff_output=$(diff -r "$oc_temp_filtered" "$oc_copy" 2>&1 || true)
+    if [ -n "$diff_output" ]; then
+        echo "❌ Drift detected in .opencode/agents/:" >&2
+        echo "$diff_output" >&2
+        return 1
+    fi
+
+    echo "✅ --check passed: no drift between source and generated tree."
+    return 0
 }
 
 # ============================================================
@@ -384,7 +500,7 @@ EOFYAML
 # Arguments: none
 # Returns: 0 on success, 1 if generation is skipped or unavailable
 generate_opencode_agents() {
-    local agents_dir="$ROOT_DIR/.opencode/agents"
+    local agents_dir="${OPENCODE_AGENTS_DIR:-$ROOT_DIR/.opencode/agents}"
     local permissions_file="${OPENCODE_PERMISSIONS_FILE:-$ROOT_DIR/config/opencode-permissions.yaml}"
     local python_bin
 
@@ -740,3 +856,11 @@ echo "CLI auto-load files:"
 echo ""
 echo "OpenCode agent definitions:"
 ls -lh "$ROOT_DIR/.opencode/agents/"*.md 2>/dev/null || echo "  (none)"
+
+# ─── --check drift guard ──────────────────────────────────────────────────────
+if [ "$CHECK_MODE" = "1" ]; then
+    if ! drift_check; then
+        exit 1
+    fi
+    exit 0
+fi
