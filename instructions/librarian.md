@@ -76,7 +76,7 @@ Tools explicitly **out of scope**:
 - **Bash** for anything beyond read-only fetching (no `curl | bash`, no script execution).
 - **Visual analysis** — `observer`'s lane.
 
-If skills are listed under `roles.librarian.skills` in `config/settings.yaml` (currently `web-search`, `doc-fetch`), invoke those; otherwise use the tools above.
+If skills are listed under `roles.librarian.skills` in `config/settings.yaml`, invoke those; otherwise use the tools above.
 
 ## Permissions
 

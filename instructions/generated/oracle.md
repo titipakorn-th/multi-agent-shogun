@@ -84,8 +84,6 @@ Tools explicitly **out of scope**:
 - **Visual analysis** — `observer`'s lane.
 - **Multi-model calls** — that's `council`'s lane.
 
-If a skill is listed under `roles.oracle.skills` in `config/settings.yaml` (currently `grill-with-docs`), you may invoke it for deeper strategic grilling.
-
 ## Permissions
 
 You are **read-only**. From `config/settings.yaml`:
@@ -216,17 +214,11 @@ Before returning the XML block, confirm:
 
 ## Available Skills
 
-Skills are organized in `skills/` by role:
+Skills resolve from `~/.claude/skills/` (global symlinks) + plugins
+(superpowers, ponytail, design, etc.). The project's `skills/` tree is
+reference documentation, not a discovery path.
 
-- **`skills/common/`** — cross-role skills available to every agent.
-- **`skills/oracle/`** — role-specific skills (currently empty for this role).
-
-Skill invocation uses the slash-command mechanism (`/<skill-name>`). The
-loader searches `skills/common/` and `skills/oracle/` automatically. To
-add a new role-specific skill, create `skills/oracle/<skill-name>/SKILL.md`
-following the format in `skills/skill-creator/SKILL.md`.
-
-Currently available:
+Authored reference (not auto-loaded):
 - `skills/common/context-engineering/` — Optimizing agent context and configurations.
 - `skills/common/using-agent-skills/` — General meta-skill for mapping developer tasks to skill workflows.
 - `skills/oracle/doubt-driven-development/` — Adversarial fresh-context review (CLAIM -> EXTRACT -> DOUBT -> RECONCILE -> STOP) workflow.
