@@ -389,9 +389,8 @@ try:
     #   2026-06-27-redo-recovery-done-status-gap.md (P3 — add 'done' to skip set)
     #   2026-06-27-redo-recovery-done-status-gap.md (PATH FIX — read
     #     `.task.status` not bare `.status`; task YAML nests status under
-    #     `task:` per project convention, and team_monitor.sh:236 already
-    #     uses this canonical path. Pre-fix read returned "" for ALL
-    #     terminal statuses, making the entire skip guard inert.)
+    #     `task:` per project convention. Pre-fix read returned "" for
+    #     ALL terminal statuses, making the entire skip guard inert.)
     task_yaml_path = os.path.join(
         os.path.dirname(os.path.dirname(inbox)), "tasks", f"{agent_id}.yaml"
     )
@@ -1623,7 +1622,7 @@ while true; do
         # ponytail (V4 round-3): watcher self-heartbeat — every timeout tick
         # (default 30s) re-invoke infra_liveness. Cron is primary, this is
         # the backstop. If macOS cron is asleep or crontab is missing, the
-        # watcher still keeps itself and team_monitor alive.
+        # watcher still keeps itself and the other infra_liveness singletons alive.
         LIVENESS_INTERVAL="${LIVENESS_INTERVAL:-10}"
         LIVENESS_TICKS=$((LIVENESS_TICKS + 1))
         if [ "$LIVENESS_TICKS" -ge "$LIVENESS_INTERVAL" ]; then

@@ -101,6 +101,8 @@
 !config/settings.yaml
 !plans/
 !plans/*.md
+!plans/archive/
+!plans/archive/*.md
 
 # Templates
 !templates/
@@ -144,7 +146,6 @@ scripts/seo_qc.sh
 !scripts/validate_settings.sh
 !scripts/shutsujin_v2_constants.sh
 !scripts/shutsujin_departure_v2.sh
-!scripts/team_monitor.sh
 !scripts/check_required_validations.py
 !scripts/check_role_permissions.py
 !scripts/check_batch_gates.py

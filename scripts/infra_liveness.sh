@@ -8,7 +8,8 @@
 # the proper owner is scripts/watcher_supervisor.sh, NOT liveness.
 #
 # This script now owns only TRUE SINGLETON daemons:
-#   - team_monitor (one process for whole project)
+#   - watcher_supervisor (per-pane inbox watchers; singleton coordinator)
+#   - listener_watchdog (telegram listener supervisor)
 #
 # And it distinguishes DORMANT (no tmux server / no agent panes) from
 # CRASHED (singletons missing while fleet is up):
@@ -87,21 +88,12 @@ log_line "fleet active ($pane_count pane(s)); checking singletons"
 
 missing=()
 
-# 1. team_monitor.sh — singleton, daemon-mode. Single owner here.
-if is_alive "bash scripts/team_monitor.sh"; then
-    log_line "OK: team_monitor is alive"
-else
-    log_line "MISSING: team_monitor not running"
-    missing+=("team_monitor")
-    relaunch "team_monitor" "cd '$PROJECT_ROOT' && bash scripts/team_monitor.sh --daemon >> '$LOG_DIR/team_monitor.log' 2>&1"
-fi
-
-# 2. watcher_supervisor.sh — also a singleton. Z1 round-5 closes the gap
-# X1 opened: the supervisor was the named owner of per-pane watchers but
-# itself had no guarantor. If it dies, every per-pane watcher goes
-# unsupervised. Same relaunch pattern as team_monitor.
-# ponytail: supervisor is a singleton too; if multi-session ever splits
-# it, revisit. ~5 lines, same shape as team_monitor.
+# 1. watcher_supervisor.sh — singleton coordinator of per-pane watchers.
+# Z1 round-5 closes the gap X1 opened: the supervisor was the named owner
+# of per-pane watchers but itself had no guarantor. If it dies, every
+# per-pane watcher goes unsupervised.
+# ponytail: supervisor is a singleton; if multi-session ever splits it,
+# revisit. ~5 lines, same shape as the other singletons here.
 if is_alive "bash scripts/watcher_supervisor.sh"; then
     log_line "OK: watcher_supervisor is alive"
 else
@@ -110,7 +102,7 @@ else
     relaunch "watcher_supervisor" "cd '$PROJECT_ROOT' && bash scripts/watcher_supervisor.sh >> '$LOG_DIR/watcher_supervisor.log' 2>&1"
 fi
 
-# 3. listener_watchdog.sh — supervises telegram_listener.py (auto_prompt
+# 2. listener_watchdog.sh — supervises telegram_listener.py (auto_prompt
 # trigger caller). Scripts/LISTENER_SUPERVISION.md says the canonical
 # launcher is depart.sh's tmux window, but if the tmux server is down
 # the watchdog dies too — leaving the listener permanently un-supervised

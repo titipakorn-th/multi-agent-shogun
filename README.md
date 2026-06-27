@@ -1055,7 +1055,7 @@ The delivery layer is **monitored by the system itself** — once cron is instal
 
 | Concern | Owner | Cadence | What it does |
 |---------|-------|---------|--------------|
-| Singleton liveness | `infra_liveness.sh` | every 5 min (cron) | Verifies `team_monitor` + `watcher_supervisor` are alive; relaunches missing ones |
+| Singleton liveness | `infra_liveness.sh` | every 5 min (cron) | Verifies `watcher_supervisor` + `listener_watchdog` are alive; relaunches missing ones |
 | Per-pane watchers | `watcher_supervisor.sh` | every 5 sec (rescan loop) | Spawns + watches one inbox_watcher per tmux pane |
 | Disk hygiene | `reap_janitor.sh` | every 15 min (cron) | Reaps stale `*.tmp`, `*.lock`, `*.bak.test`, orphan reports |
 | Inbox rotation | `reap_inbox.sh` | every 15 min (cron) | Archives `read:true` entries to `queue/archive/inbox/` |
@@ -1932,7 +1932,7 @@ Even if you're not comfortable with keyboard shortcuts, you can switch, scroll, 
 
 > **Self-healing infrastructure + single-owner Telegram state machine.** Five rounds of review (`plans/orchestration-gap-closure.md`) closed the delivery-layer recursion: every daemon has a named owner that fires automatically, and the Telegram question lifecycle now lives in one place.
 
-- **`infra_liveness.sh` — cron-driven singleton liveness** — every 5 minutes, verifies `team_monitor` + `watcher_supervisor` are alive and relaunches missing ones. Distinguishes **DORMANT** (no tmux server) from **CRASHED** (fleet active, singleton missing) so the log doesn't spam false alarms. Wired into `session_start_hook.sh` for self-healing on every Shogun/Orchestrator session start. (Round 4 X1 + Round 5 Z1.)
+- **`infra_liveness.sh` — cron-driven singleton liveness** — every 5 minutes, verifies `watcher_supervisor` + `listener_watchdog` are alive and relaunches missing ones. Distinguishes **DORMANT** (no tmux server) from **CRASHED** (fleet active, singleton missing) so the log doesn't spam false alarms. Wired into `session_start_hook.sh` for self-healing on every Shogun/Orchestrator session start. (Round 4 X1 + Round 5 Z1.)
 - **`reap_inbox.sh` — YAML inbox rotation** — when a mailbox exceeds the entry threshold or has too many read:true entries, archives them to `queue/archive/inbox/{agent}-{date}.yaml` under flock + atomic rename. Keeps unread entries untouched (those are sacred per W1) and retains the last K read entries for context. Idempotent. (Round 1 T1.)
 - **`reap_janitor.sh` — stale-queue reaper** — reaps `queue/*.tmp` older than 60m, stale `*.lock` files, leftover `*.bak.test` snapshots, and orphaned report YAMLs whose writer has no live task. `--apply` actually deletes; default is dry-run. (Round 1 T6.)
 - **`repair_corrupt_inbox.sh` — corruption salvage** — validates each inbox YAML, quarantines unreadable files to `.corrupt`, salvages intact entries via line-level parsing, and reconciles the 3 historical orphan corrupt files. `--apply` merges recovered entries into the live inbox; default writes to `queue/archive/inbox-recovered/` for review. (Round 1 T3.)
@@ -1942,7 +1942,7 @@ Even if you're not comfortable with keyboard shortcuts, you can switch, scroll, 
 - **`telegram_listener.py` shrunk by 70 LoC** — the inline YAML parser + json.dump in `_drain_pending_lord_questions` (lines 420–520) is gone. The function is now a thin wrapper around `LordChannel.promote_next_pending()`. No inline `json.dump(current_question.json)` writes outside `LordChannel`. (W4c-finish acceptance: `git show --numstat HEAD -- scripts/telegram_listener.py` → 33 insertions, 103 deletions.)
 - **CLAUDE.md "done = runtime, not code" rule** — infra/cleanup tasks close only on observed runtime state (disk clean, daemon up, inbox bounded), not on passing tests. A green bats suite proves the script *could* clean; the task is done only when the running system shows it. (Round 2 U7.)
 - **CLAUDE.md "wiring is not running" rule** — extends U7: a cron line in a script, a hook that only fires on `/clear`, a config that's defined but not loaded — all count as not-done until the live scheduler / hook / process shows the effect. (Round 3 V5.)
-- **Guarantor matrix** (`plans/2026-06-27-delivery-failure-mode-review.md`) — one documented owner per daemon: `depart.sh`=fleet launch, `watcher_supervisor.sh`=per-pane watchers, `infra_liveness.sh`=singletons, `team_monitor.sh`=stalled-agent observer, `setup_cron.sh`=janitor. Host crontab itself is an accepted external dependency.
+- **Guarantor matrix** (`plans/2026-06-27-delivery-failure-mode-review.md`) — one documented owner per daemon: `depart.sh`=fleet launch, `watcher_supervisor.sh`=per-pane watchers, `infra_liveness.sh`=singletons, `setup_cron.sh`=janitor. Host crontab itself is an accepted external dependency.
 - **`docs/crontab-survival.md`** — runbook: verify (`crontab -l` + log freshness), reinstall (`bash scripts/setup_cron.sh --install`), caveats (macOS sleep).
 
 **Verification (post-merge):** `bash scripts/validate_settings.sh` PASS, `git diff --check` PASS, focused bats slice green (lord_channel.bats 7/7, lord_ask_w4c.bats 5/5, w4c_round_trip.bats 3/3, infra_liveness_survival.bats 3/3, reap_inbox.bats 7/7, reap_janitor.bats 6/6, repair_corrupt_inbox.bats 6/6). End-to-end Telegram round-trip verified via mock HTTP server.
