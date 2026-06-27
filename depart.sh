@@ -456,17 +456,29 @@ sleep 0.5
 
 LOG_DIR="$SCRIPT_DIR/logs"
 mkdir -p "$LOG_DIR"
+
+# ponytail: spawn each watcher inside a tmux window in a project-scoped session
+# so PPID = tmux server (not 1). Survives `tmux kill-server` recovery — fixes
+# the 2026-06-27 incident where 9 watchers were orphaned (PPID=1) and Telegram
+# messages piled up in queue/inbox without waking panes. Suffix prevents
+# collision with shogun_safepay's parallel session.
+WATCHER_SESSION="shogun-watchers${SHOGUN_SUFFIX}"
+if ! tmux has-session -t "=$WATCHER_SESSION" 2>/dev/null; then
+    tmux new-session -d -s "$WATCHER_SESSION" -n shogun
+fi
+existing=$(tmux list-windows -t "=$WATCHER_SESSION" -F '#{window_name}' 2>/dev/null)
 for role in $(v2_role_list); do
     pane_target="$(v2_pane_for "$role")"
-    if ! pgrep -f "inbox_watcher.sh ${role} " >/dev/null 2>&1 \
-       && ! pgrep -f "inbox_watcher.sh ${role}\$" >/dev/null 2>&1; then
-        role_cli=$(get_cli_type "$role")
-        nohup bash "$SCRIPT_DIR/scripts/inbox_watcher.sh" "$role" "$pane_target" "$role_cli" \
-            >"${LOG_DIR}/inbox_watcher_${role}.log" 2>&1 &
-        log_success "  └─ watcher started: $role"
-    else
-        log_info "  └─ watcher already running: $role"
+    role_cli=$(get_cli_type "$role") || true
+    # Create window once; reuse on re-runs (pkill above cleared any prior watcher)
+    if ! echo "$existing" | grep -qx "$role"; then
+        tmux new-window -t "$WATCHER_SESSION" -n "$role"
+        existing="${existing}"$'\n'"${role}"
     fi
+    # Always (re)bind — pkill at line 454 guarantees no prior watcher for this role
+    tmux send-keys -t "${WATCHER_SESSION}:${role}" \
+        "exec bash $SCRIPT_DIR/scripts/inbox_watcher.sh $role $pane_target $role_cli" Enter
+    log_success "  └─ watcher (re)bound: $role"
 done
 
 # Shogun → Telegram relay (outbound)
