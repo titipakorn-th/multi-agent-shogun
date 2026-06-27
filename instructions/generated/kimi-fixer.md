@@ -243,23 +243,14 @@ Before returning the XML block, confirm:
 
 ## Available Skills
 
-Skills are organized in `skills/` by role:
+Skills resolve from `~/.claude/skills/` (global symlinks) + plugins
+(superpowers, ponytail, design, etc.). The project's `skills/` tree is
+reference documentation, not a discovery path.
 
-- **`skills/common/`** — cross-role skills available to every agent.
-- **`skills/fixer/`** — role-specific skills (currently empty for this role).
-
-Skill invocation uses the slash-command mechanism (`/<skill-name>`). The
-loader searches `skills/common/` and `skills/fixer/` automatically. To
-add a new role-specific skill, create `skills/fixer/<skill-name>/SKILL.md`
-following the format in `skills/skill-creator/SKILL.md`.
-
-Currently available:
+Authored reference (not auto-loaded):
 - `skills/common/context-engineering/` — Optimizing agent context and configurations.
 - `skills/common/using-agent-skills/` — General meta-skill for mapping developer tasks to skill workflows.
 - `skills/fixer/incremental-implementation/` — Thin vertical slices implementation workflow.
-- `skills/fixer/test-driven-development/` — Test-Driven Development (Red-Green-Refactor) workflow.
-- `skills/fixer/code-simplification/` — Chesterton's Fence and complexity reduction refactoring.
-- `skills/fixer/debugging-and-error-recovery/` — Disciplined reproduction and recovery triage workflow.
 - `skills/fixer/deprecation-and-migration/` — Safe deprecation patterns and sunsetting old code.
 
 
