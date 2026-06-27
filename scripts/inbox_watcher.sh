@@ -380,8 +380,18 @@ try:
             print("SKIP_DUPLICATE")
             raise SystemExit(0)
 
-    # Task YAML status guard: skip auto-recovery if task is cancelled or idle.
-    # This prevents restarting a task that Orchestrator intentionally cancelled via clear_command.
+    # Task YAML status guard: skip auto-recovery if task is in a terminal
+    # state (cancelled, idle, or done). This prevents restarting a task that
+    # the Orchestrator intentionally finished/cancelled via clear_command, or
+    # that the agent has already reported complete. CLAUDE.md task-layer rule:
+    # "done = wait (DO NOT re-report)". Telling a done agent to "resume" would
+    # make it re-execute or re-report finished work. Plans:
+    #   2026-06-27-redo-recovery-done-status-gap.md (P3 — add 'done' to skip set)
+    #   2026-06-27-redo-recovery-done-status-gap.md (PATH FIX — read
+    #     `.task.status` not bare `.status`; task YAML nests status under
+    #     `task:` per project convention, and team_monitor.sh:236 already
+    #     uses this canonical path. Pre-fix read returned "" for ALL
+    #     terminal statuses, making the entire skip guard inert.)
     task_yaml_path = os.path.join(
         os.path.dirname(os.path.dirname(inbox)), "tasks", f"{agent_id}.yaml"
     )
@@ -389,8 +399,11 @@ try:
         try:
             with open(task_yaml_path, "r", encoding="utf-8") as tf:
                 task_data = yaml.safe_load(tf) or {}
-            task_status = str(task_data.get("status") or "").strip().strip("'\"")
-            if task_status in ("cancelled", "idle"):
+            # Canonical path: status is nested under `task:`. Fall back to
+            # top-level for any legacy / slim_yaml items without nesting.
+            task_section = task_data.get("task") if isinstance(task_data.get("task"), dict) else task_data
+            task_status = str(task_section.get("status") or "").strip().strip("'\"")
+            if task_status in ("cancelled", "idle", "done"):
                 print(f"SKIP_CANCELLED:{task_status}")
                 raise SystemExit(0)
         except SystemExit:
@@ -691,7 +704,12 @@ send_cli_command() {
     fi
     if [[ "$cmd" == "/clear" ]] && ! [[ "$effective_cli" == "opencode" && -z "${pane_snapshot//[[:space:]]/}" ]] && agent_is_busy; then
         echo "[$(date)] [SKIP] Agent is busy — /clear deferred to next cycle (agent=$AGENT_ID)" >&2
-        return 0
+        # Return a distinct non-zero so the caller can distinguish a busy-defer
+        # from a successful send. Returning 0 here previously caused the
+        # escalation path to silently treat the defer as a success and reset
+        # FIRST_UNREAD_SEEN, re-arming the false-busy deadlock the stale-busy
+        # safety net exists to break. (plan 2026-06-27-inbox-watcher-deferred-clear-gap.md)
+        return 2
     fi
 
     # CLI-specific command conversion
@@ -1292,9 +1310,14 @@ for s in data.get('specials', []):
             fi
             cmd=$(normalize_special_command "$msg_type" "$msg_content")
             if [ -n "$cmd" ]; then
-                # send_cli_command returns 0 on success or intentional suppression
-                # (e.g., shogun suppresses /clear), and 1 on real failure (e.g.,
-                # /model on codex, shell-only pane). Treat 0 as "handled".
+                # send_cli_command returns:
+                #   0 = command sent (or intentional suppression, e.g.
+                #       shogun suppresses /clear)
+                #   1 = real failure (e.g., /model on codex, shell-only pane)
+                #   2 = busy-defer (agent is alive but mid-task; do NOT mark
+                #       as sent — that would lose the message + falsely claim
+                #       the agent was wiped). Treat as deferred for retry.
+                # Plan: 2026-06-27-inbox-watcher-deferred-clear-gap.md
                 if send_cli_command "$cmd"; then
                     # Auto-recovery only fires when a /clear was actually sent
                     # to a real CLI. shogun suppresses /clear (return 0 but no
@@ -1305,8 +1328,9 @@ for s in data.get('specials', []):
                     [ -n "$msg_id" ] && sent_ids="${sent_ids:+${sent_ids}
 }${msg_id}"
                 else
-                    # send_cli_command reported a real failure. Don't lose the
-                    # message — defer so we can retry or surface for operator.
+                    # Either rc=1 (real failure) or rc=2 (busy-defer).
+                    # Don't lose the message — defer so we can retry or
+                    # surface for operator.
                     [ -n "$msg_id" ] && deferred_ids="${deferred_ids:+${deferred_ids}
 }${msg_id}"
                 fi
@@ -1392,9 +1416,19 @@ for s in data.get('specials', []):
                     fi
                     echo "[$(date)] $normal_count unread for $AGENT_ID but agent is busy (claude) — Stop hook will deliver" >&2
                 else
-                    # Codex/Copilot/Kimi/OpenCode: No Stop hook. Pause escalation timer while busy.
-                    FIRST_UNREAD_SEEN=$now
-                    echo "[$(date)] $normal_count unread for $AGENT_ID but agent is busy ($busy_cli) — pausing escalation timer" >&2
+                    # Codex/Copilot/Kimi/OpenCode: No Stop hook. Apply the
+                    # same set-if-unset pattern as the claude branch above:
+                    # start the FIRST_UNREAD_SEEN timer once, then leave it
+                    # alone so the stale-busy safety net at :1380 can fire
+                    # if the busy state persists past stale_busy_limit.
+                    # (Previously this branch reset FIRST_UNREAD_SEEN every
+                    # cycle, which made the safety net unreachable for any
+                    # non-claude agent wedged in a false-busy state. Plan
+                    # 2026-06-27-inbox-watcher-deferred-clear-gap.md Task 3.)
+                    if [ "${FIRST_UNREAD_SEEN:-0}" -eq 0 ]; then
+                        FIRST_UNREAD_SEEN=$now
+                    fi
+                    echo "[$(date)] $normal_count unread for $AGENT_ID but agent is busy ($busy_cli) — escalation timer started" >&2
                 fi
                 return 0
             fi
@@ -1471,10 +1505,24 @@ for s in data.get('specials', []):
                     send_wakeup_with_escape "$normal_count"
                 else
                     echo "[$(date)] ESCALATION Phase 3: Agent $AGENT_ID unresponsive for ${age}s. Sending /clear." >&2
-                    send_cli_command "/clear"
-                    LAST_CLEAR_TS=$now
-                    FIRST_UNREAD_SEEN=0  # Reset — will re-detect on next cycle
-                    NEW_CONTEXT_SENT=0
+                    # send_cli_command returns:
+                    #   0 = /clear actually sent (or shogun-suppressed, which
+                    #       is also fine — see :1298 comment)
+                    #   1 = real failure (no keystroke, error logged)
+                    #   2 = busy-defer (no keystroke, but the agent is alive)
+                    # Only reset the escalation state when the /clear actually
+                    # fired. A busy-defer (rc=2) leaves FIRST_UNREAD_SEEN
+                    # untouched so the stale-busy safety net can re-fire on
+                    # the next cycle; a real failure (rc=1) does the same —
+                    # we don't want either case to silently mask a stuck
+                    # agent. (plan 2026-06-27-inbox-watcher-deferred-clear-gap.md)
+                    if send_cli_command "/clear"; then
+                        LAST_CLEAR_TS=$now
+                        FIRST_UNREAD_SEEN=0  # Reset — will re-detect on next cycle
+                        NEW_CONTEXT_SENT=0
+                    else
+                        echo "[$(date)] [SKIP] Phase 3 /clear NOT sent (rc=$?); escalation timer preserved for retry." >&2
+                    fi
                 fi
             else
                 # Cooldown active — fall back to Escape+nudge

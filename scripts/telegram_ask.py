@@ -46,6 +46,7 @@ def main():
     parser.add_argument("--no-wait", action="store_true", help="Send the question and exit immediately without waiting for a response.")
     parser.add_argument("--no-other", action="store_true", help="Do not append the 'Other (free text)' option to multiple-choice questions.")
     parser.add_argument("--info", action="store_true", help="Send as an informational message. Exits immediately, does not write to current_question.json, and does not block.")
+    parser.add_argument("--tag", help="Compact source tag prepended to the question text, e.g. 'orchestrator · cmd_104'. Informational only; keeps the Lord oriented when several questions arrive in a session. (plan 2026-06-27-telegram-bidirectional-ask-assessment.md Task 1)")
     args = parser.parse_args()
 
     # Load credentials
@@ -71,9 +72,16 @@ def main():
                 pass
 
     # 1. Send the question
+    # Optional source tag: "[source · cmd_xxx] " prefix on the question so
+    # the Lord can identify which agent/cmd a decision is for when several
+    # questions stack up. Plain "❓ Question:" header is preserved so the
+    # parser-recognized prefix remains unchanged.
+    body = args.question
+    if args.tag:
+        body = f"[{args.tag}] {body}"
     payload = {
         "chat_id": chat_id,
-        "text": f"❓ *Question:*\n{args.question}" if not args.info else f"ℹ️ *Notice:*\n{args.question}",
+        "text": f"❓ *Question:*\n{body}" if not args.info else f"ℹ️ *Notice:*\n{body}",
         "parse_mode": "Markdown"
     }
 

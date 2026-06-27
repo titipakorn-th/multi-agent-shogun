@@ -171,11 +171,29 @@ mark_alerted() {
 
 # Send alert: log to file + write to Shogun's inbox (the Shogun decides whether
 # to forward to the Lord via Telegram). Respects cooldown to prevent storms.
+#
+# Args:
+#   $1 agent_id
+#   $2 msg             (human-readable; shown in inbox + log)
+#   $3 category_key    (OPTIONAL stable identifier — pass when the message
+#                       contains volatile content like elapsed-seconds or
+#                       pids that change between polls. Without it the key
+#                       is md5(agent_id+msg), which collapses duplicate
+#                       incidents only when the message text is itself
+#                       stable. STALLED alerts MUST pass an explicit
+#                       category_key because their message includes the
+#                       live `staleness` counter — keying on that defeats
+#                       the 600s cooldown.)
 send_alert() {
   local agent_id="$1"
   local msg="$2"
+  local category_key="${3:-}"
   local key
-  key=$(alert_key "$agent_id" "$msg")
+  if [ -n "$category_key" ]; then
+    key=$(alert_key "$agent_id" "$category_key")
+  else
+    key=$(alert_key "$agent_id" "$msg")
+  fi
 
   if ! should_alert "$key"; then
     return 0
@@ -284,7 +302,14 @@ check_agent() {
   fi
 
   if [ "$staleness" -ge 0 ] && [ "$staleness" -gt "$threshold" ]; then
-    send_alert "$agent_id" "STALLED ${staleness}s (threshold=${threshold}s, task=$task_status, session=$(basename "$session_file"))"
+    # Stable category key for the cooldown: incident = this agent + this
+    # session file + this task status. Excludes the live `staleness` counter
+    # (which would defeat the 600s cooldown — see plan
+    # 2026-06-27-team-monitor-alert-cooldown-gap.md).
+    local stable_key="STALLED:$(basename "$session_file"):${task_status}"
+    send_alert "$agent_id" \
+        "STALLED ${staleness}s (threshold=${threshold}s, task=$task_status, session=$(basename "$session_file"))" \
+        "$stable_key"
     return 1
   fi
 

@@ -36,15 +36,17 @@ TIMEOUT="${LORD_ASK_TIMEOUT:-86400}"
 
 QUESTION=""
 OPTIONS=()
+TAG=""
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --timeout) TIMEOUT="$2"; shift 2 ;;
+        --tag)     TAG="$2"; shift 2 ;;
         *) if [[ -z "$QUESTION" ]]; then QUESTION="$1"; else OPTIONS+=("$1"); fi; shift ;;
     esac
 done
 
 if [[ -z "$QUESTION" ]]; then
-    echo "Usage: lord_ask.sh <question> [options] [--timeout <s>]" >&2
+    echo "Usage: lord_ask.sh <question> [options] [--timeout <s>] [--tag <source>]" >&2
     exit 64
 fi
 
@@ -87,7 +89,8 @@ CHANNEL_OUTPUT=$(python3 "$CHANNEL_PY" ask \
     --queue-dir "$QUEUE_DIR" \
     --question "$QUESTION" \
     --options "$OPTS_CSV" \
-    --timeout "$TIMEOUT")
+    --timeout "$TIMEOUT" \
+    ${TAG:+--tag "$TAG"})
 RC=$?
 
 case "$RC" in

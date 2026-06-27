@@ -583,6 +583,93 @@ When checking status or waiting for a report:
    ```
 3. **Clear on completion**: The file is removed automatically when the user replies on Telegram. Do not show the block once `queue/current_question.json` is gone.
 
+## Asking the Lord on Telegram — Recipe
+
+Any agent that needs a multiple-choice decision from the Lord can fire it to Telegram
+and wait for the answer. Two entrypoints exist; pick by intent.
+
+### Blocking ask — `lord_ask.sh`
+Use when the asker **must know the answer to proceed** (gating decision). The script
+blocks until the Lord taps a button, types a free-text reply, or times out. Prints
+the selected option to stdout; caller captures via `$()` or backticks.
+
+```bash
+ANSWER=$(bash scripts/lord_ask.sh \
+    "Restart backend NOW?" \
+    "Restart NOW (Recommended)" "Defer" "Review patch first" \
+    --timeout 3600)
+# $ANSWER is the option text exactly as the Lord tapped it.
+```
+
+- Default timeout: `LORD_ASK_TIMEOUT` (default `86400s` = 24h).
+- Exit codes: `0` answered, `3` timeout (also emits `lord_question_timeout` to
+  Shogun inbox), `4` another question already pending.
+- Terminal fallback: when `config/settings.yaml` has `telegram.mode: off`,
+  lord_ask.sh reads from stdin instead of Telegram. Same caller code, two backends.
+- Optional `--tag "agent · cmd_xxx"` prepends `[tag] ` to the Telegram question so
+  the Lord knows which agent/cmd a decision is for when several arrive in a session.
+
+### Async ask — `telegram_ask.py`
+Use when the asker wants to **fire-and-forget** (notification, not a gate). The
+listener resolves the answer later; the asker exits immediately.
+
+```bash
+python3 scripts/telegram_ask.py \
+    --question "deploy ok?" \
+    --options "yes" "no" \
+    --no-wait
+```
+
+- `--no-wait` is the recommended pattern for fire-and-forget.
+- `--info` sends an informational message (no buttons, no state file, no wait).
+- The answer still lands in `queue/current_question.json` → resolved by the
+  always-on listener; another process can poll for it.
+
+### When to use which (the dialogue-vs-informational rule)
+- **Blocking** (lord_ask.sh): the caller's NEXT instruction depends on the answer.
+  E.g. "do I restart the backend or wait?"
+- **Async** (telegram_ask.py --no-wait): a parallel agent already has the answer
+  it needs; the Telegram ping is for awareness.
+- **Informational** (telegram_ask.py --info): no decision requested — just notify.
+  No "Other" button, no state file, no caller waiting.
+
+### Answer modes the listener handles
+The listener (`scripts/telegram_listener.py` :1564-1755) supports four ways for the
+Lord to answer, all idempotent:
+1. **Option button tap** → resolves to option text.
+2. **"✏️ Other (free text)" button** → listener switches to `waiting_for_free_text`,
+   then any text reply becomes the answer.
+3. **Telegram Reply UI** (long-press → Reply on the question message) → reply text
+   resolves.
+4. **Plain text while a question is pending** → resolves (slash-commands and
+   keywords exempt).
+
+Late or duplicate taps are idempotent (`consume` → `already_resolved`).
+
+### Knobs (env vars)
+| Var | Default | Purpose |
+|---|---|---|
+| `LORD_ASK_TIMEOUT` | `86400` | lord_ask.sh default blocking timeout (seconds) |
+| `--timeout N` (CLI) | — | per-call override |
+| `LORD_ASK_CHANNEL` | `scripts/lib/lord_channel.py` | override the channel implementation |
+| `LORD_ASK_QUEUE_DIR` | `queue/` | override the queue root for testing |
+
+### Robustness
+- Listener down when a question is asked: question still sends (direct HTTP);
+  Telegram retains the Lord's tap; listener-watchdog brings the listener back.
+- Concurrent questions: FIFO via `pending_lord_questions.yaml` +
+  `promote_next_pending` (one active at a time; extras wait in queue).
+- Callback-format correctness: unified on `opt_{i}` (plan
+  `2026-06-27-lordchannel-callback-format-gap.md`).
+
+### The one limitation (not a project bug)
+The harness `AskUserQuestion` tool (CLI option picker in interactive Claude Code
+sessions) renders in the app/CLI and cannot be redirected to Telegram — that's a
+Claude Code harness feature, not project-controlled. The project's own agents do
+not use it; they use `telegram_ask.py` / `lord_ask.sh`, which already go to Telegram.
+So nothing in the orchestration system needs the CLI picker; the Telegram path is
+the system's native Lord-ask channel.
+
 ## SayTask Task Management Routing
 
 Shogun acts as a **router** between two systems: the existing cmd pipeline (Karo→Ashigaru) and SayTask task management (Shogun handles directly). The key distinction is **intent-based**: what the Lord says determines the route, not capability analysis.

@@ -46,7 +46,6 @@ import contextlib
 import fcntl
 import json
 import os
-import re
 import sys
 import time
 import urllib.request
@@ -106,11 +105,20 @@ class LordChannel:
         if not self.telegram_token or not self.chat_id:
             # No Telegram configured — caller must be in terminal mode.
             return False
+        # callback_data contract: opt_{i} for option taps, opt_other for the
+        # free-text fallback. Match telegram_ask.py + telegram_listener drain
+        # so the listener's int(data.split("_")[1]) parse works for ALL
+        # senders. request_id is NOT in callback_data — the handler resolves
+        # it from the state file (telegram_listener.py:1642). Embedding it
+        # here previously caused opt_rq_1782_ab12_1 → int("rq") → silent
+        # fallback to raw data → garbage answer recorded by lord_ask.sh.
+        # (plan 2026-06-27-lordchannel-callback-format-gap.md)
+        del request_id  # explicit: ignored by design
         try:
-            keyboard = [[{"text": o, "callback_data": f"opt_{request_id}_{i}"}]
+            keyboard = [[{"text": o, "callback_data": f"opt_{i}"}]
                         for i, o in enumerate(options)]
             keyboard.append([{"text": "✏️ Other (free text)",
-                              "callback_data": f"opt_{request_id}_other"}])
+                              "callback_data": "opt_other"}])
             payload = {
                 "chat_id": self.chat_id,
                 "text": question,
@@ -124,9 +132,20 @@ class LordChannel:
         except Exception:
             return False
 
-    def ask(self, question: str, options: list, timeout_s: int = 30) -> tuple:
-        """Block until answered or timeout. Returns (status, answer)."""
+    def ask(self, question: str, options: list, timeout_s: int = 30, tag: str = "") -> tuple:
+        """Block until answered or timeout. Returns (status, answer).
+
+        Args:
+            tag: optional compact source tag (e.g. "orchestrator · cmd_104")
+                 prepended to the question text on Telegram so the Lord knows
+                 which agent/cmd a decision is for. Informational only.
+        """
         request_id = f"rq_{int(time.time())}_{os.urandom(3).hex()}"
+
+        # Prepend the tag to the question text (only for Telegram display;
+        # the state file stores the original question so the listener's
+        # question-aware logic is unaffected).
+        display_question = f"[{tag}] {question}" if tag else question
 
         with self._lock():
             existing = self._read_state_unlocked()
@@ -141,7 +160,7 @@ class LordChannel:
                 "answered_at": None,
             })
 
-        sent = self._send_telegram_question(question, options, request_id)
+        sent = self._send_telegram_question(display_question, options, request_id)
         # sent is informational; if Telegram fails, ask() will still time
         # out cleanly and emit the lord_question_timeout event into shogun
         # inbox (handled by caller). We don't fail ask() on Telegram error.
@@ -190,44 +209,92 @@ class LordChannel:
         Race-safety: the read-pop-rewrite sequence uses os.replace() for
         atomic state transitions; concurrent enqueue from lord_ask.sh is
         preserved (next tick picks up the new entry).
+
+        Parsing: PyYAML.safe_load (tolerant of embedded quotes, real/literal
+        newlines in `question`, and field reorder). A malformed entry is
+        logged and skipped — one bad enqueue must not stall the queue.
+        Plan: 2026-06-27-lordchannel-callback-format-gap.md (P2).
         """
         if not self.pending_path.exists():
             return {}
 
         try:
             content = self.pending_path.read_text(encoding="utf-8")
-        except Exception:
+        except Exception as exc:
+            print(f"[lord_channel] promote: read failed: {exc}", file=sys.stderr)
             return {}
 
-        match = re.search(
-            r'^- request_id: "([^"]+)"\n  question: "([^"]+)"\n'
-            r'  options: (\[.*?\])\n  timestamp: "([^"]+)"\n',
-            content, re.MULTILINE,
-        )
-        if not match:
+        # Parse the whole file as YAML. A doc-level parse error means every
+        # entry is suspect; bail (don't try to regex through garbage).
+        try:
+            import yaml
+            doc = yaml.safe_load(content) or []
+        except Exception as exc:
+            print(f"[lord_channel] promote: yaml parse failed: {exc}", file=sys.stderr)
             return {}
 
-        request_id, question, options_json, timestamp = match.groups()
-        question = question.replace("\\n", "\n")
-        remaining = content[match.end():]
+        if not isinstance(doc, list) or not doc:
+            return {}
+
+        # Find the first entry that's complete enough to promote.
+        # Required: request_id, question, options, timestamp.
+        required = ("request_id", "question", "options", "timestamp")
+        promote_idx = -1
+        promote_entry = None
+        for idx, entry in enumerate(doc):
+            if not isinstance(entry, dict):
+                print(f"[lord_channel] promote: skip non-dict entry at idx={idx}",
+                      file=sys.stderr)
+                continue
+            missing = [k for k in required if k not in entry]
+            if missing:
+                print(
+                    f"[lord_channel] promote: skip malformed entry "
+                    f"rid={entry.get('request_id', '?')!r} missing={missing}",
+                    file=sys.stderr,
+                )
+                continue
+            if not isinstance(entry.get("options"), list):
+                print(
+                    f"[lord_channel] promote: skip entry rid="
+                    f"{entry.get('request_id', '?')!r} options not a list",
+                    file=sys.stderr,
+                )
+                continue
+            promote_idx = idx
+            promote_entry = entry
+            break
+
+        if promote_entry is None:
+            # Nothing well-formed in the queue. Best-effort: if every entry
+            # was malformed we still want to clear the file so the next
+            # tick doesn't keep failing on the same bad data.
+            tmp_path = self.pending_path.with_suffix(".tmp")
+            try:
+                with open(tmp_path, "w", encoding="utf-8") as f:
+                    f.write("")
+                os.replace(tmp_path, self.pending_path)
+            except Exception:
+                pass
+            return {}
+
+        # Remove the promoted entry from the pending file (preserves order).
+        remaining = doc[:promote_idx] + doc[promote_idx + 1:]
         tmp_path = self.pending_path.with_suffix(".tmp")
         try:
             with open(tmp_path, "w", encoding="utf-8") as f:
-                f.write(remaining)
+                import yaml
+                yaml.safe_dump(remaining, f, allow_unicode=True, sort_keys=False)
             os.replace(tmp_path, self.pending_path)
-        except Exception:
+        except Exception as exc:
+            print(f"[lord_channel] promote: rewrite failed: {exc}", file=sys.stderr)
             return {}
 
-        try:
-            options = json.loads(options_json)
-        except Exception:
-            options = []
-
         question_data = {
-            "request_id": request_id,
-            "question": question,
-            "options": options,
-            "timestamp": timestamp,
+            "request_id": promote_entry["request_id"],
+            "question": promote_entry["question"],
+            "options": promote_entry["options"],
+            "timestamp": str(promote_entry["timestamp"]),
             "status": "pending",
         }
         with self._lock():
@@ -246,6 +313,9 @@ def main():
     ask_p.add_argument("--timeout", type=int, default=30)
     ask_p.add_argument("--telegram-token", default="")
     ask_p.add_argument("--chat-id", default="")
+    ask_p.add_argument("--tag", default="",
+                       help="Compact source tag prepended to the question "
+                            "on Telegram, e.g. 'orchestrator · cmd_104'.")
 
     consume_p = sub.add_parser("consume")
     consume_p.add_argument("--queue-dir", required=True)
@@ -262,7 +332,7 @@ def main():
 
     if args.cmd == "ask":
         options = [o.strip() for o in args.options.split(",") if o.strip()]
-        status, answer = channel.ask(args.question, options, args.timeout)
+        status, answer = channel.ask(args.question, options, args.timeout, tag=args.tag)
         if status == "answered":
             print(answer or "")
             return 0
