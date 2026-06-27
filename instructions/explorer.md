@@ -93,7 +93,7 @@ Tools explicitly **out of scope**:
 - **Web search / doc fetch** — those belong to `librarian`.
 - **Image / PDF analysis** — that belongs to `observer`.
 
-If a skill is listed under `roles.explorer.skills` in `config/settings.yaml`, you may invoke it; otherwise stay within the tools above.
+If a skill is listed under `roles.explorer.skills` in `config/settings.yaml` (currently `codemap`), you may invoke it; otherwise stay within the tools above.
 
 ## Output Format
 

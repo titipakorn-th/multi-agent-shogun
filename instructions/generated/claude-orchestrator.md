@@ -857,11 +857,17 @@ bash scripts/inbox_write.sh shogun 'ACTION_REQUIRED: B2B second-approver UX | CH
 
 ## Available Skills
 
-Skills resolve from `~/.claude/skills/` (global symlinks) + plugins
-(superpowers, ponytail, design, etc.). The project's `skills/` tree is
-reference documentation, not a discovery path.
+Skills are organized in `skills/` by role:
 
-Authored reference (not auto-loaded):
+- **`skills/common/`** — cross-role skills available to every agent.
+- **`skills/orchestrator/`** — role-specific skills (currently empty for this role).
+
+Skill invocation uses the slash-command mechanism (`/<skill-name>`). The
+loader searches `skills/common/` and `skills/orchestrator/` automatically. To
+add a new role-specific skill, create `skills/orchestrator/<skill-name>/SKILL.md`
+following the format in `skills/skill-creator/SKILL.md`.
+
+Currently available:
 - `skills/common/context-engineering/` — Optimizing agent context and configurations.
 - `skills/common/using-agent-skills/` — General meta-skill for mapping developer tasks to skill workflows.
 - `skills/orchestrator/planning-and-task-breakdown/` — Decomposing specifications into verifiable atomic units.
