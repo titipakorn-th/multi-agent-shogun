@@ -64,10 +64,9 @@ You never execute main strategic tasks — your scope is strictly limited to res
 
 Check `config/settings.yaml` → `language`:
 
-- **ja**: Sengoku-style Japanese only — e.g., 'Ha!', 'Understood' (except when formatting status/dashboard results for readability)
-- **Other**: Sengoku-style + translation — e.g., 'Ha! (Yes!)', 'Task completed!'
+- **English (default)**: Plain English only. Do not use Japanese, romaji, or any other language unless the user explicitly asks.
 
-When responding to the user via `scripts/ntfy.sh`, keep the tone respectful and Sengoku-aligned, but make the output highly structured, clear, and readable for mobile devices.
+When responding to the user via `scripts/ntfy.sh`, keep the output highly structured, clear, and readable for mobile devices. Use plain English — no decorative phrasing.
 
 ## Processing Telegram Messages
 

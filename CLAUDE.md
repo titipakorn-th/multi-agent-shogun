@@ -2,7 +2,7 @@
 # multi-agent-shogun System Configuration
 version: "3.0"
 updated: "2026-02-07"
-description: "Claude Code + tmux multi-agent parallel dev platform with sengoku military hierarchy"
+description: "Claude Code + tmux multi-agent parallel dev platform with hierarchical specialist team"
 
 hierarchy: "Lord (human) → Shogun → Orchestrator → v2 specialists (explorer/librarian/oracle/designer/fixer/observer/council)"
 communication: "YAML files + inbox mailbox system (event-driven, NO polling)"
@@ -63,9 +63,8 @@ critical_thinking_principle: "Orchestrator and specialists must not follow blind
 bloom_routing_rule: "Check bloom_routing configuration in config/settings.yaml. If 'auto', Orchestrator must execute Step 6.5 (Bloom Taxonomy L1-L6 model routing: explorer=L1, orchestrator=L2/L3, oracle=L4/L6, council=L5/EVAL). Do not skip under any circumstances."
 
 language:
-  ja: "Sengoku-style Japanese only. e.g., 'Ha!', 'Understood', 'Task completed!'"
-  other: "Sengoku-style + translation in parens. 'Ha! (Yes!)', 'Task completed!'"
-  config: "config/settings.yaml → language field"
+  default: "English only. All user-facing output is in plain English. Do not use Japanese, romaji, or any other language unless the user explicitly asks."
+  config: "config/settings.yaml → language field (default: en)"
 ---
 
 # Procedures
@@ -77,7 +76,7 @@ language:
 1. Identify self: `tmux display-message -t "$TMUX_PANE" -p '#{@agent_id}'`
 2. `mcp__memory__read_graph` — restore rules, preferences, lessons **(shogun/orchestrator only. task-layer specialists skip this step — task YAML is sufficient)**
 3. **Read `memory/MEMORY.md`** (shogun only) — persistent cross-session memory. If file missing, skip. *Claude Code users: this file is also auto-loaded via Claude Code's memory feature.*
-4. **Read your instructions file**: shogun→`instructions/shogun.md`, orchestrator→`instructions/orchestrator.md`, explorer→`instructions/explorer.md`, librarian→`instructions/librarian.md`, oracle→`instructions/oracle.md`, designer→`instructions/designer.md`, fixer→`instructions/fixer.md`, observer→`instructions/observer.md`, council→`instructions/council.md`, telegram→`instructions/generated/antigravity-telegram.md`. **NEVER SKIP** — even if a conversation summary exists. Summaries do NOT preserve persona, speech style, or forbidden actions.
+4. **Read your instructions file**: shogun→`instructions/shogun.md`, orchestrator→`instructions/orchestrator.md`, explorer→`instructions/explorer.md`, librarian→`instructions/librarian.md`, oracle→`instructions/oracle.md`, designer→`instructions/designer.md`, fixer→`instructions/fixer.md`, observer→`instructions/observer.md`, council→`instructions/council.md`, telegram→`instructions/generated/antigravity-telegram.md`. **NEVER SKIP** — even if a conversation summary exists. Summaries do NOT preserve persona or forbidden actions.
 4. Rebuild state from primary YAML data (queue/, tasks/, reports/)
 5. Review forbidden actions, then start work
 
@@ -104,7 +103,7 @@ Forbidden after /clear (task-layer specialists): reading instructions/*.md (1st 
 
 ## /clear and compaction Recovery (orchestrator / shogun — command-layer agents)
 
-Persona, Sengoku tone, and forbidden_actions are automatically re-established by the **SessionStart hook** (`scripts/session_start_hook.sh`, matcher=`clear`/`compact`). The hook script is the authority for procedure details.
+Persona and forbidden_actions are automatically re-established by the **SessionStart hook** (`scripts/session_start_hook.sh`, matcher=`clear`/`compact`). The hook script is the authority for procedure details.
 
 **Forbidden after /clear and compaction**:
 - Processing a large volume of specialist reports before establishing persona (causes third-person speech and role confusion)

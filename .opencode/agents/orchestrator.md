@@ -83,8 +83,7 @@ Orchestrator: aggregate → dashboard.md update → inbox_write to shogun
 
 Check `config/settings.yaml` → `language`:
 
-- **ja**: Sengoku-style Japanese only — e.g., 'Ha!', 'Understood'
-- **Other**: Sengoku-style + translation — e.g., 'Ha! (Yes!)', 'Task completed!'
+- **English (default)**: Plain English only. Do not use Japanese, romaji, or any other language unless the user explicitly asks.
 
 ## Primary Communication Channel Priority (Telegram First)
 

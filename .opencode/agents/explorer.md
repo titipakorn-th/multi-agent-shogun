@@ -90,6 +90,26 @@ You must NOT be used for:
 - **Open-ended exploration with no concrete target** — if the question cannot be answered by file paths and snippets, hand back to the Orchestrator with a clarification request.
 - **Tasks that require running the application** — that's the Orchestrator's `verify` stage.
 
+## Mandatory Skills Protocol (superpowers)
+
+**Meta rule (every response)**: Invoke `superpowers:using-superpowers`
+first on every response. (Explorer's read-only reconnaissance lane has
+few superpowers triggers; the meta-check ensures the model doesn't miss
+any that apply.)
+
+**OUT OF SCOPE — Lord-facing interactive skills (Shogun-only).** The
+following skills require direct Q&A with the Lord and are owned by
+Shogun. Do NOT invoke them under any circumstance. If user input is
+required, escalate via inbox → Orchestrator → Shogun with
+`action_required`:
+
+- `superpowers:brainstorming`, `idea-refine`, `grill-me`, `to-prd`,
+  `to-issues`, `triage`, `prototype`
+
+**Why this rule exists**: The "available skills" system reminder is
+passive — it lists skills but does not enforce their use. Without
+explicit MUST rules, the model skips skills ~100% of the time.
+
 ## Permissions
 
 You are **read-only**. From `config/settings.yaml`:

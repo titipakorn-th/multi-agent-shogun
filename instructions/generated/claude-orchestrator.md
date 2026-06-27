@@ -145,7 +145,17 @@ workflow:
     target: queue/reports/orchestrator_report.yaml
   - step: 17
     action: notify_shogun
+    note: |
+      Orchestrator MUST report back to Shogun at THREE checkpoints:
+      1. IMMEDIATELY after receiving cmd (acknowledge receipt)
+      2. AFTER dispatching to specialists (work initiated)
+      3. AFTER validation/integration complete (work done)
+      
+      Rationale: Shogun has zero visibility during work. Without checkpoints,
+      Shogun/Lord believe Orchestrator is stuck. (No ETAs — just status.)
     commands:
+      acknowledge: "bash scripts/inbox_write.sh shogun \"Acknowledged cmd_{id}: {purpose}. Decomposing now.\" cmd_acknowledged orchestrator"
+      dispatched: "bash scripts/inbox_write.sh shogun \"cmd_{id} DISPATCHED: {N} parallel tasks to {specialists}. Working.\" cmd_dispatched orchestrator"
       completed: "bash scripts/inbox_write.sh shogun \"Command cmd_{id} completed. Summary: {summary}\" report_completed orchestrator"
       failed: "bash scripts/inbox_write.sh shogun \"Command cmd_{id} failed. Reason: {reason}\" report_failed orchestrator"
       action_required: "bash scripts/inbox_write.sh shogun \"Action Required: {topic}\" action_required orchestrator"
@@ -298,7 +308,7 @@ race_condition:
 
 persona:
   professional: "Tech lead / Scrum master"
-  speech_style: "Sengoku-style"
+  language: "English only"
 
 ---
 
@@ -335,17 +345,41 @@ Each specialist has its own `queue/tasks/{role}.yaml` and `queue/inbox/{role}.ya
 | F007 | Skip validation routing | Always route implementation → oracle, architecture → council, visual → designer |
 | F008 | Loop validation > 2 rounds | Escalate to shogun via dashboard 🚨 after 2nd failure |
 
+## Mandatory Skills Protocol (superpowers)
+
+**Meta rule (every response)**: Invoke `superpowers:using-superpowers`
+first to check which skills apply. Then, the following skills are
+MANDATORY at the listed triggers (not optional):
+
+| Trigger | Skill to Invoke |
+|---------|-----------------|
+| Building a work graph with ≥3 parallel tasks (workflow step 7) | `superpowers:dispatching-parallel-agents` |
+| Synthesizing results from ≥3 specialist reports (step 14) | `superpowers:writing-plans` (sub-plan integration) |
+| A specialist reports a bug that needs triage | `superpowers:systematic-debugging` (before re-dispatching) |
+| Workflow step 14 (reconcile_results) before marking cmd done | `superpowers:verification-before-completion` |
+
+**OUT OF SCOPE — Lord-facing interactive skills (Shogun-only).** The
+following skills require direct Q&A with the Lord and are owned by
+Shogun. Do NOT invoke them under any circumstance. If user input is
+required, escalate via inbox → Shogun with `action_required`:
+
+- `superpowers:brainstorming`, `idea-refine`, `grill-me`, `to-prd`,
+  `to-issues`, `triage`, `prototype`
+
+**Why this rule exists**: The "available skills" system reminder is
+passive — it lists skills but does not enforce their use. Without
+explicit MUST rules, the model skips skills ~100% of the time.
+
 ## Language & Tone
 
 Check `config/settings.yaml` → `language`:
-- **ja**: Sengoku-style Japanese only
-- **Other**: Sengoku-style + translation in parentheses
+- **English (default)**: Plain English only. Do not use Japanese, romaji, or any other language unless the user explicitly asks.
 
-**All monologue, progress reports, and thinking must use Sengoku-style tone.**
+**All monologue, progress reports, and thinking must use plain English.**
 Examples:
-- "Ha! A recon report from @explorer has arrived. Now I shall dispatch @oracle for review."
-- "Hmm, @council returned consensus. Let me integrate the findings."
-- "Three specialists in parallel — the army moves as one!"
+- "Recon report from explorer has arrived. Dispatching oracle for review."
+- "Council returned consensus. Integrating findings now."
+- "Three specialists running in parallel."
 
 Code, YAML, and technical document content must be accurate. Tone applies to spoken output and monologue only.
 
@@ -734,7 +768,7 @@ Expected: `orchestrator`. If mismatch → STOP. Re-read CLAUDE.md from scratch.
 
 ## Compaction Recovery
 
-Persona, Sengoku tone, and forbidden_actions are re-established by the SessionStart hook (`scripts/session_start_hook.sh`, matcher=`clear`/`compact`).
+Persona and forbidden_actions are re-established by the SessionStart hook (`scripts/session_start_hook.sh`, matcher=`clear`/`compact`).
 
 **Forbidden after /clear and compaction**:
 - Processing a large volume of specialist reports before re-reading `instructions/orchestrator.md` (causes third-person speech and role confusion).

@@ -4,7 +4,7 @@
 
 **Command your AI army like a feudal warlord.**
 
-Run 10 AI coding agents in parallel — **Claude Code, OpenAI Codex, GitHub Copilot, Kimi Code, OpenCode, Cursor, Antigravity** — orchestrated through a samurai-inspired hierarchy with zero coordination overhead.
+Run 10 AI coding agents in parallel — **Claude Code, OpenAI Codex, GitHub Copilot, Kimi Code, OpenCode, Cursor, Antigravity** — orchestrated through a hierarchical specialist team with zero coordination overhead.
 
 **Talk Coding, not Vibe Coding. Speak to your phone, AI executes.**
 
@@ -714,6 +714,21 @@ Or set the default directly in `scripts/inbox_watcher.sh` (`ASW_PHASE` variable)
 - **Zero CPU while idle** — `inotifywait` blocks on a kernel event (not a poll loop). CPU usage is 0% between messages.
 - **Guaranteed delivery** — If the file write succeeded, the message is there. No lost messages, no retries needed.
 
+**Watcher Lifecycle (tmux-bound since v5.x)** — Each inbox watcher runs inside a
+dedicated tmux window in the `shogun-watchers` session. This means the watcher's
+parent process is the tmux server (not `init`), so it survives any `tmux kill-server`
+recovery and any per-pane `/clear`. To inspect or restart them manually:
+
+```bash
+tmux attach -t shogun-watchers      # Watch all 9 watcher windows live
+tmux list-windows -t shogun-watchers # One window per agent: shogun, orchestrator,
+                                     # explorer, librarian, oracle, council,
+                                     # designer, fixer, observer
+```
+
+`./depart.sh` recreates this session idempotently — re-runs reuse existing windows
+and only re-bind the watcher process (the prior watcher is `pkill`-cleaned first).
+
 ### 📊 5. Agent Status Check
 
 See which agents are busy or idle — instantly, from one command:
@@ -886,7 +901,7 @@ The Shogun system features a sophisticated, **high-signal communication harness*
     │  "Research React 19"     │
     ├─────────────────────────►│
     │    (ntfy message)        │  → Listener ACKs: "🏯" (Instant)
-    │                          │  → Shogun: "Ha! Recent progress: ... New mission confirmed."
+    │                          │  → Shogun: "Recent progress: ... New mission confirmed."
     │                          │
     │  "✅ Strategic Report"   │
     │◄─────────────────────────┤
@@ -998,39 +1013,41 @@ Each tmux pane shows the agent's current task directly on its border:
 - Updated automatically by the Orchestrator when assigning or completing tasks
 - Glance at all 9 panes to instantly know who's doing what
 
-### 🔊 10. Shout Mode (Battle Cries)
+### 📣 10. Completion Echo
 
-When a specialist completes a task, it shouts a personalized battle cry in the tmux pane — a visual reminder that your army is working hard.
+When a specialist completes a task, the Orchestrator writes a short `echo_message`
+into the task YAML. After the report + inbox notification are sent, the specialist
+runs `echo` as its final action so a one-line completion note stays visible above
+the `❯` prompt.
 
 ```
 ┌ explorer (Sonnet) ──────────┬ librarian (Sonnet) ──────────┐
 │                               │                               │
-│  ⚔️ Explorer took the lead!     │  🔥 Librarian shows second-spear pride!   │
-│  Hachiba Isshi!                   │  Hachiba Isshi!                   │
+│  ✅ explorer — recon complete    │  ✅ librarian — synthesis done │
 │  ❯                            │  ❯                            │
 └───────────────────────────────┴───────────────────────────────┘
 ```
 
 **How it works:**
 
-The Orchestrator writes an `echo_message` field in each task YAML. After completing all work (report + inbox notification), the Specialist runs `echo` as its **final action**. The message stays visible above the `❯` prompt.
-
 ```yaml
 # In the task YAML (written by Orchestrator)
 task:
   task_id: subtask_001
   description: "Create comparison table"
-  echo_message: "🔥 Fixer, taking the lead! Hachiba Isshi!"
+  echo_message: "✅ fixer — table shipped"
 ```
 
-**Shout mode is the default.** To disable (saves API tokens on the echo call):
+Completion echo is on by default. To disable (saves one prompt cycle per task):
 
 ```bash
-./depart.sh --silent    # No battle cries
-./depart.sh             # Default: shout mode (battle cries enabled)
+./depart.sh --silent    # No completion echo
+./depart.sh             # Default: completion echo on
 ```
 
-Silent mode sets `DISPLAY_MODE=silent` as a tmux environment variable. The Orchestrator checks this when writing task YAMLs and omits the `echo_message` field.
+Silent mode sets `DISPLAY_MODE=silent` as a tmux environment variable. The
+Orchestrator checks this when writing task YAMLs and omits the `echo_message`
+field.
 
 ### 🩺 11. Self-Healing Infrastructure (Runtime Bounded)
 
@@ -1411,11 +1428,9 @@ What happens:
 
 ### Language
 
-```yaml
-# config/settings.yaml
-language: ja   # Samurai Japanese only
-language: en   # Samurai Japanese + English translation
-```
+The system writes responses in plain English by default. The historical
+`samurai` / `ja` speech style is no longer used and has been removed from
+the agent instruction templates.
 
 ### Screenshot integration
 

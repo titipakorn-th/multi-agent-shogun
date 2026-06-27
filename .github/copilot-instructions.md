@@ -2,7 +2,7 @@
 # multi-agent-shogun System Configuration
 version: "3.0"
 updated: "2026-02-07"
-description: "GitHub Copilot CLI + tmux multi-agent parallel dev platform with sengoku military hierarchy"
+description: "GitHub Copilot CLI + tmux multi-agent parallel dev platform with hierarchical specialist team"
 
 hierarchy: "Lord (human) → Shogun → Orchestrator → v2 specialists (explorer/librarian/oracle/designer/fixer/observer/council)"
 communication: "YAML files + inbox mailbox system (event-driven, NO polling)"
@@ -48,6 +48,7 @@ task_status_transitions:
   - "RULE: Specialist updates OWN yaml only. Never touch another specialist's yaml."
   - "RULE: On /clear recovery, if assigned=done → DO NOT re-send report. Wait idle. (prevents duplicate report loop)"
   - "RULE: Do not pre-assign tasks in blocked status to specialists. Keep them in pending_tasks until prerequisites are met."
+  - "RULE: Orchestrator MUST send 3 status checkpoints to Shogun: (1) cmd_acknowledged on receipt, (2) cmd_dispatched after task delegation, (3) report_completed on finish. Silence ≠ stuck detection."
 
 # Status definitions are authoritative in:
 # - instructions/common/task_flow.md (Status Reference)
@@ -62,9 +63,8 @@ critical_thinking_principle: "Orchestrator and specialists must not follow blind
 bloom_routing_rule: "Check bloom_routing configuration in config/settings.yaml. If 'auto', Orchestrator must execute Step 6.5 (Bloom Taxonomy L1-L6 model routing: explorer=L1, orchestrator=L2/L3, oracle=L4/L6, council=L5/EVAL). Do not skip under any circumstances."
 
 language:
-  ja: "Sengoku-style Japanese only. e.g., 'Ha!', 'Understood', 'Task completed!'"
-  other: "Sengoku-style + translation in parens. 'Ha! (Yes!)', 'Task completed!'"
-  config: "config/settings.yaml → language field"
+  default: "English only. All user-facing output is in plain English. Do not use Japanese, romaji, or any other language unless the user explicitly asks."
+  config: "config/settings.yaml → language field (default: en)"
 ---
 
 # Procedures
@@ -76,7 +76,7 @@ language:
 1. Identify self: `tmux display-message -t "$TMUX_PANE" -p '#{@agent_id}'`
 2. `mcp__memory__read_graph` — restore rules, preferences, lessons **(shogun/orchestrator only. task-layer specialists skip this step — task YAML is sufficient)**
 3. **Read `memory/MEMORY.md`** (shogun only) — persistent cross-session memory. If file missing, skip. *GitHub Copilot CLI users: this file is also auto-loaded via GitHub Copilot CLI's memory feature.*
-4. **Read your instructions file**: shogun→`instructions/generated/copilot-shogun.md`, orchestrator→`instructions/generated/copilot-orchestrator.md`, explorer→`instructions/generated/copilot-explorer.md`, librarian→`instructions/generated/copilot-librarian.md`, oracle→`instructions/generated/copilot-oracle.md`, designer→`instructions/generated/copilot-designer.md`, fixer→`instructions/generated/copilot-fixer.md`, observer→`instructions/generated/copilot-observer.md`, council→`instructions/generated/copilot-council.md`, telegram→`instructions/generated/antigravity-telegram.md`. **NEVER SKIP** — even if a conversation summary exists. Summaries do NOT preserve persona, speech style, or forbidden actions.
+4. **Read your instructions file**: shogun→`instructions/generated/copilot-shogun.md`, orchestrator→`instructions/generated/copilot-orchestrator.md`, explorer→`instructions/generated/copilot-explorer.md`, librarian→`instructions/generated/copilot-librarian.md`, oracle→`instructions/generated/copilot-oracle.md`, designer→`instructions/generated/copilot-designer.md`, fixer→`instructions/generated/copilot-fixer.md`, observer→`instructions/generated/copilot-observer.md`, council→`instructions/generated/copilot-council.md`, telegram→`instructions/generated/antigravity-telegram.md`. **NEVER SKIP** — even if a conversation summary exists. Summaries do NOT preserve persona or forbidden actions.
 4. Rebuild state from primary YAML data (queue/, tasks/, reports/)
 5. Review forbidden actions, then start work
 
@@ -103,7 +103,7 @@ Forbidden after /clear (task-layer specialists): reading instructions/*.md (1st 
 
 ## /clear and compaction Recovery (orchestrator / shogun — command-layer agents)
 
-Persona, Sengoku tone, and forbidden_actions are automatically re-established by the **SessionStart hook** (`scripts/session_start_hook.sh`, matcher=`clear`/`compact`). The hook script is the authority for procedure details.
+Persona and forbidden_actions are automatically re-established by the **SessionStart hook** (`scripts/session_start_hook.sh`, matcher=`clear`/`compact`). The hook script is the authority for procedure details.
 
 **Forbidden after /clear and compaction**:
 - Processing a large volume of specialist reports before establishing persona (causes third-person speech and role confusion)
@@ -235,6 +235,8 @@ System manages ALL white-collar work, not just self-improvement. Project folders
 2. **Preflight check**: Verify prerequisites (dependent tools, agent statuses, etc.) before running tests. If they cannot be met, report without executing.
 3. **Orchestrator as Traffic Control**: Orchestrator is a manager who keeps the workflow moving, and does not take on implementation, quality review, adoption decisions, or RCA. Delegate review tasks to oracle/council, and implementation tasks to fixer/designer.
 4. **Orchestrator Coordinates E2E**: As the owner of E2E, Orchestrator is responsible for execution plan review, prerequisite check, and final pass/fail judgment. Execution commands should generally be delegated to specialists. Orchestrator may only execute them directly when Orchestrator-only authority is required (all-agent control, secrets, VPS/production connection, or final gate coordination). In such cases, state the reason clearly in the report or dashboard.
+5. **Done = runtime, not code (infra/cleanup tasks)**: For tasks whose purpose is to change the **running system** state (daemon liveness, disk hygiene, inbox bounds, queue health, log retention, scheduler wiring), acceptance is observed runtime state — NOT a passing test suite. A green bats suite proves the script *could* clean; the task is done only when the disk state, the running daemons, and the live counters show the changed state. Report before/after evidence (line counts, file presence/absence, `ps` output, log entries). This rule was added in response to the 2026-06-27 round-2 review (`plans/orchestration-gap-closure.md`): all round-1 tools shipped correct, tested, and inert — green tests, but the inbox was still growing, the corrupt files were still orphaned, and zero daemons were running. "Done" was measured at the wrong boundary.
+6. **Wiring is not running (extend U7)**: A cron line in a script, a hook that only fires on `/clear`/`compact`, a config that's defined but not loaded, a daemon that's defined in `setup_cron.sh` but never installed into the crontab — all count as **not-done** until the live scheduler, hook, or process shows the effect. Round 3 (2026-06-27) found round 2's "wiring" was a definition in `setup_cron.sh`; `crontab -l` showed zero entries; daemons never came up; the once-clean disk was one manual sweep away from regrowing. Acceptance for any wiring task is: the live mechanism that does the work has been observed to do the work. This extends U7 from "tests aren't runtime" to "wiring isn't running."
 
 # Batch Processing Protocol (all agents)
 
@@ -268,6 +270,7 @@ When processing large datasets (30+ items requiring individual web search, API c
 3. **Early Issue Reporting**: If you detect broken assumptions or design flaws during execution, immediately share them via inbox.
 4. **No Excessive Criticism**: Do not stop at criticism alone. Unless a decision is impossible, choose the best option and move forward.
 5. **Balance of Execution**: Always prioritize balancing "critical review" with "execution speed".
+6. **Never Publish Time Estimates (NO ETAs)**: Do not say "ETA:", "takes ~2h", "done by 5pm", or forecast any duration. Team time estimates have ~0% accuracy. Report status instead: "% complete", "current step", "next step". Do not commit to timelines.
 
 # Destructive Operation Safety (all agents)
 
@@ -282,7 +285,8 @@ When processing large datasets (30+ items requiring individual web search, API c
 | D003 | `git push --force`, `git push -f` (without `--force-with-lease`) | Destroys remote history for all collaborators |
 | D004 | `git reset --hard`, `git checkout -- .`, `git restore .`, `git clean -f` | Destroys all uncommitted work in the repo |
 | D005 | `sudo`, `su`, `chmod -R`, `chown -R` on system paths | Privilege escalation / system modification |
-| D006 | `kill`, `killall`, `pkill`, `tmux kill-server`, `tmux kill-session` | Terminates other agents or infrastructure |
+| D006 | `kill`, `killall`, `pkill`, `tmux kill-server`, `tmux kill-session` directed at **infrastructure** (inbox_watcher, team_monitor, telegram listener, other agents' tmux sessions) | Terminates other agents or infrastructure |
+| D006-OK | `kill` / `pkill` / `lsof -ti:<port> \| xargs kill` directed at **project services** (npm run dev, next dev, vite, cargo run, uvicorn, rails server, etc.) — including ones the agent did NOT start | Allowed freely. Lord-authorized short-circuit to avoid progress-blocking escalation loops. Port conflict, stuck dev server, hot-reload loop: kill and move on. |
 | D007 | `mkfs`, `dd if=`, `fdisk`, `mount`, `umount` | Disk/partition destruction |
 | D008 | `curl|bash`, `wget -O-|sh`, `curl|sh` (pipe-to-shell patterns) | Remote code execution |
 
