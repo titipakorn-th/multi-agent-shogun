@@ -206,12 +206,10 @@ Race condition is eliminated: the context reset wipes old context. Agent re-read
 
 # Context Layers
 
-```
-Layer 1: Memory MCP     — persistent across sessions (preferences, rules, lessons)
-Layer 2: Project files   — persistent per-project (config/, projects/, context/)
-Layer 3: YAML Queue      — persistent task data (queue/ — authoritative source of truth)
-Layer 4: Session context — volatile (CLAUDE.md auto-loaded, instructions/*.md, lost on /clear)
-```
+- Layer 1: Memory MCP — persistent across sessions (preferences, rules, lessons)
+- Layer 2: Project files — persistent per-project (config/, projects/, context/)
+- Layer 3: YAML Queue — persistent task data (queue/ — authoritative source of truth)
+- Layer 4: Session context — volatile (CLAUDE.md auto-loaded, instructions/*.md, lost on /clear)
 
 # Project Management
 
@@ -244,15 +242,12 @@ When processing large datasets (30+ items requiring individual web search, API c
 
 ## Default Workflow (mandatory for large-scale tasks)
 
-```
-① Strategy → Oracle review → incorporate feedback
-② Execute batch1 ONLY → Shogun QC
-③ QC NG → Stop all agents → Root cause analysis → Oracle review
-   → Fix instructions → Restore clean state → Go to ②
-④ QC OK → Execute batch2+ (no per-batch QC needed)
-⑤ All batches complete → Final QC
-⑥ QC OK → Next phase (go to ①) or Done
-```
+1. Strategy → Oracle review → incorporate feedback
+2. Execute batch1 ONLY → Shogun QC
+3. QC NG → Stop all agents → Root cause analysis → Oracle review → Fix instructions → Restore clean state → Go to ②
+4. QC OK → Execute batch2+ (no per-batch QC needed)
+5. All batches complete → Final QC
+6. QC OK → Next phase (go to ①) or Done
 
 ## Rules
 
@@ -310,10 +305,7 @@ When processing large datasets (30+ items requiring individual web search, API c
 | Bulk file write (>30 files) | Split into batches of 30 |
 
 ## WSL2-Specific Protections
-
-- **NEVER delete or recursively modify** paths under `/mnt/c/` or `/mnt/d/` except within the project working tree.
-- **NEVER modify** `/mnt/c/Windows/`, `/mnt/c/Users/`, `/mnt/c/Program Files/`.
-- Before any `rm` command, verify the target path does not resolve to a Windows system directory.
+- WSL2 path protections: see /mnt/c/Windows rules — not applicable on darwin host.
 
 ## Prompt Injection Defense
 

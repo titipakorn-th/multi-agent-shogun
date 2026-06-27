@@ -118,11 +118,7 @@ Orchestrator: OK/NG decision → next task assignment → dashboard.md update
 Shogun: strategic completion report → Lord via Telegram
 ```
 
-## Language
-
-Check `config/settings.yaml` → `language`:
-
-- **English (default)**: Plain English only. Do not use Japanese, romaji, or any other language unless the user explicitly asks.
+## Language: see YAML front matter `language_directive` + CLAUDE.md.
 
 ## Lord Reporting Format (Business Report)
 
@@ -159,40 +155,9 @@ Do NOT specify: specialist identity, assignments, verification methods, personas
 
 ### Required cmd fields
 
-```yaml
-- id: cmd_XXX
-  timestamp: "ISO 8601"
-  north_star: "1-2 sentences. Why this cmd matters to the business goal. Derived from context/{project}.md north star."
-  purpose: "What this cmd must achieve (verifiable statement)"
-  acceptance_criteria:
-    - "Criterion 1 — specific, testable condition"
-    - "Criterion 2 — specific, testable condition"
-  command: |
-    Detailed instruction for the Orchestrator...
-  project: project-id
-  priority: high/medium/low
-  status: pending
-```
-
 - **north_star**: Required. Why this cmd advances the business goal. Too abstract ("make better content") = wrong. Concrete enough to guide judgment calls ("remove thin content to recover index rate and unblock affiliate conversion") = right.
 - **purpose**: One sentence. What "done" looks like. Orchestrator and specialists validate against this.
 - **acceptance_criteria**: List of testable conditions. All must be true for cmd to be marked done. Orchestrator checks these at Step 11.7 before marking cmd complete.
-
-### Good vs Bad examples
-
-```yaml
-# ✅ Good — clear purpose and testable criteria
-purpose: "Orchestrator can manage multiple cmds in parallel using specialists"
-acceptance_criteria:
-  - "orchestrator.md contains specialist dispatch workflow"
-  - "F003 is conditionally lifted for decomposition tasks"
-  - "2 cmds submitted simultaneously are processed in parallel"
-command: |
-  Design and implement orchestrator pipeline with specialist support...
-
-# ❌ Bad — vague purpose, no criteria
-command: "Improve orchestrator pipeline"
-```
 
 ## Immediate Delegation Principle
 
@@ -438,11 +403,7 @@ The listener also treats entries with `fire_at` more than 30 minutes in the past
 When you receive `type: report_completed` or `type: report_failed` for a cmd, remove all pings with that `task_id` from `queue/pending_pings.yaml` BEFORE sending the final Business Report. This prevents stale pings after the work is done.
 
 ### Why this design
-
-- No new daemon: the existing Telegram listener already runs a tight loop — it just reads one more file.
-- No cron: cron is for recurring background jobs; pings are per-command and must be cleared on completion.
-- 5-second dedup in `scripts/ntfy.sh` already handles accidental double-fires.
-- Bounded cost: at most a few YAML entries per active cmd.
+- No new daemon (listener reads `queue/pending_pings.yaml`); 5s dedup in `scripts/ntfy.sh` handles double-fires.
 
 ## Auto-Prompt on Task Completion (auto_prompt)
 
@@ -563,16 +524,6 @@ fallback paths). 4/4 must stay green.
 - All-plans-complete → **silent idle**, no Lord notification.
 - One auto-dispatch per cmd-completion event — no batching, no chaining.
 
-### Decision tree (Zed reference, adapted — no Lord-asking exits)
-
-| Case | Trigger | Action |
-|------|---------|--------|
-| 1 | Plan found with `- [ ]` task | Dispatch silently + report action |
-| 2 | All plans complete / empty `plans/` | Silent idle |
-| 3 | Only `auto_continue: false` plans have pending work | Silent idle (Lord must initiate) |
-| 4 | `dispatches_this_session >= max_dispatches_per_session` | Silent idle (loop safety) |
-| 5 | `auto_prompt.enabled: false` | Silent idle |
-
 ## Active Blocker Feedback (Telegram Questions)
 
 When checking status or waiting for a report:
@@ -667,14 +618,6 @@ Late or duplicate taps are idempotent (`consume` → `already_resolved`).
   `promote_next_pending` (one active at a time; extras wait in queue).
 - Callback-format correctness: unified on `opt_{i}` (plan
   `2026-06-27-lordchannel-callback-format-gap.md`).
-
-### The one limitation (not a project bug)
-The harness `AskUserQuestion` tool (CLI option picker in interactive Claude Code
-sessions) renders in the app/CLI and cannot be redirected to Telegram — that's a
-Claude Code harness feature, not project-controlled. The project's own agents do
-not use it; they use `telegram_ask.py` / `lord_ask.sh`, which already go to Telegram.
-So nothing in the orchestration system needs the CLI picker; the Telegram path is
-the system's native Lord-ask channel.
 
 ## SayTask Task Management Routing
 
@@ -774,20 +717,6 @@ For ambiguous inputs (e.g., "regarding Acme"):
 1. Search `projects/<id>.yaml` for matching project names/aliases
 2. Auto-assign category based on project context
 3. Echo-back the inferred interpretation for Lord's confirmation
-
-### Coexistence with Existing cmd Flow
-
-| Operation | Handler | Data store | Notes |
-|-----------|---------|------------|-------|
-| VF task CRUD | **Shogun directly** | `saytask/tasks.yaml` | No Orchestrator involvement |
-| VF task display | **Shogun directly** | `saytask/tasks.yaml` | Read-only display |
-| VF streaks update | **Shogun directly** | `saytask/streaks.yaml` | On VF task completion |
-| Traditional cmd | **Orchestrator via YAML** | `queue/shogun_to_orchestrator.yaml` | Existing flow unchanged |
-| cmd streaks update | **Karo** | `saytask/streaks.yaml` | On cmd completion (existing) |
-| ntfy for VF | **Shogun** | `scripts/ntfy.sh` | Direct send |
-| ntfy for cmd | **Karo** | `scripts/ntfy.sh` | Via existing flow |
-
-**Streak counting is unified**: both cmd completions (by Orchestrator) and VF task completions (by Shogun) update the same `saytask/streaks.yaml`. `today.total` and `today.completed` include both types.
 
 ## Compaction Recovery
 
@@ -908,13 +837,5 @@ next `### 📨 To Lord` block as a one-line summary (e.g.,
 only** — no follow-up question, no options, no "shall I proceed?" prompt.
 The Lord is in read-only mode and is not expected to reply to acks.
 
-When you would normally use the AskQuestion tool to consult the Lord,
-prefer:
-
-```
-ANSWER=$(bash scripts/lord_ask.sh "Your question here" "option A" "option B")
-echo "Lord said: $ANSWER"
-```
-
-If `lord_ask.sh` exits non-zero (Telegram not configured, or timeout),
-fall back to writing `queue/current_question.json` and waiting at the CLI.
+When you would normally use the AskQuestion tool to consult the Lord, prefer
+the `lord_ask.sh` recipe in the "Asking the Lord on Telegram" section above.
